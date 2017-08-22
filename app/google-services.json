@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "90527173109",
+    "firebase_url": "https://kentai-messenger.firebaseio.com",
+    "project_id": "kentai-messenger",
+    "storage_bucket": "kentai-messenger.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:90527173109:android:9f69a194e83356c4",
+        "android_client_info": {
+          "package_name": "de.intektor.kentai"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "90527173109-4lt1djb166n75al9a6jqprao840ra1g4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "de.intektor.kentai",
+            "certificate_hash": "7fec16b93ae291156753ea9aa59df072fce23e97"
+          }
+        },
+        {
+          "client_id": "90527173109-8r0hsvb6c0h9plagigv741volitn87v4.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCWs6FS7-PFkC8LQeSaNsYw3ZlRn4-Vk6U"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 2,
+          "other_platform_oauth_client": [
+            {
+              "client_id": "90527173109-8r0hsvb6c0h9plagigv741volitn87v4.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:app="http://schemas.android.com/apk/res-auto" android:id="@+id/bubble_layout_parent"
+              android:layout_width="match_parent"
+              android:layout_height="wrap_content"
+              android:gravity="right"
+              android:orientation="vertical">
+
+    <LinearLayout
+            android:id="@+id/bubble_layout"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bubble_right">
+
+        <TextView
+                android:id="@+id/message_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:maxEms="12"
+                android:layout_gravity="center"
+                android:text="Hi! new message"
+                android:textColor="@android:color/primary_text_light"/>
+    </LinearLayout>
+    <LinearLayout
+            android:orientation="horizontal"
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent">
+        <TextView
+                android:text="TextView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:id="@+id/chatbubble_time_view" android:layout_weight="1"
+                android:paddingEnd="5dp"/>
+        <ImageView
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent" app:srcCompat="@drawable/waiting"
+                android:id="@+id/chatbubble_status_view"
+                android:layout_weight="1" android:alpha="1"/>
+    </LinearLayout>
+
+</LinearLayout>
