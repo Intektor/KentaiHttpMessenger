@@ -19,7 +19,7 @@ fun createChat(chatInfo: ChatInfo, dataBase: SQLiteDatabase) {
     for (i in 0 until chatInfo.participants.size) {
         statement = dataBase.compileStatement("INSERT INTO chat_participants (chat_uuid, participant_uuid) VALUES(?, ?)")
         statement.bindString(1, chatInfo.chatUUID.toString())
-        statement.bindString(2, (chatInfo.participants[i]))
+        statement.bindString(2, chatInfo.participants[i].receiverUUID.toString())
         statement.execute()
     }
 }

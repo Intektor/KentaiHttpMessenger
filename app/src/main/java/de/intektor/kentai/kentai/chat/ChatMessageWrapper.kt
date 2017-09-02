@@ -6,17 +6,4 @@ import de.intektor.kentai_http_common.chat.MessageStatus
 /**
  * @author Intektor
  */
-class ChatMessageWrapper {
-
-    var message: ChatMessage
-    var status: MessageStatus
-    var client: Boolean = false
-    var statusChangeTime: Long = 0L
-
-    constructor(message: ChatMessage, status: MessageStatus, client: Boolean, statusChangeTime: Long) {
-        this.message = message
-        this.status = status
-        this.client = client
-        this.statusChangeTime = statusChangeTime
-    }
-}
+data class ChatMessageWrapper(var message: ChatMessage, var status: MessageStatus, var client: Boolean, var statusChangeTime: Long)

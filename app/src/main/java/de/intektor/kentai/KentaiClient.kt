@@ -2,6 +2,7 @@ package de.intektor.kentai
 
 import android.app.Activity
 import android.app.Application
+import android.app.NotificationChannel
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -11,6 +12,7 @@ import android.database.sqlite.SQLiteDatabase
 import android.net.ConnectivityManager
 import android.net.NetworkInfo
 import android.os.AsyncTask
+import android.os.Bundle
 import android.os.Parcelable
 import android.support.v4.content.LocalBroadcastManager
 import de.intektor.kentai.fragment.ViewAdapter
@@ -18,6 +20,7 @@ import de.intektor.kentai.kentai.DbHelper
 import de.intektor.kentai.kentai.chat.ChatInfo
 import de.intektor.kentai.kentai.chat.ChatMessageWrapper
 import de.intektor.kentai.kentai.chat.ChatReceiver
+import de.intektor.kentai.kentai.httpPost
 import de.intektor.kentai.kentai.internalFile
 import de.intektor.kentai_http_common.chat.ChatMessage
 import de.intektor.kentai_http_common.chat.ChatMessageRegistry
@@ -27,12 +30,12 @@ import de.intektor.kentai_http_common.client_to_server.FetchMessageRequest
 import de.intektor.kentai_http_common.client_to_server.SendChatMessageRequest
 import de.intektor.kentai_http_common.gson.genGson
 import de.intektor.kentai_http_common.server_to_client.SendChatMessageResponse
-import de.intektor.kentai_http_common.util.encryptRSA
-import de.intektor.kentai_http_common.util.toKey
+import de.intektor.kentai_http_common.util.*
 import java.io.*
-import java.net.URL
-import java.net.URLConnection
+import java.security.Key
 import java.util.*
+import android.app.NotificationManager
+import android.graphics.Color
 
 
 /**
@@ -42,15 +45,22 @@ class KentaiClient : Application() {
 
     lateinit var username: String
     lateinit var userUUID: UUID
-    lateinit var internalStorage: File
-
-    var currentActivity: Activity? = null
 
     lateinit var dbHelper: DbHelper
 
     lateinit var dataBase: SQLiteDatabase
 
+    var currentActivity: Activity? = null
+
     val pendingMessages: MutableList<PendingMessage> = mutableListOf()
+
+    var privateAuthKey: Key? = null
+    var publicAuthKey: Key? = null
+
+    var privateMessageKey: Key? = null
+    var publicMessageKey: Key? = null
+
+    private var activitiesStarted = 0
 
     companion object {
         lateinit var INSTANCE: KentaiClient
@@ -119,32 +129,27 @@ class KentaiClient : Application() {
                 "PRIMARY KEY (message_uuid));" +
                 "CREATE INDEX chat_uuid_index ON chat_table (chat_uuid);")
 
-        pendingMessages.addAll(buildPendingMessages())
-        sendPendingMessages(pendingMessages)
+        dataBase.execSQL("CREATE TABLE IF NOT EXISTS fetching_messages (" +
+                "chat_uuid VARCHAR(45) NOT NULL REFERENCES chats(chat_uuid) ON DELETE CASCADE, " +
+                "message_uuid VARCHAR(45) NOT NULL, " +
+                "PRIMARY KEY (message_uuid));")
 
-        val connectionReceiver: BroadcastReceiver = object : BroadcastReceiver() {
+        dataBase.execSQL("CREATE TABLE IF NOT EXISTS notification_messages (" +
+                "chat_uuid VARCHAR(40) NOT NULL, " +
+                "sender_uuid VARCHAR(40) NOT NULL, " +
+                "message_uuid VARCHAR(40) NOT NULL, " +
+                "preview_text VARCHAR(60) NOT NULL, " +
+                "time BIGINT NOT NULL, " +
+                "PRIMARY KEY (message_uuid))")
+
+        val chatNotificationBroadcastReceiver: BroadcastReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
-                val extras = intent.extras
-                val info = extras.getParcelable<Parcelable>("networkInfo") as NetworkInfo
-                val state = info.state
-
-                if (state == NetworkInfo.State.CONNECTED) {
-                    sendPendingMessages(buildPendingMessages())
-                }
-            }
-        }
-        registerReceiver(connectionReceiver, IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION))
-
-        LocalBroadcastManager.getInstance(this).registerReceiver(object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                val activity = KentaiClient.INSTANCE.currentActivity
-
+                val activity = currentActivity
                 val chatUUID = UUID.fromString(intent.getStringExtra("chatUUID"))
                 val senderName = intent.getStringExtra("senderName")
                 val senderUUID = UUID.fromString(intent.getStringExtra("senderUUID"))
                 val unreadMessages = intent.getIntExtra("unreadMessages", 0)
                 val message_id = UUID.fromString(intent.getStringExtra("message.id"))
-                val message_senderUUID = UUID.fromString(intent.getStringExtra("message.senderUUID"))
                 val message_text = intent.getStringExtra("message.text")
                 val message_additionalInfo = intent.getByteArrayExtra("message.additionalInfo")
                 val message_timeSent = intent.getLongExtra("message.timeSent", 0L)
@@ -164,13 +169,91 @@ class KentaiClient : Application() {
                 } else if (activity is OverviewActivity) {
                     val currentChats = activity.getCurrentChats()
                     if (!currentChats.any { it.chatInfo.chatUUID == chatUUID }) {
-                        activity.addChat(ViewAdapter.ChatItem(ChatInfo(chatUUID, senderName, ChatType.TWO_PEOPLE, listOf(senderUUID.toString(), userUUID.toString())), wrapper, unreadMessages))
+                        val cursor = dataBase.rawQuery("SELECT message_key FROM contacts WHERE user_uuid = ?", arrayOf(senderUUID.toString()))
+                        val senderKey = cursor.getString(0)?.toKey()
+                        cursor.close()
+
+                        activity.addChat(ViewAdapter.ChatItem(ChatInfo(chatUUID, senderName, ChatType.TWO_PEOPLE, listOf(ChatReceiver(senderUUID, senderKey, ChatReceiver.ReceiverType.USER), ChatReceiver(userUUID, publicMessageKey!!, ChatReceiver.ReceiverType.USER))), wrapper, unreadMessages))
                     } else {
                         activity.updateLatestChatMessage(chatUUID, wrapper, unreadMessages)
                     }
                 }
+                abortBroadcast()
             }
-        }, IntentFilter(FetchMessageRequest.TARGET))
+        }
+
+        registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
+            override fun onActivityPaused(activity: Activity?) {
+
+            }
+
+            override fun onActivityResumed(activity: Activity?) {
+                currentActivity = activity
+            }
+
+            override fun onActivityStarted(activity: Activity?) {
+                currentActivity = activity
+                if (activitiesStarted == 0) {
+                    val filter = IntentFilter("de.intektor.kentai.chatNotification")
+                    filter.priority = 1
+                    this@KentaiClient.registerReceiver(chatNotificationBroadcastReceiver, filter)
+                }
+                activitiesStarted++
+            }
+
+            override fun onActivityDestroyed(activity: Activity?) {
+            }
+
+            override fun onActivitySaveInstanceState(activity: Activity?, outState: Bundle?) {
+            }
+
+            override fun onActivityStopped(activity: Activity?) {
+                activitiesStarted--
+                if (activitiesStarted == 0) {
+                    this@KentaiClient.unregisterReceiver(chatNotificationBroadcastReceiver)
+                }
+            }
+
+            override fun onActivityCreated(activity: Activity?, savedInstanceState: Bundle?) {
+                currentActivity = activity
+            }
+
+        })
+
+        if (privateAuthKey == null) {
+            val messagePublic = File(filesDir.path + "/keys/encryptionKeyPublic.key")
+            val messagePrivate = File(filesDir.path + "/keys/encryptionKeyPrivate.key")
+            val authPublic = File(filesDir.path + "/keys/authKeyPublic.key")
+            val authPrivate = File(filesDir.path + "/keys/authKeyPrivate.key")
+
+            if (messagePublic.exists()) {
+                this.publicMessageKey = readKey(DataInputStream(messagePublic.inputStream()))
+                this.privateMessageKey = readPrivateKey(DataInputStream(messagePrivate.inputStream()))
+
+                this.publicAuthKey = readKey(DataInputStream(authPublic.inputStream()))
+                this.privateAuthKey = readPrivateKey(DataInputStream(authPrivate.inputStream()))
+            }
+        }
+
+        pendingMessages.addAll(buildPendingMessages())
+        if (pendingMessages.isNotEmpty()) {
+            sendPendingMessages(pendingMessages)
+        }
+        val connectionReceiver: BroadcastReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                val extras = intent.extras
+                val info = extras.getParcelable<Parcelable>("networkInfo") as NetworkInfo
+                val state = info.state
+
+                if (state == NetworkInfo.State.CONNECTED) {
+                    pendingMessages.addAll(buildPendingMessages())
+                    if (pendingMessages.isNotEmpty()) {
+                        sendPendingMessages(pendingMessages)
+                    }
+                }
+            }
+        }
+        registerReceiver(connectionReceiver, IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION))
 
 //        LocalBroadcastManager.getInstance(this).registerReceiver(object : BroadcastReceiver() {
 //            override fun onReceive(context: Context, intent: Intent) {
@@ -187,20 +270,30 @@ class KentaiClient : Application() {
 //                }
 //            }
 //        }, IntentFilter(ChangeMessageStatusPacketToClientHandler::class.java.simpleName))
+
+        if (!File(filesDir.path + "/username.info").exists()) {
+            val intent = Intent(applicationContext, RegisterActivity::class.java)
+            startActivity(intent)
+        } else {
+            val intent = Intent(applicationContext, OverviewActivity::class.java)
+            startActivity(intent)
+        }
     }
 
     fun buildPendingMessages(): List<PendingMessage> {
         val list = mutableListOf<PendingMessage>()
-        val cursor: Cursor = dataBase.rawQuery("SELECT chat_uuid, message_uuid FROM waiting_to_send;", null)
+        val cursor: Cursor = dataBase.rawQuery("SELECT chat_uuid, message_uuid FROM pending_messages;", null)
         while (cursor.moveToNext()) {
             val chatUUID = UUID.fromString(cursor.getString(0))
             val messageUUID = UUID.fromString(cursor.getString(1))
 
             val sendTo = mutableListOf<ChatReceiver>()
 
-            val cursor4 = dataBase.rawQuery("SELECT participant_uuid, B.message_key FROM chat_participants A WHERE message_uuid = '$messageUUID' LEFT JOIN kentai.contacts B ON A.user_uuid = B.participant_uuid", null)
-            while (cursor.moveToNext()) {
-                sendTo.add(ChatReceiver(UUID.fromString(cursor4.getString(0)), cursor.getString(1).toKey(), ChatReceiver.ReceiverType.USER))
+            val cursor4 = dataBase.rawQuery("SELECT chat_participants.participant_uuid, contacts.message_key FROM chat_participants LEFT JOIN contacts ON contacts.user_uuid = chat_participants.participant_uuid WHERE chat_participants.chat_uuid = '$chatUUID'", null)
+            while (cursor4.moveToNext()) {
+                val participantUUID = UUID.fromString(cursor4.getString(0))
+                val key = cursor4.getString(1)
+                sendTo.add(ChatReceiver(participantUUID, key.toKey(), ChatReceiver.ReceiverType.USER))
             }
             cursor4.close()
 
@@ -236,39 +329,36 @@ class KentaiClient : Application() {
     data class PendingMessage(val message: ChatMessageWrapper, val chatUUID: UUID, val sendTo: List<ChatReceiver>)
 
     fun sendPendingMessages(list: List<PendingMessage>) {
+        if (privateAuthKey == null) {
+            privateAuthKey = readPrivateKey(DataInputStream(File(filesDir.path + "/keys/authKeyPrivate.key").inputStream()))
+        }
         object : AsyncTask<Unit, Unit, Unit>() {
             override fun doInBackground(vararg params: Unit?) {
-                val connection: URLConnection = URL("localhost/" + SendChatMessageRequest.TARGET).openConnection()
-                connection.readTimeout = 15000
-                connection.connectTimeout = 15000
-                connection.doInput = true
-                connection.doOutput = true
-
                 val gson = genGson()
                 val sendingMap = mutableListOf<SendChatMessageRequest.SendingMessage>()
 
                 for ((message, chatUUID, sendTo) in list) {
-                    val previewText = message.message.text.substring(0..Math.min(message.message.text.length, 20))
+                    val previewText = message.message.text.substring(0 until Math.min(message.message.text.length, 20))
                     val registryId = ChatMessageRegistry.getID(message.message.javaClass).toString()
                     for ((receiverUUID, publicKey) in sendTo) {
-                        val encryptedPreviewText = previewText.encryptRSA(publicKey)
-                        val encryptedRegistryID = registryId.encryptRSA(publicKey)
-                        val encryptedReceiverUUID = receiverUUID.toString().encryptRSA(publicKey)
-                        val sendingMessage = SendChatMessageRequest.SendingMessage(message.message, userUUID, encryptedReceiverUUID, chatUUID, encryptedRegistryID, encryptedPreviewText)
+                        val encryptedPreviewText = previewText.encryptRSA(publicKey!!)
+                        val encryptedReceiverUUID = receiverUUID.toString().encryptRSA(privateAuthKey!!)
+                        val sendingMessage = SendChatMessageRequest.SendingMessage(message.message, userUUID, encryptedReceiverUUID, chatUUID, registryId, encryptedPreviewText)
                         sendingMessage.encrypt(publicKey)
                         sendingMap.add(sendingMessage)
                     }
                 }
 
-                gson.toJson(SendChatMessageRequest(sendingMap), BufferedWriter(OutputStreamWriter(connection.getOutputStream())))
-                val response = gson.fromJson(InputStreamReader(connection.getInputStream()), SendChatMessageResponse::class.java)
-                if (response.id == 0) {
-                    dataBase.compileStatement("DELETE FROM pending_messages WHERE message_uuid = ?;".repeat(list.size)).use { statement ->
-                        for ((i, pendingMessage) in list.withIndex()) {
-                            statement.bindString(i + 1, pendingMessage.message.message.id.toString())
+                val response = httpPost(gson.toJson(SendChatMessageRequest(sendingMap)), SendChatMessageRequest.TARGET)
+                val res = gson.fromJson(response, SendChatMessageResponse::class.java)
+                if (res.id == 0) {
+                    for (pendingMessage in list) {
+                        dataBase.compileStatement("DELETE FROM pending_messages WHERE message_uuid = ?;").use { statement ->
+                            statement.bindString(1, pendingMessage.message.message.id.toString())
+                            statement.execute()
                         }
-                        statement.execute()
                     }
+                    pendingMessages.clear()
                 }
             }
         }.execute()

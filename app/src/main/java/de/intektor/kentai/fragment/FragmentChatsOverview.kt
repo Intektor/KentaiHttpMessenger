@@ -15,7 +15,9 @@ import de.intektor.kentai.R
 import de.intektor.kentai.fragment.ViewAdapter.ChatItem
 import de.intektor.kentai.kentai.chat.ChatInfo
 import de.intektor.kentai.kentai.chat.ChatMessageWrapper
+import de.intektor.kentai.kentai.chat.ChatReceiver
 import de.intektor.kentai_http_common.chat.*
+import de.intektor.kentai_http_common.util.toKey
 import java.util.*
 import kotlin.collections.HashMap
 
@@ -44,11 +46,13 @@ class FragmentChatsOverview : Fragment() {
                 val chatUUID = UUID.fromString(cursor.getString(1))
                 val chatType = ChatType.values()[cursor.getInt(2)]
 
-                val cursor4 = KentaiClient.INSTANCE.dataBase.rawQuery("SELECT participant_uuid FROM chat_participants WHERE chat_uuid = '$chatUUID'", null)
+                val cursor4 = KentaiClient.INSTANCE.dataBase.rawQuery("SELECT chat_participants.participant_uuid, contacts.message_key FROM chat_participants LEFT JOIN contacts ON contacts.user_uuid = chat_participants.participant_uuid WHERE chat_uuid = '$chatUUID'", null)
 
-                val participantsList = mutableListOf<String>()
+                val participantsList = mutableListOf<ChatReceiver>()
                 while (cursor4.moveToNext()) {
-                    participantsList.add(cursor4.getString(0))
+                    val participantUUID = UUID.fromString(cursor4.getString(0))
+                    val messageKey = cursor4.getString(1)
+                    participantsList.add(ChatReceiver(participantUUID, messageKey?.toKey(), ChatReceiver.ReceiverType.USER))
                 }
                 cursor4.close()
 
@@ -96,7 +100,7 @@ class FragmentChatsOverview : Fragment() {
                     intent.putExtra("chatName", item.chatInfo.chatName)
                     intent.putExtra("chatType", item.chatInfo.chatType.ordinal)
                     intent.putExtra("chatUUID", item.chatInfo.chatUUID.toString())
-                    intent.putExtra("participants", ArrayList<String>(item.chatInfo.participants))
+                    intent.putExtra("participants", ArrayList(item.chatInfo.participants))
                     KentaiClient.INSTANCE.currentActivity!!.startActivity(intent)
                 }
             })

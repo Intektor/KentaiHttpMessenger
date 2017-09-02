@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.support.v7.app.AlertDialog
 import android.support.v7.app.AppCompatActivity
 import com.google.common.io.BaseEncoding
+import de.intektor.kentai.kentai.httpPost
 import de.intektor.kentai_http_common.client_to_server.AddContactRequest
 import de.intektor.kentai_http_common.gson.genGson
 import de.intektor.kentai_http_common.server_to_client.AddContactResponse
@@ -42,19 +43,17 @@ class AddContactActivity : AppCompatActivity() {
             return
         }
 
-        object : AsyncTask<Unit, Unit, Unit>() {
-            override fun doInBackground(vararg params: Unit) {
-                val connection: URLConnection = URL("localhost/" + AddContactRequest.TARGET).openConnection()
-                connection.readTimeout = 15000
-                connection.connectTimeout = 15000
-                connection.doInput = true
-                connection.doOutput = true
-
+        object : AsyncTask<Unit, Unit, AddContactResponse>() {
+            override fun doInBackground(vararg params: Unit): AddContactResponse {
                 val gson = genGson()
-                gson.toJson(AddContactRequest(username.toString()), BufferedWriter(OutputStreamWriter(connection.getOutputStream())))
 
-                val response = gson.fromJson(InputStreamReader(connection.getInputStream()), AddContactResponse::class.java)
-                attemptAddContactCallback(response.isValid, response.messageKey, response.userUUID)
+                val res = httpPost(gson.toJson(AddContactRequest(username.toString())), AddContactRequest.TARGET)
+
+                return gson.fromJson(res, AddContactResponse::class.java)
+            }
+
+            override fun onPostExecute(result: AddContactResponse) {
+                attemptAddContactCallback(result.isValid, result.messageKey, result.userUUID)
             }
         }.execute()
     }
@@ -76,7 +75,7 @@ class AddContactActivity : AppCompatActivity() {
     }
 
     private fun addNewContact(key: RSAPublicKey, userUUID: UUID) {
-        val statement = KentaiClient.INSTANCE.dataBase.compileStatement("INSERT INTO contacts (username, message_key, alias, user_uuid) VALUES (?, ?, ?)")
+        val statement = KentaiClient.INSTANCE.dataBase.compileStatement("INSERT INTO contacts (username, message_key, alias, user_uuid) VALUES (?, ?, ?, ?)")
         statement.bindString(1, add_contact_username_field.text.toString())
         statement.bindString(2, BaseEncoding.base64().encode(key.encoded))
         statement.bindString(3, add_contact_username_field.text.toString())

@@ -19,33 +19,28 @@
             android:name=".OverviewActivity"
             android:label="@string/app_name"
             android:theme="@style/AppTheme.NoActionBar">
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
         <activity
             android:name=".RegisterActivity"
-            android:label="@string/title_activity_register"></activity>
+            android:theme="@style/AppTheme"
+            android:label="@string/title_activity_register">
+        </activity>
 
-        <receiver
-            android:name=".KentaiReceiver"
-            android:enabled="true"
+        <service android:name=".kentai.firebase.FMService"
             android:exported="false">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-            </intent-filter>
-        </receiver>
-
-        <service android:name=".kentai.firebase.FMService">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
 
         <service
-            android:name=".kentai.firebase.FIIDService">
+            android:name=".kentai.firebase.FIIDService"
+            android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.INSTANCE_ID_EVENT"/>
             </intent-filter>
@@ -63,6 +58,12 @@
             android:name=".ChatActivity"
             android:parentActivityName=".OverviewActivity">
         </activity>
+
+        <receiver android:name=".kentai.firebase.DisplayNotificationReceiver" android:exported="true">
+            <intent-filter>
+                <action android:name="de.intektor.kentai.chatNotification"/>
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

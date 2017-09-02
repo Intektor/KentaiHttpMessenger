@@ -3,10 +3,14 @@ package de.intektor.kentai
 import android.content.Intent
 import android.os.AsyncTask
 import android.os.Bundle
+import android.os.Looper
 import android.support.v7.app.AlertDialog
 import android.support.v7.app.AppCompatActivity
+import android.util.Log
 import com.google.common.io.BaseEncoding
 import com.google.firebase.iid.FirebaseInstanceId
+import de.intektor.kentai.kentai.address
+import de.intektor.kentai.kentai.httpPost
 import de.intektor.kentai.kentai.internalFile
 import de.intektor.kentai_http_common.client_to_server.CheckUsernameAvailableRequestToServer
 import de.intektor.kentai_http_common.client_to_server.RegisterRequestToServer
@@ -15,10 +19,7 @@ import de.intektor.kentai_http_common.server_to_client.CheckUsernameAvailableRes
 import de.intektor.kentai_http_common.server_to_client.RegisterRequestResponseToClient
 import de.intektor.kentai_http_common.util.writeKey
 import kotlinx.android.synthetic.main.activity_register.*
-import java.io.BufferedWriter
-import java.io.DataOutputStream
-import java.io.InputStreamReader
-import java.io.OutputStreamWriter
+import java.io.*
 import java.net.URL
 import java.net.URLConnection
 import java.security.KeyPair
@@ -55,20 +56,15 @@ class RegisterActivity : AppCompatActivity() {
             return
         }
 
-        object : AsyncTask<Void, Void, Unit>() {
-            override fun doInBackground(vararg params: Void) {
-                val connection: URLConnection = URL("localhost/" + CheckUsernameAvailableRequestToServer.TARGET).openConnection()
-                connection.readTimeout = 15000
-                connection.connectTimeout = 15000
-                connection.doInput = true
-                connection.doOutput = true
-
+        object : AsyncTask<Void, Void, CheckUsernameAvailableResponseToClient>() {
+            override fun doInBackground(vararg params: Void): CheckUsernameAvailableResponseToClient {
                 val gson = genGson()
-                gson.toJson(CheckUsernameAvailableRequestToServer(username), BufferedWriter(OutputStreamWriter(connection.getOutputStream())))
+                val response = httpPost(gson.toJson(CheckUsernameAvailableRequestToServer(username)), CheckUsernameAvailableRequestToServer.TARGET)
+                return gson.fromJson(response, CheckUsernameAvailableResponseToClient::class.java)
+            }
 
-                val response = gson.fromJson(InputStreamReader(connection.getInputStream()), CheckUsernameAvailableResponseToClient::class.java)
-
-                val builder = AlertDialog.Builder(applicationContext)
+            override fun onPostExecute(response: CheckUsernameAvailableResponseToClient) {
+                val builder = AlertDialog.Builder(this@RegisterActivity)
                 builder.setTitle(if (response.available) R.string.register_username_available_title else R.string.register_username_not_available_title)
                 builder.setMessage(if (response.available) R.string.register_username_available else R.string.register_username_not_available)
                 builder.setPositiveButton(R.string.register_username_available_proceed, { _, _ ->
@@ -87,20 +83,20 @@ class RegisterActivity : AppCompatActivity() {
         val messagePair = generateMessageKeys()
         val authPair = generateAuthKeys()
 
-        object : AsyncTask<Unit, Unit, Unit>() {
-            override fun doInBackground(vararg params: Unit?) {
-                val connection: URLConnection = URL("localhost/" + RegisterRequestToServer.TARGET).openConnection()
-                connection.readTimeout = 15000
-                connection.connectTimeout = 15000
-                connection.doInput = true
-                connection.doOutput = true
-
+        object : AsyncTask<Unit, Unit, RegisterRequestResponseToClient>() {
+            override fun doInBackground(vararg params: Unit?): RegisterRequestResponseToClient {
                 val gson = genGson()
-                gson.toJson(RegisterRequestToServer(register_username_field.text.toString(), authPair.public as RSAPublicKey, messagePair.public as RSAPublicKey, FirebaseInstanceId.getInstance().token), BufferedWriter(OutputStreamWriter(connection.getOutputStream())))
+                val response = httpPost(gson.toJson(RegisterRequestToServer(register_username_field.text.toString(), authPair.public as RSAPublicKey,
+                        messagePair.public as RSAPublicKey, FirebaseInstanceId.getInstance().token)), RegisterRequestToServer.TARGET)
 
-                val response = gson.fromJson(InputStreamReader(connection.getInputStream()), RegisterRequestResponseToClient::class.java)
+                Log.v("VERBOSE", response)
+                return gson.fromJson(response, RegisterRequestResponseToClient::class.java)
+
+            }
+
+            override fun onPostExecute(response: RegisterRequestResponseToClient) {
                 if (response.type != RegisterRequestResponseToClient.Type.SUCCESS) {
-                    val builder = AlertDialog.Builder(applicationContext)
+                    val builder = AlertDialog.Builder(this@RegisterActivity)
                     builder.setTitle(R.string.register_register_error_title)
                     builder.setMessage(response.type.name)
                     builder.setPositiveButton("OK", { _, _ ->
@@ -108,23 +104,24 @@ class RegisterActivity : AppCompatActivity() {
                     })
                     builder.create().show()
                 } else {
-                    val dataOut = DataOutputStream(internalFile("username.info").outputStream())
+                    val dataOut = DataOutputStream(File(filesDir.path + "/username.info").outputStream())
                     dataOut.writeUTF(response.username)
                     dataOut.writeUTF(response.userUUID.toString())
                     dataOut.close()
                     KentaiClient.INSTANCE.username = response.username
                     KentaiClient.INSTANCE.userUUID = response.userUUID!!
 
+                    val statement = KentaiClient.INSTANCE.dataBase.compileStatement("INSERT INTO contacts (username, user_uuid, alias, message_key) VALUES (?, ?, ?, ?)")
+                    statement.bindString(1, register_username_field.text.toString())
+                    statement.bindString(2, response.userUUID.toString())
+                    statement.bindString(3, "")
+                    statement.bindString(4, BaseEncoding.base64().encode(messagePair.public.encoded))
+                    statement.execute()
+
                     startActivity(Intent(applicationContext, OverviewActivity::class.java))
                 }
             }
         }.execute()
-
-        val statement = KentaiClient.INSTANCE.dataBase.compileStatement("INSERT INTO contacts (username, alias, message_key) VALUES (?, ?, ?)")
-        statement.bindString(1, register_username_field.text.toString())
-        statement.bindString(2, "")
-        statement.bindString(3, BaseEncoding.base64().encode(messagePair.public.encoded))
-        statement.execute()
     }
 
     private fun generateAuthKeys(): KeyPair {
@@ -138,6 +135,9 @@ class RegisterActivity : AppCompatActivity() {
 
         output = DataOutputStream(internalFile("keys/authKeyPrivate.key").outputStream())
         (keyPair.private as RSAPrivateKey).writeKey(output)
+
+        KentaiClient.INSTANCE.privateAuthKey = keyPair.private
+        KentaiClient.INSTANCE.publicAuthKey = keyPair.public
 
         return keyPair
     }
@@ -153,6 +153,9 @@ class RegisterActivity : AppCompatActivity() {
 
         output = DataOutputStream(internalFile("keys/encryptionKeyPrivate.key").outputStream())
         (keyPair.private as RSAPrivateKey).writeKey(output)
+
+        KentaiClient.INSTANCE.privateMessageKey = keyPair.private
+        KentaiClient.INSTANCE.publicMessageKey = keyPair.public
 
         return keyPair
     }

@@ -1,5 +1,6 @@
 package de.intektor.kentai.fragment
 
+import android.provider.MediaStore
 import android.support.v7.widget.RecyclerView
 import android.view.LayoutInflater
 import android.view.View
@@ -40,10 +41,10 @@ class ViewAdapter(private val mValues: List<ChatItem>, private val mListener: Cl
     class ChatItem(val chatInfo: ChatInfo, var lastChatMessage: ChatMessageWrapper, var unreadMessages: Int)
 
     inner class ViewHolder(val view: View) : RecyclerView.ViewHolder(view) {
-        val nameView: TextView = view.findViewById(R.id.name) as TextView
-        val hintView: TextView = view.findViewById(R.id.hint) as TextView
-        val timeView: TextView = view.findViewById(R.id.time) as TextView
-        val messageStatusView: ImageView = view.findViewById(R.id.messaage_status) as ImageView
+        val nameView: TextView = view.findViewById(R.id.name)
+        val hintView: TextView = view.findViewById(R.id.hint)
+        val timeView: TextView = view.findViewById(R.id.time)
+        val messageStatusView: ImageView = view.findViewById(R.id.messaage_status)
 
         lateinit var item: ChatItem
 

@@ -27,14 +27,11 @@ class ContactViewAdapter(val mValues: MutableList<Contact>, private val mListene
         }
     }
 
-    override fun getItemCount(): Int {
-        return mValues.size
-    }
+    override fun getItemCount(): Int = mValues.size
 
     inner class ViewHolder(val mView: View) : RecyclerView.ViewHolder(mView) {
-        val text: TextView = mView.findViewById(R.id.text) as TextView
-        val seperator: ImageView = mView.findViewById(R.id.seperator) as ImageView
+        val text: TextView = mView.findViewById<TextView>(R.id.text) as TextView
+        val seperator: ImageView = mView.findViewById<ImageView>(R.id.seperator) as ImageView
         var item: Contact? = null
-
     }
 }

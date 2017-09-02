@@ -35,8 +35,8 @@ class ChatAdapter(private val chatMessageList: MutableList<ChatMessageWrapper>) 
         val wrapper = chatMessageList[position]
         holder.msg.text = wrapper.message.text
 
-        val layout = holder.mView.findViewById(R.id.bubble_layout) as LinearLayout
-        val parent_layout = holder.mView.findViewById(R.id.bubble_layout_parent) as LinearLayout
+        val layout = holder.mView.findViewById<LinearLayout>(R.id.bubble_layout) as LinearLayout
+        val parent_layout = holder.mView.findViewById<LinearLayout>(R.id.bubble_layout_parent) as LinearLayout
         // if message is mine then align to right
         if (wrapper.client) {
             layout.setBackgroundResource(R.drawable.bubble_right)
@@ -61,8 +61,8 @@ class ChatAdapter(private val chatMessageList: MutableList<ChatMessageWrapper>) 
     }
 
     inner class ChatViewHolder(val mView: View) : RecyclerView.ViewHolder(mView) {
-        val msg: TextView = mView.findViewById(R.id.message_text) as TextView
-        val timeView: TextView = mView.findViewById(R.id.chatbubble_time_view) as TextView
-        val statusView: ImageView = mView.findViewById(R.id.chatbubble_status_view) as ImageView
+        val msg: TextView = mView.findViewById<TextView>(R.id.message_text) as TextView
+        val timeView: TextView = mView.findViewById<TextView>(R.id.chatbubble_time_view) as TextView
+        val statusView: ImageView = mView.findViewById<ImageView>(R.id.chatbubble_status_view) as ImageView
     }
 }

@@ -9,19 +9,17 @@ import android.widget.ImageButton
 import de.intektor.kentai.kentai.ChatAdapter
 import de.intektor.kentai.kentai.chat.ChatInfo
 import de.intektor.kentai.kentai.chat.ChatMessageWrapper
+import de.intektor.kentai.kentai.chat.ChatReceiver
 import de.intektor.kentai.kentai.chat.saveMessage
 import de.intektor.kentai_http_common.chat.ChatMessageRegistry
 import de.intektor.kentai_http_common.chat.ChatMessageText
 import de.intektor.kentai_http_common.chat.ChatType
 import de.intektor.kentai_http_common.chat.MessageStatus
+import kotlinx.android.synthetic.main.activity_chat.*
 import java.util.*
 import kotlin.collections.HashMap
 
 class ChatActivity : AppCompatActivity() {
-
-    private lateinit var listView: RecyclerView
-    private lateinit var chatBox: EditText
-    private lateinit var sendButton: ImageButton
 
     private lateinit var chatAdapter: ChatAdapter
 
@@ -35,26 +33,24 @@ class ChatActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_chat)
 
-        listView = findViewById(R.id.msgListView) as RecyclerView
-        chatBox = findViewById(R.id.messageBox) as EditText
-        sendButton = findViewById(R.id.sendMessageButton) as ImageButton
-
-        sendButton.setOnClickListener({
+        sendMessageButton.setOnClickListener({
             sendMessage()
         })
 
 
         val lM = LinearLayoutManager(this)
         lM.stackFromEnd = true
-        listView.layoutManager = lM
+        msgListView.layoutManager = lM
 
         val chatUUID = UUID.fromString(intent.getStringExtra("chatUUID"))
         val chatName = intent.getStringExtra("chatName")
         val chatType = ChatType.values()[intent.getIntExtra("chatType", 0)]
-        val participants = intent.getStringArrayListExtra("participants")
+        val participants = intent.getParcelableArrayListExtra<ChatReceiver>("participants")
         chatInfo = ChatInfo(chatUUID, chatName, chatType, participants)
 
-        val query = KentaiClient.INSTANCE.dataBase.query("chat_table", arrayOf("message_uuid", "additional_info", "text", "time", "type", "sender", "client"), null, null, null, null, "time DESC", "20")
+//        val query = KentaiClient.INSTANCE.dataBase.query("chat_table", arrayOf("message_uuid", "additional_info", "text", "time", "type", "sender_uuid", "client"), null, null, null, null, "time DESC", "20")
+
+        val query = KentaiClient.INSTANCE.dataBase.rawQuery("SELECT message_uuid, additional_info, text, time, type, sender_uuid, client FROM chat_table WHERE chat_uuid = ? ORDER BY time DESC LIMIT 20", arrayOf(chatUUID.toString()))
 
         while (query.moveToNext()) {
             val uuid = UUID.fromString(query.getString(0))
@@ -80,18 +76,15 @@ class ChatActivity : AppCompatActivity() {
 
             addMessage(ChatMessageWrapper(message, status, client, timeChange), false)
         }
-
-
-
         query.close()
 
         messageList.reverse()
 
         chatAdapter = ChatAdapter(messageList)
 
-        listView.adapter = chatAdapter
+        msgListView.adapter = chatAdapter
 
-        listView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+        msgListView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 val firstVisibleIndex = lM.findFirstVisibleItemPosition()
 
@@ -108,13 +101,16 @@ class ChatActivity : AppCompatActivity() {
                                 statement.bindLong(2, it.status.ordinal.toLong())
                                 statement.bindLong(3, System.currentTimeMillis())
                                 statement.execute()
-                                for (s in chatInfo.participants.filter { !it.equals(KentaiClient.INSTANCE.username, true) }) {
+                                for (s in chatInfo.participants.filter { it.receiverUUID != KentaiClient.INSTANCE.userUUID }) {
 //                                    sendPacket(ChangeChatMessageStatusPacketToServer(it.message.id, MessageStatus.SEEN, System.currentTimeMillis(),
 //                                            KentaiClient.INSTANCE.username, s, chatInfo.chatUUID))
                                 }
-                                recyclerView.adapter.notifyDataSetChanged()
+//                                recyclerView.adapter.notifyDataSetChanged()
                             }
                         }
+                if (firstVisibleIndex == messageList.size) {
+
+                }
             }
 
             override fun onScrollStateChanged(recyclerView: RecyclerView?, newState: Int) {
@@ -125,30 +121,25 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun sendMessage() {
-        val written = chatBox.text.toString()
-        val wrapper = ChatMessageWrapper(ChatMessageText(written, KentaiClient.INSTANCE.userUUID, System.currentTimeMillis()), MessageStatus.WAITING, true, System.currentTimeMillis())
+        val written = messageBox.text.toString()
+        val chatMessage = ChatMessageText(written, KentaiClient.INSTANCE.userUUID, System.currentTimeMillis())
+        val wrapper = ChatMessageWrapper(chatMessage, MessageStatus.WAITING, true, System.currentTimeMillis())
         saveMessage(chatInfo, wrapper, KentaiClient.INSTANCE.dataBase)
 
-        addMessage(wrapper)
+        addMessage(wrapper.copy(message = ChatMessageText(written, KentaiClient.INSTANCE.userUUID, System.currentTimeMillis())))
         chatAdapter.notifyDataSetChanged()
 
         scrollToBottom()
 
-        var statement = KentaiClient.INSTANCE.dataBase.compileStatement("INSERT INTO waiting_to_send (chat_uuid, message_uuid) VALUES (?, ?)")
+        val statement = KentaiClient.INSTANCE.dataBase.compileStatement("INSERT INTO pending_messages (chat_uuid, message_uuid) VALUES (?, ?)")
         statement.bindString(1, chatInfo.chatUUID.toString())
         statement.bindString(2, wrapper.message.id.toString())
 
         statement.execute()
 
-        for (participant in chatInfo.participants.filter { !it.equals(KentaiClient.INSTANCE.username, true) }) {
-            statement = KentaiClient.INSTANCE.dataBase.compileStatement("INSERT INTO waiting_to_send_remaining_participants (chat_uuid, message_uuid, participant) VALUES (?, ?, ?)")
-            statement.bindString(1, chatInfo.chatUUID.toString())
-            statement.bindString(2, wrapper.message.id.toString())
-            statement.bindString(3, participant)
-            statement.execute()
-        }
+        KentaiClient.INSTANCE.pendingMessages.add(KentaiClient.PendingMessage(wrapper, chatInfo.chatUUID, chatInfo.participants.filter { it.receiverUUID != KentaiClient.INSTANCE.userUUID }))
 
-//        KentaiClient.INSTANCE.serviceConnection?.service?.sendMessageQueue?.add(ConnectionService.PendingMessage(wrapper, chatInfo.chatUUID, chatInfo.participants.filter { !it.equals(KentaiClient.INSTANCE.username, true) }))
+        KentaiClient.INSTANCE.sendPendingMessages(KentaiClient.INSTANCE.pendingMessages)
     }
 
     fun addMessage(chatMessageWrapper: ChatMessageWrapper, notifyDataSetChanges: Boolean = true) {
@@ -164,6 +155,6 @@ class ChatActivity : AppCompatActivity() {
     }
 
     fun scrollToBottom() {
-        listView.smoothScrollToPosition(messageList.size)
+        msgListView.smoothScrollToPosition(messageList.size)
     }
 }

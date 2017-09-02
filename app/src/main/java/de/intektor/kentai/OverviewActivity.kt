@@ -29,14 +29,6 @@ class OverviewActivity : AppCompatActivity(), FragmentContactsOverview.ListEleme
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_overview)
 
-        KentaiClient.INSTANCE.internalStorage = filesDir
-
-        if (!internalFile("keys/loginKeyPublic.key").exists()) {
-            val intent = Intent(this, RegisterActivity::class.java)
-            startActivity(intent)
-        }
-
-        val toolbar = findViewById(R.id.toolbar) as Toolbar
         setSupportActionBar(toolbar)
 
         mSectionsPagerAdapter = SectionsPagerAdapter(supportFragmentManager)
@@ -46,7 +38,6 @@ class OverviewActivity : AppCompatActivity(), FragmentContactsOverview.ListEleme
 
         tabs.setupWithViewPager(container)
 
-        val fab = findViewById(R.id.fab) as FloatingActionButton
         fab.setOnClickListener { _ ->
             if (container.currentItem == 0) {
                 val intent = Intent(this, NewChatActivity::class.java)
@@ -114,9 +105,7 @@ class OverviewActivity : AppCompatActivity(), FragmentContactsOverview.ListEleme
             return null
         }
 
-        override fun getCount(): Int {
-            return 2
-        }
+        override fun getCount(): Int = 2
 
         override fun getPageTitle(position: Int): CharSequence? {
             when (position) {
