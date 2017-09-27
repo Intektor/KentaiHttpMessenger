@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
       xmlns:tools="http://schemas.android.com/tools" xmlns:app="http://schemas.android.com/apk/res-auto"
-      tools:context="de.intektor.kentai.NewChatActivity">
-    <item android:id="@+id/action_search"
+      tools:context="de.intektor.kentai.NewChatUserActivity">
+    <item android:id="@+id/new_chat_user_action_search"
           android:title="@string/new_chat_action_search"
           android:icon="@drawable/ic_search_black_24dp"
           app:showAsAction="always|collapseActionView"

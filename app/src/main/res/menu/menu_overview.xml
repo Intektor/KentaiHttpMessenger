@@ -1,10 +1,25 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
-      xmlns:app="http://schemas.android.com/apk/res-auto"
-      xmlns:tools="http://schemas.android.com/tools"
-      tools:context="de.intektor.kentai.OverviewActivity">
-    <item android:id="@+id/action_settings"
-          android:title="@string/action_settings"
-          android:orderInCategory="100"
-          app:showAsAction="never"/>
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="de.intektor.kentai.OverviewActivity">
+    <item
+        android:id="@+id/new_chat"
+        android:title="@string/new_chat_label"
+        app:showAsAction="ifRoom">
+        <menu>
+            <item
+                android:id="@+id/new_chat_button_user"
+                android:title="@string/start_chat_user_chat_label" />
+            <item
+                android:id="@+id/new_chat_button_group"
+                android:title="@string/start_chat_group_label" />
+        </menu>
+    </item>
+    <item
+        android:id="@+id/new_contact"
+        android:icon="@drawable/add_contact"
+        android:title="@string/new_contact_label"
+        app:showAsAction="always" />
+
 </menu>

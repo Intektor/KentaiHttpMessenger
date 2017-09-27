@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="de.intektor.kentai.ChatActivity">
+    <item
+        android:id="@+id/menuGroupMemberSendMessage"
+        android:title="@string/menu_group_member_send_message" />
+    <item
+        android:id="@+id/menuGroupMemberChangeRole"
+        android:title="@string/menu_group_member_change_role">
+
+        <menu>
+            <item
+                android:id="@+id/menuGroupMemberChangeRoleModerator"
+                android:title="@string/group_role_moderator" />
+            <item
+                android:id="@+id/menuGroupMemberChangeRoleDefault"
+                android:title="@string/group_role_default" />
+
+        </menu>
+
+    </item>
+    <item
+        android:id="@+id/menuGroupMemberKick"
+        android:title="@string/menu_group_member_kick" />
+</menu>

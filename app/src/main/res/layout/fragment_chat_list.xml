@@ -10,5 +10,5 @@
         android:layout_marginLeft="16dp"
         android:layout_marginRight="16dp"
         app:layoutManager="LinearLayoutManager"
-        tools:context="de.intektor.kentai.fragment.FragmentChatsOverview"
+        tools:context="de.intektor.kentai.overview_activity.FragmentChatsOverview"
         tools:listitem="@layout/fragment_chat" android:scrollbars="vertical"/>

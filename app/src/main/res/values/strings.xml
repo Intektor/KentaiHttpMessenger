@@ -29,9 +29,80 @@
 
     <!-- Strings related to new chat -->
 
+    <string name="new_chat_label">New Chat</string>
+    <string name="new_chat_user_activity_label">New User Chat</string>
+    <string name="new_chat_group_activity_label">New Group Chat</string>
+    <string name="start_chat_user_chat_label">NORMAL</string>
+    <string name="start_chat_group_label">GROUP</string>
     <string name="new_chat_search_bar_hint">Search!</string>
     <string name="new_chat_action_search">Search</string>
     <string name="new_chat_start_chat_proceed">PROCEED</string>
     <string name="new_chat_start_chat_cancel">CANCEL</string>
     <string name="new_chat_start_chat_title">CHAT</string>
+    <string name="new_chat_start_chat_text">Do you really want to create this chat?</string>
+    <string name="new_chat_group_create_action">CREATE</string>
+    <string name="new_chat_group_group_name_hint">Group Name</string>
+
+    <!-- Strings related to notifications -->
+
+    <string name="notification_reply_label">REPLY</string>
+    <string name="notification_group_invite">%1$s has added you to group %2$s</string>
+    <string name="notification_group_modification_change_name">%1$s has changed the group name from %2$s to %3$s</string>
+
+    <string name="notification_voice_message_group_name">%1$s-%2$s: 🎤Voice message: (%3$ds)</string>
+    <string name="notification_voice_message_name">%1$s: 🎤Voice message: (%2$ds)</string>
+    <string name="notification_voice_message">🎤Voice message: (%1$ds)</string>
+
+
+    <string name="chat_info">Chat Info</string>
+
+    <string name="contact_info_edit_alias">Edit Alias</string>
+    <string name="title_activity_start_chat">StartChatActivity</string>
+    <string name="section_format">Hello World from section: %1$d</string>
+    <string name="new_contact_label">NEW CONTACT</string>
+
+    <!-- Strings related to chat -->
+
+    <string name="chat_group_invite_message">You were added to:</string>
+    <string name="title_activity_group_info">GroupInfoActivity</string>
+    <string name="chat_group_change_name">%1$s changed the group name from %2$s to %3$s</string>
+    <string name="chat_group_change_role">%1$s set %2$s\'s role from %3$s to %4$s</string>
+    <string name="chat_group_change_kick_user_no_reason">%1$s was kicked by %2$s</string>
+    <string name="chat_group_change_kick_user_with_reason">%1$s was kicked by %2$s for: %3$s</string>
+    <string name="chat_group_change_add_user">%1$s was added by %2$s</string>
+    <string name="chat_group_no_member">You are no member of this chat</string>
+    <string name="menu_chat_bubble_info_label">Info</string>
+    <string name="menu_chat_bubble_delete_label">Delete</string>
+
+    <!-- Strings related to group info -->
+
+    <string name="group_info_edit_button_text">Edit Group</string>
+    <string name="group_info_add_member_button_text">Add Member</string>
+    <string name="group_info_edit_group_alert_title">Edit Group</string>
+    <string name="group_info_edit_group_alert_cancel">CANCEL</string>
+    <string name="group_info_edit_group_alert_group_name_hint">Group Name</string>
+    <string name="group_info_edit_group_alert_edit">EDIT</string>
+    <string name="group_info_member_list_label">Member List:</string>
+    <string name="group_info_action_bar_title">Info: %1$s</string>
+    <string name="group_role_admin">Admin</string>
+    <string name="group_role_moderator">Moderator</string>
+    <string name="group_role_default">Default</string>
+    <string name="group_role_member_yourself_label">You</string>
+    <string name="menu_group_member_send_message">Send message</string>
+    <string name="menu_group_member_change_role">Change group role</string>
+    <string name="menu_group_member_kick">Kick</string>
+    <string name="group_info_kick_alert_title">Kick</string>
+    <string name="group_info_kick_alert_message">Do you really want to kick this user? You can give a reason here!</string>
+    <string name="group_info_kick_alert_reason_hint">Give a reason?</string>
+    <string name="group_info_kick_alert_cancel">CANCEL</string>
+    <string name="group_info_kick_alert_kick">KICK</string>
+    <string name="group_info_add_member_username_hint">Username</string>
+
+    <!-- Strings related to AddGroupMember Activity -->
+    <string name="add_group_member_activity_label">Add Group Member</string>
+    <string name="add_group_member_add_member_label">ADD</string>
+    <string name="add_group_member_add_alert_title">Add User</string>
+    <string name="add_group_member_add_alert_message">Do you really want to add this user?</string>
+    <string name="add_group_member_add_alert_positive">PROCEED</string>
+    <string name="add_group_member_add_alert_negative">CANCEl</string>
 </resources>

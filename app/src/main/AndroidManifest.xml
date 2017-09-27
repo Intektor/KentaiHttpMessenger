@@ -2,10 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="de.intektor.kentai">
 
-    <!-- To auto-complete the email text field in the login form with the user's emails -->
-    <uses-permission android:name="android.permission.GET_ACCOUNTS" />
-    <uses-permission android:name="android.permission.READ_PROFILE" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
     <application
         android:name=".KentaiClient"
@@ -25,44 +23,85 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity
-            android:name=".RegisterActivity"
-            android:label="@string/title_activity_register"></activity>
 
-        <receiver
-            android:name=".KentaiReceiver"
-            android:enabled="true"
+        <service
+            android:name=".kentai.firebase.FMService"
             android:exported="false">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-            </intent-filter>
-        </receiver>
-
-        <service android:name=".kentai.firebase.FMService">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />
             </intent-filter>
         </service>
-
         <service
-            android:name=".kentai.firebase.FIIDService">
+            android:name=".kentai.firebase.FIIDService"
+            android:exported="false">
             <intent-filter>
-                <action android:name="com.google.firebase.INSTANCE_ID_EVENT"/>
+                <action android:name="com.google.firebase.INSTANCE_ID_EVENT" />
             </intent-filter>
         </service>
+        <service
+            android:name=".kentai.firebase.SendService"
+            android:exported="false" />
 
         <activity
-            android:name=".AddContactActivity"
-            android:parentActivityName=".OverviewActivity">
-        </activity>
+            android:name=".RegisterActivity"
+            android:label="@string/title_activity_register"
+            android:theme="@style/AppTheme" />
         <activity
-            android:name=".NewChatActivity"
-            android:parentActivityName=".OverviewActivity">
-        </activity>
+            android:name=".AddContactActivity"
+            android:parentActivityName=".OverviewActivity" />
+        <activity
+            android:name=".NewChatUserActivity"
+            android:parentActivityName=".OverviewActivity" />
         <activity
             android:name=".ChatActivity"
+            android:launchMode="singleTop"
             android:parentActivityName=".OverviewActivity">
         </activity>
+
+        <activity
+            android:name=".ContactInfoActivity"
+            android:parentActivityName=".ChatActivity" />
+        <activity
+            android:name=".NewChatGroupActivity"
+            android:label="@string/new_chat_group_activity_label"
+            android:parentActivityName=".OverviewActivity" />
+
+        <receiver
+            android:name=".kentai.firebase.DisplayNotificationReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="de.intektor.kentai.chatNotification" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".kentai.firebase.UpdateMessageStatusBroadcastReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="de.intektor.kentai.messageStatusUpdate" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".kentai.firebase.GroupInviteBroadcastReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="de.intektor.kentai.groupInvite" />
+            </intent-filter>
+        </receiver>
+        <receiver
+            android:name=".kentai.firebase.NotificationBroadcastReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
+        <activity
+            android:name=".GroupInfoActivity"
+            android:launchMode="singleTop"
+            android:parentActivityName=".ChatActivity" />
+        <activity
+            android:name=".AddGroupMemberActivity"
+            android:label="@string/add_group_member_activity_label"
+            android:launchMode="singleTop"
+            android:parentActivityName=".GroupInfoActivity" />
+        <activity android:name=".ChatMessageInfoTwoPeopleActivity"></activity>
     </application>
 
 </manifest>

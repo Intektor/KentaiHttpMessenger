@@ -2,23 +2,22 @@ package de.intektor.kentai
 
 import android.content.Intent
 import android.os.Bundle
-import android.support.design.widget.FloatingActionButton
 import android.support.v4.app.Fragment
 import android.support.v4.app.FragmentManager
 import android.support.v4.app.FragmentPagerAdapter
 import android.support.v7.app.AppCompatActivity
-import android.support.v7.widget.Toolbar
 import android.view.Menu
 import android.view.MenuItem
-import de.intektor.kentai.fragment.FragmentChatsOverview
-import de.intektor.kentai.fragment.FragmentContactsOverview
+import de.intektor.kentai.fragment.ContactViewAdapter
 import de.intektor.kentai.fragment.ViewAdapter
 import de.intektor.kentai.kentai.chat.ChatMessageWrapper
 import de.intektor.kentai.kentai.contacts.Contact
-import de.intektor.kentai.kentai.internalFile
+import de.intektor.kentai.overview_activity.FragmentChatsOverview
+import de.intektor.kentai.overview_activity.FragmentContactsOverview
 import de.intektor.kentai_http_common.chat.MessageStatus
 import kotlinx.android.synthetic.main.activity_overview.*
 import kotlinx.android.synthetic.main.fragment_chat_list.*
+import java.io.File
 import java.util.*
 
 class OverviewActivity : AppCompatActivity(), FragmentContactsOverview.ListElementClickListener {
@@ -27,16 +26,14 @@ class OverviewActivity : AppCompatActivity(), FragmentContactsOverview.ListEleme
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_overview)
 
-        KentaiClient.INSTANCE.internalStorage = filesDir
-
-        if (!internalFile("keys/loginKeyPublic.key").exists()) {
+        if (!File(filesDir.path + "/username.info").exists()) {
             val intent = Intent(this, RegisterActivity::class.java)
             startActivity(intent)
         }
 
-        val toolbar = findViewById(R.id.toolbar) as Toolbar
+        setContentView(R.layout.activity_overview)
+
         setSupportActionBar(toolbar)
 
         mSectionsPagerAdapter = SectionsPagerAdapter(supportFragmentManager)
@@ -45,17 +42,6 @@ class OverviewActivity : AppCompatActivity(), FragmentContactsOverview.ListEleme
         container.adapter = mSectionsPagerAdapter
 
         tabs.setupWithViewPager(container)
-
-        val fab = findViewById(R.id.fab) as FloatingActionButton
-        fab.setOnClickListener { _ ->
-            if (container.currentItem == 0) {
-                val intent = Intent(this, NewChatActivity::class.java)
-                startActivity(intent)
-            } else if (container.currentItem == 1) {
-                val intent = Intent(this, AddContactActivity::class.java)
-                startActivity(intent)
-            }
-        }
     }
 
     override fun onStop() {
@@ -68,9 +54,19 @@ class OverviewActivity : AppCompatActivity(), FragmentContactsOverview.ListEleme
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        val id = item.itemId
-        if (id == R.id.action_settings) {
-            return true
+        when (item.itemId) {
+            R.id.new_chat_button_user -> {
+                val i = Intent(this@OverviewActivity, NewChatUserActivity::class.java)
+                startActivity(i)
+            }
+            R.id.new_chat_button_group -> {
+                val i = Intent(this@OverviewActivity, NewChatGroupActivity::class.java)
+                startActivity(i)
+            }
+            R.id.new_contact -> {
+                val i = Intent(this@OverviewActivity, AddContactActivity::class.java)
+                startActivity(i)
+            }
         }
 
         return super.onOptionsItemSelected(item)
@@ -104,6 +100,13 @@ class OverviewActivity : AppCompatActivity(), FragmentContactsOverview.ListEleme
         }
     }
 
+    fun updateChatName(chatUUID: UUID, name: String) {
+        val fragment = supportFragmentManager.findFragmentByTag("android:switcher:" + R.id.container + ":0") as FragmentChatsOverview
+        val chatItem = fragment.chatMap[chatUUID]!!
+        chatItem.chatInfo = chatItem.chatInfo.copy(chatName = name)
+        fragment.list.adapter.notifyDataSetChanged()
+    }
+
     inner class SectionsPagerAdapter(fm: FragmentManager) : FragmentPagerAdapter(fm) {
 
         override fun getItem(position: Int): Fragment? {
@@ -114,9 +117,7 @@ class OverviewActivity : AppCompatActivity(), FragmentContactsOverview.ListEleme
             return null
         }
 
-        override fun getCount(): Int {
-            return 2
-        }
+        override fun getCount(): Int = 2
 
         override fun getPageTitle(position: Int): CharSequence? {
             when (position) {
@@ -127,6 +128,10 @@ class OverviewActivity : AppCompatActivity(), FragmentContactsOverview.ListEleme
         }
     }
 
-    override fun click(item: Contact) {
+    override fun click(item: Contact, view: ContactViewAdapter.ViewHolder) {
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
     }
 }

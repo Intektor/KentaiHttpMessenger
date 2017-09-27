@@ -22,20 +22,20 @@ class FIIDService : FirebaseInstanceIdService() {
     override fun onTokenRefresh() {
         val refreshedToken = FirebaseInstanceId.getInstance().token
 
-        val userInput = File(filesDir.path + "/username.info")
-        if (userInput.exists()) {
-            val userInfoInput = DataInputStream(userInput.inputStream())
-            userInfoInput.readUTF()
-            val userUUID = UUID.fromString(userInfoInput.readUTF())
-
-            val authKey = readPrivateKey(DataInputStream(File(filesDir.path + "/keys/authKeyPrivate.key").inputStream()))
-
-            val connection: URLConnection = URL("localhost/" + RegisterRequestToServer.TARGET).openConnection()
-            connection.connectTimeout = 15000
-            connection.doOutput = true
-
-            val gson = genGson()
-            gson.toJson(UpdateFBCMTokenRequest(userUUID, refreshedToken!!.encryptRSA(authKey)), BufferedWriter(OutputStreamWriter(connection.getOutputStream())))
-        }
+//        val userInput = File(filesDir.path + "/username.info")
+//        if (userInput.exists()) {
+//            val userInfoInput = DataInputStream(userInput.inputStream())
+//            userInfoInput.readUTF()
+//            val userUUID = UUID.fromString(userInfoInput.readUTF())
+//
+//            val authKey = readPrivateKey(DataInputStream(File(filesDir.path + "/keys/authKeyPrivate.key").inputStream()))
+//
+//            val connection: URLConnection = URL("localhost/" + RegisterRequestToServer.TARGET).openConnection()
+//            connection.connectTimeout = 15000
+//            connection.doOutput = true
+//
+//            val gson = genGson()
+//            gson.toJson(UpdateFBCMTokenRequest(userUUID, refreshedToken!!.encryptRSA(authKey)), BufferedWriter(OutputStreamWriter(connection.getOutputStream())))
+//        }
     }
 }

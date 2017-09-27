@@ -7,9 +7,9 @@ import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import de.intektor.kentai.R
-import de.intektor.kentai.fragment.FragmentChatsOverview.ClickListener
 import de.intektor.kentai.kentai.chat.ChatInfo
 import de.intektor.kentai.kentai.chat.ChatMessageWrapper
+import de.intektor.kentai.overview_activity.FragmentChatsOverview.ClickListener
 import java.text.SimpleDateFormat
 
 class ViewAdapter(private val mValues: List<ChatItem>, private val mListener: ClickListener?) : RecyclerView.Adapter<ViewAdapter.ViewHolder>() {
@@ -37,13 +37,13 @@ class ViewAdapter(private val mValues: List<ChatItem>, private val mListener: Cl
         return mValues.size
     }
 
-    class ChatItem(val chatInfo: ChatInfo, var lastChatMessage: ChatMessageWrapper, var unreadMessages: Int)
+    class ChatItem(var chatInfo: ChatInfo, var lastChatMessage: ChatMessageWrapper, var unreadMessages: Int)
 
     inner class ViewHolder(val view: View) : RecyclerView.ViewHolder(view) {
-        val nameView: TextView = view.findViewById(R.id.name) as TextView
-        val hintView: TextView = view.findViewById(R.id.hint) as TextView
-        val timeView: TextView = view.findViewById(R.id.time) as TextView
-        val messageStatusView: ImageView = view.findViewById(R.id.messaage_status) as ImageView
+        val nameView: TextView = view.findViewById(R.id.name)
+        val hintView: TextView = view.findViewById(R.id.hint)
+        val timeView: TextView = view.findViewById(R.id.time)
+        val messageStatusView: ImageView = view.findViewById(R.id.messaage_status)
 
         lateinit var item: ChatItem
 

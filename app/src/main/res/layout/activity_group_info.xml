@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.v4.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:background="#e1e1e1"
+    android:gravity="end"
+    android:orientation="vertical"
+    tools:context="de.intektor.kentai.GroupInfoActivity">
+
+    <android.support.constraint.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <ImageView
+            android:id="@+id/groupInfoGroupPicture"
+            android:layout_width="184dp"
+            android:layout_height="185dp"
+            android:layout_marginTop="33dp"
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:srcCompat="@mipmap/ic_launcher" />
+
+        <TextView
+            android:id="@+id/groupInfoGroupName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:text=""
+            android:textAlignment="center"
+            android:textAppearance="@android:style/TextAppearance.Material.Medium"
+            android:textSize="24sp"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/groupInfoGroupPicture" />
+
+        <Button
+            android:id="@+id/groupInfoEditGroup"
+            android:layout_width="300dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="15dp"
+            android:text="@string/group_info_edit_button_text"
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/groupInfoGroupName" />
+
+        <TextView
+            android:id="@+id/groupInfoMemberListLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="26dp"
+            android:layout_marginTop="38dp"
+            android:text="@string/group_info_member_list_label"
+            android:textAppearance="@android:style/TextAppearance.Material.Medium"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/groupInfoEditGroup" />
+
+        <Button
+            android:id="@+id/groupInfoAddMemberButton"
+            android:layout_width="300dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="38dp"
+            android:elevation="2dp"
+            android:text="@string/group_info_add_member_button_text"
+            app:layout_constraintTop_toBottomOf="@+id/groupInfoMemberList"
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintLeft_toLeftOf="parent" />
+
+        <android.support.v7.widget.RecyclerView
+            android:id="@+id/groupInfoMemberList"
+            android:layout_width="326dp"
+            android:layout_height="157dp"
+            android:layout_marginLeft="26dp"
+            android:layout_marginRight="26dp"
+            android:layout_marginTop="-1dp"
+            android:background="@layout/border"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/groupInfoMemberListLabel"
+            tools:listitem="@layout/group_member_layout" />
+
+    </android.support.constraint.ConstraintLayout>
+</android.support.v4.widget.NestedScrollView>
+

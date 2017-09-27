@@ -14,9 +14,19 @@
             app:layout_constraintTop_toTopOf="parent" android:layout_marginTop="10dp" android:textSize="30sp"
             android:layout_marginStart="8dp" android:textStyle="bold"/>
     <ImageView
-            android:layout_width="match_parent"
+            android:layout_width="368dp"
             android:layout_height="2dp" app:srcCompat="@color/colorPrimary"
             android:id="@+id/seperator"
             app:layout_constraintRight_toRightOf="parent" app:layout_constraintTop_toTopOf="parent"
-            android:layout_marginTop="54dp" android:layout_marginRight="0dp"/>
+            android:layout_marginTop="54dp" />
+
+    <CheckBox
+        android:id="@+id/contact_selected"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginRight="16dp"
+        android:layout_marginTop="12dp"
+        android:visibility="gone"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 </android.support.constraint.ConstraintLayout>

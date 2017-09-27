@@ -10,5 +10,5 @@
         android:layout_marginLeft="16dp"
         android:layout_marginRight="16dp"
         app:layoutManager="LinearLayoutManager"
-        tools:context="de.intektor.kentai.fragment.FragmentContactsOverview"
+        tools:context="de.intektor.kentai.overview_activity.FragmentContactsOverview"
         tools:listitem="@layout/fragment_contact"/>

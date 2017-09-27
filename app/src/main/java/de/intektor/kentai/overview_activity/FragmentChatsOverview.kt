@@ -1,6 +1,5 @@
-package de.intektor.kentai.fragment
+package de.intektor.kentai.overview_activity
 
-import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.support.v4.app.Fragment
@@ -12,9 +11,11 @@ import android.view.ViewGroup
 import de.intektor.kentai.ChatActivity
 import de.intektor.kentai.KentaiClient
 import de.intektor.kentai.R
+import de.intektor.kentai.fragment.ViewAdapter
 import de.intektor.kentai.fragment.ViewAdapter.ChatItem
 import de.intektor.kentai.kentai.chat.ChatInfo
 import de.intektor.kentai.kentai.chat.ChatMessageWrapper
+import de.intektor.kentai.kentai.chat.readChatParticipants
 import de.intektor.kentai_http_common.chat.*
 import java.util.*
 import kotlin.collections.HashMap
@@ -44,17 +45,9 @@ class FragmentChatsOverview : Fragment() {
                 val chatUUID = UUID.fromString(cursor.getString(1))
                 val chatType = ChatType.values()[cursor.getInt(2)]
 
-                val cursor4 = KentaiClient.INSTANCE.dataBase.rawQuery("SELECT participant_uuid FROM chat_participants WHERE chat_uuid = '$chatUUID'", null)
+                val chatInfo = ChatInfo(chatUUID, chatName, chatType, readChatParticipants(KentaiClient.INSTANCE.dataBase, chatUUID))
 
-                val participantsList = mutableListOf<String>()
-                while (cursor4.moveToNext()) {
-                    participantsList.add(cursor4.getString(0))
-                }
-                cursor4.close()
-
-                val chatInfo = ChatInfo(chatUUID, chatName, chatType, participantsList)
-
-                val cursor2 = KentaiClient.INSTANCE.dataBase.rawQuery("SELECT message_uuid, additional_info, text, time, type, sender_uuid FROM chat_table ORDER BY time LIMIT 1", null)
+                val cursor2 = KentaiClient.INSTANCE.dataBase.rawQuery("SELECT message_uuid, additional_info, text, time, type, sender_uuid, reference FROM chat_table ORDER BY time LIMIT 1", null)
 
                 var message: ChatMessage = ChatMessageText("---", UUID.randomUUID(), 0L)
                 var senderUUID = UUID.randomUUID()
@@ -66,12 +59,14 @@ class FragmentChatsOverview : Fragment() {
                     val time = cursor2.getLong(3)
                     val type = cursor2.getInt(4)
                     senderUUID = UUID.fromString(cursor2.getString(5))
+                    val reference = UUID.fromString(cursor2.getString(6))
 
                     message = ChatMessageRegistry.create(type)
                     message.id = uuid
                     message.senderUUID = senderUUID
                     message.text = text
                     message.timeSent = time
+                    message.referenceUUID = reference
                     message.processAdditionalInfo(blob)
                 }
                 cursor2.close()
@@ -93,10 +88,7 @@ class FragmentChatsOverview : Fragment() {
             view.adapter = ViewAdapter(shownChatList, object : ClickListener {
                 override fun onClickItem(item: ChatItem) {
                     val intent = Intent(KentaiClient.INSTANCE.currentActivity, ChatActivity::class.java)
-                    intent.putExtra("chatName", item.chatInfo.chatName)
-                    intent.putExtra("chatType", item.chatInfo.chatType.ordinal)
-                    intent.putExtra("chatUUID", item.chatInfo.chatUUID.toString())
-                    intent.putExtra("participants", ArrayList<String>(item.chatInfo.participants))
+                    intent.putExtra("chatInfo", item.chatInfo)
                     KentaiClient.INSTANCE.currentActivity!!.startActivity(intent)
                 }
             })
@@ -107,14 +99,6 @@ class FragmentChatsOverview : Fragment() {
     fun addChat(chatItem: ChatItem) {
         shownChatList.add(chatItem)
         chatMap.put(chatItem.chatInfo.chatUUID, chatItem)
-    }
-
-    override fun onAttach(context: Context?) {
-        super.onAttach(context)
-    }
-
-    override fun onDetach() {
-        super.onDetach()
     }
 
     interface ClickListener {

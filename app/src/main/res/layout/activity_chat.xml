@@ -8,6 +8,16 @@
                 android:gravity="end"
 >
 
+    <android.support.v7.widget.RecyclerView
+        android:id="@+id/msgListView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_alignParentStart="true"
+        android:layout_alignParentTop="true"
+        android:scrollbars="vertical"
+        tools:listitem="@layout/chatbubble"
+        android:layout_above="@+id/form" />
+
     <LinearLayout
             android:id="@+id/form"
             android:layout_width="match_parent"
@@ -20,25 +30,43 @@
 
 
         <EditText
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:inputType="textMultiLine"
-                android:ems="10"
-                android:id="@+id/messageBox"
-                android:layout_weight="0.99"/>
-        <ImageButton
-                android:layout_width="45dp"
-                android:layout_height="45dp" app:srcCompat="@drawable/send" android:id="@+id/sendMessageButton"
-                android:layout_marginBottom="0dp"
-                android:layout_below="@+id/msgListView"
-        />
-    </LinearLayout>
-    <android.support.v7.widget.RecyclerView
+            android:id="@+id/messageBox"
             android:layout_width="match_parent"
-            android:layout_height="match_parent" android:layout_alignParentTop="true"
-            android:layout_alignParentStart="true" android:layout_above="@+id/form"
-            android:layout_alignParentEnd="true" tools:listitem="@layout/chatbubble" android:scrollbars="vertical"
-            android:id="@+id/msgListView"/>
+            android:layout_height="match_parent"
+            android:layout_weight="0.99"
+            android:alpha="1"
+            android:ems="10"
+            android:inputType="textMultiLine" />
 
+        <TextView
+            android:id="@+id/recordingTimeView"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_above="@+id/form"
+            android:layout_alignParentEnd="true"
+            android:layout_weight="0.99"
+            android:gravity="center"
+            android:text="hLLO"
+            android:textAlignment="center"
+            android:textAppearance="@style/TextAppearance.AppCompat.Medium"
+            android:visibility="gone" />
+
+        <ImageButton
+            android:id="@+id/sendMessageButton"
+            android:layout_width="45dp"
+            android:layout_height="45dp"
+            android:layout_below="@+id/msgListView"
+            android:layout_marginBottom="0dp"
+            app:srcCompat="@android:drawable/ic_btn_speak_now" />
+    </LinearLayout>
+
+    <ProgressBar
+        android:id="@+id/chatLoadMoreProgressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentStart="false"
+        android:layout_alignParentTop="true"
+        android:layout_centerInParent="true"
+        android:visibility="visible" />
 
 </RelativeLayout>

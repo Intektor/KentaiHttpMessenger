@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:context="de.intektor.kentai.ChatActivity">
+    <item
+        android:id="@+id/menuChatBubbleInfo"
+        android:title="@string/menu_chat_bubble_info_label" />
+
+    <item
+        android:id="@+id/menuChatBubbleDelete"
+        android:title="@string/menu_chat_bubble_delete_label" />
+</menu>

@@ -1,4 +1,4 @@
-package de.intektor.kentai.fragment
+package de.intektor.kentai.overview_activity
 
 import android.content.Context
 import android.os.Bundle
@@ -10,7 +10,9 @@ import android.view.View
 import android.view.ViewGroup
 import de.intektor.kentai.KentaiClient
 import de.intektor.kentai.R
+import de.intektor.kentai.fragment.ContactViewAdapter
 import de.intektor.kentai.kentai.contacts.Contact
+import de.intektor.kentai_http_common.util.toKey
 import java.util.*
 
 
@@ -30,13 +32,14 @@ class FragmentContactsOverview : Fragment() {
             recyclerView.layoutManager = LinearLayoutManager(context)
 
             val contactList = mutableListOf<Contact>()
-            val cursor = KentaiClient.INSTANCE.dataBase.rawQuery("SELECT username, alias, user_uuid FROM contacts;", null)
+            val cursor = KentaiClient.INSTANCE.dataBase.rawQuery("SELECT username, alias, user_uuid, message_key FROM contacts;", null)
 
             while (cursor.moveToNext()) {
                 val username = cursor.getString(0)
                 val alias = cursor.getString(1)
                 val userUUID = UUID.fromString(cursor.getString(2))
-                contactList.add(Contact(username, alias, userUUID))
+                val messageKey = cursor.getString(3).toKey()
+                contactList.add(Contact(username, alias, userUUID, messageKey))
             }
             cursor.close()
             recyclerView.adapter = ContactViewAdapter(contactList, mListener)
@@ -61,6 +64,6 @@ class FragmentContactsOverview : Fragment() {
 
 
     interface ListElementClickListener {
-        fun click(item: Contact)
+        fun click(item: Contact, view: ContactViewAdapter.ViewHolder)
     }
 }
