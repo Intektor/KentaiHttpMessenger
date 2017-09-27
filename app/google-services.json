@@ -15,6 +15,22 @@
       },
       "oauth_client": [
         {
+          "client_id": "90527173109-cn6gghnm8bl37icnl5dge8pmq7tbk8h7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "de.intektor.kentai",
+            "certificate_hash": "e29aefff41766ad66a83d77464976cb110cfa837"
+          }
+        },
+        {
+          "client_id": "90527173109-0j0odoresoijclqqol5q0ppds5isstoj.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "de.intektor.kentai",
+            "certificate_hash": "8a10e1a03169bf3ca9580cb72ad37757a2234a09"
+          }
+        },
+        {
           "client_id": "90527173109-4lt1djb166n75al9a6jqprao840ra1g4.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
