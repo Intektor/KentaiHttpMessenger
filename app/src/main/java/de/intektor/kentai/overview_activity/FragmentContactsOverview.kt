@@ -11,38 +11,22 @@ import android.view.ViewGroup
 import de.intektor.kentai.KentaiClient
 import de.intektor.kentai.R
 import de.intektor.kentai.fragment.ContactViewAdapter
+import de.intektor.kentai.kentai.chat.readContacts
 import de.intektor.kentai.kentai.contacts.Contact
-import de.intektor.kentai_http_common.util.toKey
-import java.util.*
 
 
 class FragmentContactsOverview : Fragment() {
-    private var mListener: ListElementClickListener? = null
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-    }
+    private var mListener: ListElementClickListener? = null
 
     override fun onCreateView(inflater: LayoutInflater?, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         val view = inflater!!.inflate(R.layout.fragment_contact_list, container, false)
 
         if (view is RecyclerView) {
             val context = view.getContext()
-            val recyclerView = view
-            recyclerView.layoutManager = LinearLayoutManager(context)
+            view.layoutManager = LinearLayoutManager(context)
 
-            val contactList = mutableListOf<Contact>()
-            val cursor = KentaiClient.INSTANCE.dataBase.rawQuery("SELECT username, alias, user_uuid, message_key FROM contacts;", null)
-
-            while (cursor.moveToNext()) {
-                val username = cursor.getString(0)
-                val alias = cursor.getString(1)
-                val userUUID = UUID.fromString(cursor.getString(2))
-                val messageKey = cursor.getString(3).toKey()
-                contactList.add(Contact(username, alias, userUUID, messageKey))
-            }
-            cursor.close()
-            recyclerView.adapter = ContactViewAdapter(contactList, mListener)
+            view.adapter = ContactViewAdapter(readContacts(KentaiClient.INSTANCE.dataBase).toMutableList(), mListener)
         }
         return view
     }

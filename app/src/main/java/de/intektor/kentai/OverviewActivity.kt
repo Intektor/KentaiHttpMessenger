@@ -9,7 +9,7 @@ import android.support.v7.app.AppCompatActivity
 import android.view.Menu
 import android.view.MenuItem
 import de.intektor.kentai.fragment.ContactViewAdapter
-import de.intektor.kentai.fragment.ViewAdapter
+import de.intektor.kentai.fragment.ChatListViewAdapter
 import de.intektor.kentai.kentai.chat.ChatMessageWrapper
 import de.intektor.kentai.kentai.contacts.Contact
 import de.intektor.kentai.overview_activity.FragmentChatsOverview
@@ -72,13 +72,14 @@ class OverviewActivity : AppCompatActivity(), FragmentContactsOverview.ListEleme
         return super.onOptionsItemSelected(item)
     }
 
-    fun addChat(item: ViewAdapter.ChatItem) {
+    fun addChat(item: ChatListViewAdapter.ChatItem) {
         val fragment = supportFragmentManager.findFragmentByTag("android:switcher:" + R.id.container + ":0") as FragmentChatsOverview
         fragment.addChat(item)
+        fragment.shownChatList.sortBy { it.lastChatMessage.message.timeSent }
         fragment.list.adapter.notifyDataSetChanged()
     }
 
-    fun getCurrentChats(): List<ViewAdapter.ChatItem> {
+    fun getCurrentChats(): List<ChatListViewAdapter.ChatItem> {
         val fragment = supportFragmentManager.findFragmentByTag("android:switcher:" + R.id.container + ":0") as FragmentChatsOverview
         return fragment.shownChatList
     }
@@ -88,6 +89,7 @@ class OverviewActivity : AppCompatActivity(), FragmentContactsOverview.ListEleme
         val chatItem = fragment.chatMap[chatUUID]!!
         chatItem.lastChatMessage = lastMessage
         chatItem.unreadMessages = unreadMessages
+        fragment.shownChatList.sortByDescending { it.lastChatMessage.message.timeSent }
         fragment.list.adapter.notifyDataSetChanged()
     }
 

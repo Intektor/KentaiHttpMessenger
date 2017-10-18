@@ -5,7 +5,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.net.ConnectivityManager
 import android.net.NetworkInfo
@@ -18,13 +17,13 @@ import de.intektor.kentai.kentai.android.readMessageWrapper
 import de.intektor.kentai.kentai.chat.*
 import de.intektor.kentai.kentai.references.UploadState
 import de.intektor.kentai.kentai.references.getReferenceFile
-import de.intektor.kentai_http_common.chat.ChatMessage
 import de.intektor.kentai_http_common.chat.ChatMessageRegistry
 import de.intektor.kentai_http_common.chat.ChatType
 import de.intektor.kentai_http_common.chat.MessageStatus
 import de.intektor.kentai_http_common.client_to_server.SendChatMessageRequest
 import de.intektor.kentai_http_common.gson.genGson
 import de.intektor.kentai_http_common.reference.FileType
+import de.intektor.kentai_http_common.reference.UploadResponse
 import de.intektor.kentai_http_common.server_to_client.SendChatMessageResponse
 import de.intektor.kentai_http_common.util.*
 import okhttp3.MediaType
@@ -158,47 +157,18 @@ class SendService : Service() {
 
     fun buildPendingMessages(): List<PendingMessage> {
         val list = mutableListOf<PendingMessage>()
-        val cursor: Cursor = dataBase.rawQuery("SELECT chat_uuid, message_uuid FROM pending_messages;", null)
-        while (cursor.moveToNext()) {
-            val chatUUID = cursor.getString(0).toUUID()
-            val messageUUID = cursor.getString(1).toUUID()
+        dataBase.rawQuery("SELECT chat_uuid, message_uuid FROM pending_messages;", null).use { query ->
+            while (query.moveToNext()) {
+                val chatUUID = query.getString(0).toUUID()
+                val messageUUID = query.getString(1).toUUID()
+                val sendTo = readChatParticipants(dataBase, chatUUID)
 
-            val sendTo = mutableListOf<ChatReceiver>()
-
-            val cursor4 = dataBase.rawQuery("SELECT chat_participants.participant_uuid, contacts.message_key FROM chat_participants LEFT JOIN contacts ON contacts.user_uuid = chat_participants.participant_uuid WHERE chat_participants.chat_uuid = '$chatUUID'", null)
-            while (cursor4.moveToNext()) {
-                val participantUUID = UUID.fromString(cursor4.getString(0))
-                val key = cursor4.getString(1)
-                sendTo.add(ChatReceiver(participantUUID, key.toKey(), ChatReceiver.ReceiverType.USER))
+                val wrapperList = readChatMessageWrappers(dataBase, "message_uuid = '$messageUUID'")
+                if (wrapperList.isNotEmpty()) {
+                    list.add(PendingMessage(wrapperList.first(), chatUUID, sendTo.filter { it.receiverUUID != userUUID }))
+                }
             }
-            cursor4.close()
-
-            val cursor2 = dataBase.rawQuery("SELECT message_uuid, additional_info, text, time, type, sender_uuid FROM chat_table WHERE message_uuid = '$messageUUID';", null)
-
-            val message: ChatMessage
-            val sender: String
-
-            if (cursor2.moveToNext()) {
-                val uuid = UUID.fromString(cursor2.getString(0))
-                val blob = cursor2.getBlob(1)
-                val text = cursor2.getString(2)
-                val time = cursor2.getLong(3)
-                val type = cursor2.getInt(4)
-                sender = cursor2.getString(5)
-
-                message = ChatMessageRegistry.create(type)
-                message.id = uuid
-                message.senderUUID = UUID.fromString(sender)
-                message.text = text
-                message.timeSent = time
-                message.processAdditionalInfo(blob)
-
-                val wrapper = ChatMessageWrapper(message, MessageStatus.WAITING, true, System.currentTimeMillis())
-                list.add(PendingMessage(wrapper, chatUUID, sendTo.filter { it.receiverUUID != userUUID }))
-            }
-            cursor2.close()
         }
-        cursor.close()
         return list
     }
 
@@ -255,12 +225,12 @@ class SendService : Service() {
 
         for ((message, chatUUID, sendTo) in list) {
             val toProcess = message.copy(message = message.message.copy())
-            val previewText = toProcess.message.text.substring(0 until Math.min(toProcess.message.text.length, 20))
+            val previewText = ""
             val registryId = ChatMessageRegistry.getID(toProcess.message.javaClass).toString()
             for (receiver in sendTo) {
                 if (receiver.isActive) {
                     if (receiver.publicKey == null) {
-                        receiver.publicKey = requestPublicKey(listOf(receiver.receiverUUID), dataBase)[receiver.receiverUUID]
+                        receiver.publicKey = requestPublicKey(receiver.receiverUUID, dataBase)
                     }
                     val encryptedPreviewText = previewText.encryptRSA(receiver.publicKey!!)
                     val encryptedReceiverUUID = receiver.receiverUUID.toString().encryptRSA(privateAuthKey!!)
@@ -302,7 +272,11 @@ class SendService : Service() {
     }
 
     private fun sendReferenceToServer(referenceInfo: ReferenceInfo) {
-        val cipher: Cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING")
+        val intent = Intent("de.intektor.kentai.uploadReferenceStarted")
+        intent.putExtra("referenceUUID", referenceInfo.referenceUUID)
+        sendBroadcast(intent)
+
+        val cipher: Cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
 
         val key: Key
 
@@ -333,8 +307,7 @@ class SendService : Service() {
                     referenceInfo.toUpload.inputStream().use { input ->
                         val responseStream = ResponseOutputStream(CipherOutputStream(dataOut, cipher), referenceInfo.toUpload.length(), referenceInfo)
                         responseStream.use { output ->
-                            val i = input.copyTo(output)
-                            println(i)
+                            input.copyTo(output)
                         }
                     }
                 }
@@ -342,26 +315,37 @@ class SendService : Service() {
         }
 
         val request = Request.Builder()
-                .url(address + "uploadReference")
+                .url(httpAddress + "uploadReference")
                 .post(requestBody)
                 .build()
 
-        httpClient.newCall(request).execute().use { response ->
-            if (response.isSuccessful) {
-                dataBase.compileStatement("UPDATE reference_upload_table SET state = ? WHERE reference_uuid = ?").use { statement ->
-                    statement.bindLong(1, UploadState.UPLOADED.ordinal.toLong())
-                    statement.bindString(2, referenceInfo.referenceUUID.toString())
-                    val i = statement.executeUpdateDelete()
-                    Log.i("INFO", i.toString())
+        try {
+            httpClient.newCall(request).execute().use { response ->
+
+                val uploadResponse = DataInputStream(response.body()!!.byteStream()).use { dataIn ->
+                    UploadResponse.values()[dataIn.readInt()]
                 }
-            } else {
-                //Clear everything from the queue so we start sending when we have an internet connection next time
-                referenceUploadQueue.clear()
+                if (uploadResponse == UploadResponse.NOW_UPLOADED || uploadResponse == UploadResponse.ALREADY_UPLOADED) {
+                    dataBase.compileStatement("UPDATE reference_upload_table SET state = ? WHERE reference_uuid = ?").use { statement ->
+                        statement.bindLong(1, UploadState.UPLOADED.ordinal.toLong())
+                        statement.bindString(2, referenceInfo.referenceUUID.toString())
+                        val i = statement.executeUpdateDelete()
+                        Log.i("INFO", i.toString())
+                    }
+                }
+
+                val i = Intent("de.intektor.kentai.uploadReferenceFinished")
+                i.putExtra("referenceUUID", referenceInfo.referenceUUID.toString())
+                i.putExtra("successful", response.isSuccessful)
+                sendBroadcast(i)
             }
+        } catch (t: Throwable) {
+            //Clear everything from the queue so we start sending when we have an internet connection next time
+            referenceUploadQueue.clear()
 
             val i = Intent("de.intektor.kentai.uploadReferenceFinished")
             i.putExtra("referenceUUID", referenceInfo.referenceUUID.toString())
-            i.putExtra("successful", response.isSuccessful)
+            i.putExtra("successful", false)
             sendBroadcast(i)
         }
     }

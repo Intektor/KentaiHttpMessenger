@@ -49,10 +49,17 @@
     <string name="notification_group_invite">%1$s has added you to group %2$s</string>
     <string name="notification_group_modification_change_name">%1$s has changed the group name from %2$s to %3$s</string>
 
-    <string name="notification_voice_message_group_name">%1$s-%2$s: 🎤Voice message: (%3$ds)</string>
-    <string name="notification_voice_message_name">%1$s: 🎤Voice message: (%2$ds)</string>
-    <string name="notification_voice_message">🎤Voice message: (%1$ds)</string>
+    <string name="notification_voice_message_group_name">%1$s-%2$s: 🎤 Voice message: (%3$ds)</string>
+    <string name="notification_voice_message_name">%1$s: 🎤 Voice message: (%2$ds)</string>
+    <string name="notification_voice_message">🎤 Voice message: (%1$ds)</string>
 
+    <string name="notification_image_message_group_name">%1$s-%2$s: 🖼 Image</string>
+    <string name="notification_image_message_name">%1$s: 🖼 ️Image</string>
+    <string name="notification_image_message">🖼️ Image</string>
+
+    <string name="notification_video_message_group_name">%1$s-%2$s: ▶️ Voice message: (%3$ds)</string>
+    <string name="notification_video_message_name">%1$s: ▶ ️Voice message: (%2$ds)</string>
+    <string name="notification_video_message">▶ ️Voice message: (%1$ds)</string>
 
     <string name="chat_info">Chat Info</string>
 
@@ -73,6 +80,21 @@
     <string name="chat_group_no_member">You are no member of this chat</string>
     <string name="menu_chat_bubble_info_label">Info</string>
     <string name="menu_chat_bubble_delete_label">Delete</string>
+    <string name="menu_chat_bubble_copy_label">Copy</string>
+    <string name="chat_send_photo">Send Photo</string>
+    <string name="chat_send_photo_take_now">Take Photo</string>
+    <string name="chat_send_photo_take_gallery">From Gallery</string>
+    <string name="chat_send_video">Send Video</string>
+    <string name="chat_send_video_take_now">Capture Video</string>
+    <string name="chat_send_video_take_gallery">From Gallery</string>
+    <string name="chat_user_typing">typing…</string>
+    <string name="chat_user_online">online</string>
+    <string name="chat_user_offline_exception">Connection Error: %1$s</string>
+    <string name="chat_user_offline_closed_today">Online today, %1$s</string>
+    <string name="chat_user_offline_closed_yesterday">Online yesterday, %1$s</string>
+    <string name="chat_user_offline_closed_anytime">Online %1$s</string>
+    <string name="chat_user_typing_group">%1$s typing…</string>
+    <string name="chat_activity_write_message">Enter message</string>
 
     <!-- Strings related to group info -->
 
@@ -105,4 +127,10 @@
     <string name="add_group_member_add_alert_message">Do you really want to add this user?</string>
     <string name="add_group_member_add_alert_positive">PROCEED</string>
     <string name="add_group_member_add_alert_negative">CANCEl</string>
+
+    <!-- Strings related to Overview Activity -->
+    <string name="overview_activity_no_message">No messages</string>
+
+    <!-- Strings related to Share Receive Activity -->
+    <string name="share_receive_label">Kentai</string>
 </resources>

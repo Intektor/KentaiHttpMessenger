@@ -1,10 +1,15 @@
 package de.intektor.kentai.kentai
 
 import android.content.Intent
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.media.MediaPlayer
+import android.media.ThumbnailUtils
 import android.os.Handler
+import android.provider.MediaStore
+import android.support.v4.content.FileProvider
 import android.support.v7.widget.RecyclerView
+import android.text.method.LinkMovementMethod
 import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
@@ -18,10 +23,7 @@ import de.intektor.kentai.kentai.chat.ChatInfo
 import de.intektor.kentai.kentai.chat.ChatMessageWrapper
 import de.intektor.kentai.kentai.chat.ChatReceiver
 import de.intektor.kentai.kentai.contacts.Contact
-import de.intektor.kentai.kentai.references.UploadState
-import de.intektor.kentai.kentai.references.downloadAudio
-import de.intektor.kentai.kentai.references.getReferenceFile
-import de.intektor.kentai.kentai.references.uploadAudio
+import de.intektor.kentai.kentai.references.*
 import de.intektor.kentai_http_common.chat.*
 import de.intektor.kentai_http_common.chat.group_modification.*
 import de.intektor.kentai_http_common.reference.FileType
@@ -45,6 +47,8 @@ class ChatAdapter(private val componentList: MutableList<Any>, val chatInfo: Cha
         val GROUP_MODIFICATION_CHANGE_KICK_USER = 6
         val GROUP_MODIFICATION_CHANGE_ADD_USER = 7
         val VOICE_MESSAGE = 8
+        val IMAGE_MESSAGE = 9
+        val VIDEO_MESSAGE = 10
     }
 
     fun add(any: Any) {
@@ -58,6 +62,8 @@ class ChatAdapter(private val componentList: MutableList<Any>, val chatInfo: Cha
                 MessageType.TEXT_MESSAGE -> TEXT_MESSAGE_ID
                 MessageType.GROUP_INVITE -> GROUP_INVITE_ID
                 MessageType.VOICE_MESSAGE -> VOICE_MESSAGE
+                MessageType.IMAGE_MESSAGE -> IMAGE_MESSAGE
+                MessageType.VIDEO_MESSAGE -> VIDEO_MESSAGE
                 MessageType.GROUP_MODIFICATION -> {
                     val message = component.message
                     message as ChatMessageGroupModification
@@ -76,7 +82,7 @@ class ChatAdapter(private val componentList: MutableList<Any>, val chatInfo: Cha
             }
             is UsernameChatInfo -> USERNAME_CHAT_INFO
             is TimeStatusChatInfo -> TIME_STATUS_INFO
-            else -> TODO()
+            else -> TODO("$component")
         }
     }
 
@@ -84,13 +90,15 @@ class ChatAdapter(private val componentList: MutableList<Any>, val chatInfo: Cha
             when (viewType) {
                 TEXT_MESSAGE_ID -> TextMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chatbubble, parent, false))
                 GROUP_INVITE_ID -> GroupInviteViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_message_group_invite, parent, false))
-                USERNAME_CHAT_INFO -> UsernameChatInfoViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_time_info, parent, false))
+                USERNAME_CHAT_INFO -> UsernameChatInfoViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_sender_info, parent, false))
                 TIME_STATUS_INFO -> TimeStatusViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_time_info, parent, false))
                 GROUP_MODIFICATION_CHANGE_NAME -> TextMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chatbubble, parent, false))
                 GROUP_MODIFICATION_CHANGE_ROLE -> TextMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chatbubble, parent, false))
                 GROUP_MODIFICATION_CHANGE_KICK_USER -> TextMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chatbubble, parent, false))
                 GROUP_MODIFICATION_CHANGE_ADD_USER -> TextMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chatbubble, parent, false))
                 VOICE_MESSAGE -> VoiceMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_message_voice_message, parent, false))
+                IMAGE_MESSAGE -> ImageMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_message_image, parent, false))
+                VIDEO_MESSAGE -> VideoMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_message_video, parent, false))
                 else -> throw RuntimeException()
             }
 
@@ -110,10 +118,11 @@ class ChatAdapter(private val componentList: MutableList<Any>, val chatInfo: Cha
             component as ChatMessageWrapper
             val message = component.message
             msg.text = component.message.text
+            msg.movementMethod = LinkMovementMethod.getInstance()
 
             val layout = mView.findViewById<LinearLayout>(R.id.bubble_layout) as LinearLayout
             val parentLayout = mView.findViewById<LinearLayout>(R.id.bubble_layout_parent) as LinearLayout
-            // if message is mine then align to right
+
             if (component.client) {
                 layout.setBackgroundResource(R.drawable.bubble_right)
                 parentLayout.gravity = Gravity.END
@@ -123,10 +132,6 @@ class ChatAdapter(private val componentList: MutableList<Any>, val chatInfo: Cha
                 val paddingStart = msg.paddingStart
                 val paddingEnd = msg.paddingEnd
                 msg.setPadding(paddingEnd, msg.paddingTop, paddingStart, msg.paddingBottom)
-            }
-
-            parentLayout.setOnClickListener {
-                Toast.makeText(activity, component.message.referenceUUID.toString(), Toast.LENGTH_SHORT).show()
             }
 
             if (message is ChatMessageGroupModification) {
@@ -235,6 +240,9 @@ class ChatAdapter(private val componentList: MutableList<Any>, val chatInfo: Cha
         var isInitialized = false
         var hasFinished = false
 
+        var isDownloaded = false
+        var isUploaded = false
+
         lateinit var message: ChatMessageVoiceMessage
 
         override fun setComponent(component: Any) {
@@ -251,31 +259,16 @@ class ChatAdapter(private val componentList: MutableList<Any>, val chatInfo: Cha
                 parentLayout.gravity = Gravity.START
             }
 
-            parentLayout.setOnClickListener {
-                Toast.makeText(activity, component.message.referenceUUID.toString(), Toast.LENGTH_SHORT).show()
-            }
-
             message = component.message as ChatMessageVoiceMessage
 
-            val isDownloaded = getReferenceFile(chatInfo.chatUUID, message.referenceUUID, FileType.AUDIO, activity.filesDir).exists()
+            isDownloaded = isReferenceDownloaded(message.referenceUUID, FileType.AUDIO)
 
-            val isUploaded = KentaiClient.INSTANCE.dataBase.rawQuery("SELECT state FROM reference_upload_table WHERE reference_uuid = ?", arrayOf(message.referenceUUID.toString())).use { query ->
-                if (query.moveToNext()) {
-                    val uploadState = UploadState.values()[query.getInt(0)]
-                    when (uploadState) {
-                        UploadState.IN_PROGRESS -> false
-                        UploadState.UPLOADED -> true
-                    }
-                } else {
-                    false
-                }
-            }
+            isUploaded = isReferenceUploaded(message.referenceUUID)
 
             uploadBar.max = 100
             watchBar.progress = 0
 
             watchBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-
                 private var userDragging = false
 
                 override fun onProgressChanged(seekBar: SeekBar, p1: Int, p2: Boolean) {
@@ -310,7 +303,7 @@ class ChatAdapter(private val componentList: MutableList<Any>, val chatInfo: Cha
                     uploadBar.progress = 0
 
                     if (!isDownloaded) {
-                        downloadAudio(activity, KentaiClient.INSTANCE.dataBase, chatInfo.chatUUID, message.referenceUUID, chatInfo.chatType)
+                        downloadAudio(activity, KentaiClient.INSTANCE.dataBase, chatInfo.chatUUID, message.referenceUUID, chatInfo.chatType, message.fileHash)
                     } else if (!isUploaded) {
                         uploadAudio(activity, KentaiClient.INSTANCE.dataBase, chatInfo.chatUUID, message.referenceUUID,
                                 getReferenceFile(chatInfo.chatUUID, message.referenceUUID, FileType.AUDIO, activity.filesDir))
@@ -367,6 +360,15 @@ class ChatAdapter(private val componentList: MutableList<Any>, val chatInfo: Cha
 
         override fun broadcast(target: String, intent: Intent) {
             when (target) {
+                "de.intektor.kentai.uploadReferenceStarted" -> {
+                    val referenceUUID = intent.getSerializableExtra("referenceUUID") as UUID
+                    if (referenceUUID == message.referenceUUID) {
+                        playButton.visibility = View.GONE
+                        uploadBar.visibility = View.VISIBLE
+                        uploadBar.progress = 0
+                    }
+                }
+
                 "de.intektor.kentai.uploadReferenceFinished" -> {
                     val referenceUUID = intent.getStringExtra("referenceUUID").toUUID()
                     val successful = intent.getBooleanExtra("successful", false)
@@ -376,6 +378,8 @@ class ChatAdapter(private val componentList: MutableList<Any>, val chatInfo: Cha
 
                         if (successful) {
                             playButton.setImageResource(android.R.drawable.ic_media_play)
+                            isUploaded = true
+                            isDownloaded = true
                         } else {
                             playButton.setImageResource(android.R.drawable.ic_menu_upload)
                             playButton.rotation = 180f
@@ -400,6 +404,8 @@ class ChatAdapter(private val componentList: MutableList<Any>, val chatInfo: Cha
 
                         if (successful) {
                             playButton.setImageResource(android.R.drawable.ic_media_play)
+                            isUploaded = true
+                            isDownloaded = true
                         } else {
                             playButton.setImageResource(android.R.drawable.ic_menu_upload)
                             playButton.rotation = 180f
@@ -428,6 +434,304 @@ class ChatAdapter(private val componentList: MutableList<Any>, val chatInfo: Cha
         }
     }
 
+    inner class ImageMessageViewHolder(view: View) : ChatMessageViewHolder(view) {
+
+        private val imageView = mView.findViewById<ImageView>(R.id.chatMessageImageView)
+        private val loadBar = mView.findViewById<ProgressBar>(R.id.chatMessageImageViewLoadBar)
+        private val loadButton = mView.findViewById<ImageButton>(R.id.chatMessageImageViewLoadButton)
+
+        private lateinit var message: ChatMessage
+
+        private var isUploaded = false
+        private var isDownloaded = false
+
+        override fun setComponent(component: Any) {
+            component as ChatMessageWrapper
+            message = component.message as ChatMessageImage
+
+            val message = message as ChatMessageImage
+
+            val referenceFile = getReferenceFile(chatInfo.chatUUID, message.referenceUUID, FileType.IMAGE, activity.filesDir)
+
+            isDownloaded = isReferenceDownloaded(message.referenceUUID, FileType.IMAGE)
+            isUploaded = isReferenceUploaded(message.referenceUUID)
+
+            loadBar.max = 100
+
+            imageView.scaleType = ImageView.ScaleType.CENTER_CROP
+
+            imageView.setOnClickListener {
+                val showImage = Intent(Intent.ACTION_VIEW)
+                showImage.setDataAndType(FileProvider.getUriForFile(activity, activity.applicationContext.packageName + ".kentai.android.GenericFileProvider", referenceFile), "image/*")
+                showImage.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                activity.startActivity(showImage)
+            }
+
+            if (!isDownloaded || !isUploaded) {
+                loadButton.visibility = View.VISIBLE
+                loadButton.setImageResource(android.R.drawable.ic_menu_upload)
+
+                loadButton.setOnClickListener {
+                    loadButton.visibility = View.GONE
+                    loadBar.visibility = View.VISIBLE
+                    loadBar.progress = 0
+                    imageView.visibility = View.GONE
+                    if (component.client) {
+                        uploadImage(activity, KentaiClient.INSTANCE.dataBase, chatInfo.chatUUID, message.referenceUUID,
+                                referenceFile)
+                    } else {
+                        downloadImage(activity, KentaiClient.INSTANCE.dataBase, chatInfo.chatUUID, message.referenceUUID, chatInfo.chatType, message.hash)
+                    }
+                }
+            }
+
+            if (isDownloaded) {
+                val b = BitmapFactory.decodeFile(referenceFile.path)
+                imageView.setImageBitmap(b)
+            } else {
+                imageView.setImageResource(android.R.drawable.ic_menu_upload)
+            }
+
+            val layout = mView.findViewById<LinearLayout>(R.id.bubble_layout) as LinearLayout
+            val parentLayout = mView.findViewById<LinearLayout>(R.id.bubble_layout_parent) as LinearLayout
+            // if message is mine then align to right
+            if (component.client) {
+                layout.setBackgroundResource(R.drawable.bubble_right)
+                parentLayout.gravity = Gravity.END
+            } else {
+                layout.setBackgroundResource(R.drawable.bubble_left)
+                parentLayout.gravity = Gravity.START
+            }
+        }
+
+        override fun broadcast(target: String, intent: Intent) {
+            when (target) {
+                "de.intektor.kentai.uploadReferenceStarted" -> {
+                    val referenceUUID = intent.getSerializableExtra("referenceUUID") as UUID
+                    if (referenceUUID == message.referenceUUID) {
+                        loadButton.visibility = View.GONE
+                        imageView.visibility = View.GONE
+                        loadBar.visibility = View.VISIBLE
+                        loadBar.progress = 0
+                    }
+                }
+
+                "de.intektor.kentai.uploadReferenceFinished" -> {
+                    val referenceUUID = intent.getStringExtra("referenceUUID").toUUID()
+                    val successful = intent.getBooleanExtra("successful", false)
+                    if (referenceUUID == message.referenceUUID) {
+                        if (successful) {
+                            imageView.visibility = View.VISIBLE
+                            loadBar.visibility = View.GONE
+                            isUploaded = true
+                            isDownloaded = true
+                        } else {
+                            loadBar.visibility = View.GONE
+                            loadButton.visibility = View.VISIBLE
+                            imageView.visibility = View.VISIBLE
+                        }
+                    }
+                }
+
+                "de.intektor.kentai.uploadProgress" -> {
+                    val referenceUUID = intent.getStringExtra("referenceUUID").toUUID()
+                    val progress = intent.getDoubleExtra("progress", 0.0)
+                    if (referenceUUID == message.referenceUUID) {
+                        loadBar.progress = (progress * 100).toInt()
+                    }
+                }
+
+                "de.intektor.kentai.downloadReferenceFinished" -> {
+                    val referenceUUID = intent.getStringExtra("referenceUUID").toUUID()
+                    val successful = intent.getBooleanExtra("successful", false)
+                    if (referenceUUID == message.referenceUUID) {
+                        if (successful) {
+                            isUploaded = true
+                            isDownloaded = true
+                            loadButton.visibility = View.GONE
+                            loadBar.visibility = View.GONE
+                            imageView.visibility = View.VISIBLE
+
+                            val b = BitmapFactory.decodeFile(getReferenceFile(chatInfo.chatUUID, message.referenceUUID, FileType.IMAGE, activity.filesDir).path)
+                            imageView.setImageBitmap(b)
+                        } else {
+                            loadBar.visibility = View.GONE
+                            loadButton.visibility = View.VISIBLE
+                            imageView.visibility = View.VISIBLE
+                        }
+                    }
+                }
+
+                "de.intektor.kentai.downloadProgress" -> {
+                    val referenceUUID = intent.getStringExtra("referenceUUID").toUUID()
+                    val progress = intent.getDoubleExtra("progress", 0.0)
+                    if (referenceUUID == message.referenceUUID) {
+                        loadBar.progress = (progress * 100).toInt()
+                    }
+                }
+            }
+        }
+    }
+
+    inner class VideoMessageViewHolder(view: View) : ChatMessageViewHolder(view) {
+
+        private val imageView = mView.findViewById<ImageView>(R.id.chatMessageVideoView)
+        private val loadBar = mView.findViewById<ProgressBar>(R.id.chatMessageVideoViewLoadBar)
+        private val loadButton = mView.findViewById<ImageButton>(R.id.chatMessageVideoViewLoadButton)
+
+        private lateinit var message: ChatMessage
+
+        private var isUploaded = false
+        private var isDownloaded = false
+
+        override fun setComponent(component: Any) {
+            component as ChatMessageWrapper
+            message = component.message as ChatMessageVideo
+
+            val message = message as ChatMessageVideo
+
+            val referenceFile = getReferenceFile(chatInfo.chatUUID, message.referenceUUID, FileType.VIDEO, activity.filesDir)
+
+            isDownloaded = isReferenceDownloaded(message.referenceUUID, FileType.VIDEO)
+            isUploaded = isReferenceUploaded(message.referenceUUID)
+
+            loadBar.max = 100
+
+            imageView.scaleType = ImageView.ScaleType.CENTER_CROP
+
+            imageView.setOnClickListener {
+                val showVideo = Intent(Intent.ACTION_VIEW)
+                showVideo.setDataAndType(FileProvider.getUriForFile(activity, activity.applicationContext.packageName + ".kentai.android.GenericFileProvider", referenceFile), "video/*")
+                showVideo.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                activity.startActivity(showVideo)
+            }
+
+            if (!isDownloaded || !isUploaded) {
+                loadButton.visibility = View.VISIBLE
+                loadButton.setImageResource(android.R.drawable.ic_menu_upload)
+
+                loadButton.setOnClickListener {
+                    loadButton.visibility = View.GONE
+                    loadBar.visibility = View.VISIBLE
+                    loadBar.progress = 0
+                    imageView.visibility = View.GONE
+                    if (component.client) {
+                        uploadVideo(activity, KentaiClient.INSTANCE.dataBase, chatInfo.chatUUID, message.referenceUUID,
+                                referenceFile)
+                    } else {
+                        downloadVideo(activity, KentaiClient.INSTANCE.dataBase, chatInfo.chatUUID, message.referenceUUID, chatInfo.chatType, message.hash)
+                    }
+                }
+            }
+
+            if (isDownloaded) {
+                val b = ThumbnailUtils.createVideoThumbnail(referenceFile.path, MediaStore.Images.Thumbnails.MINI_KIND)
+                imageView.setImageBitmap(b)
+            } else {
+                imageView.setImageResource(android.R.drawable.ic_menu_upload)
+            }
+
+            val layout = mView.findViewById<LinearLayout>(R.id.bubble_layout) as LinearLayout
+            val parentLayout = mView.findViewById<LinearLayout>(R.id.bubble_layout_parent) as LinearLayout
+            // if message is mine then align to right
+            if (component.client) {
+                layout.setBackgroundResource(R.drawable.bubble_right)
+                parentLayout.gravity = Gravity.END
+            } else {
+                layout.setBackgroundResource(R.drawable.bubble_left)
+                parentLayout.gravity = Gravity.START
+            }
+        }
+
+        override fun broadcast(target: String, intent: Intent) {
+            when (target) {
+                "de.intektor.kentai.uploadReferenceStarted" -> {
+                    val referenceUUID = intent.getSerializableExtra("referenceUUID") as UUID
+                    if (referenceUUID == message.referenceUUID) {
+                        loadButton.visibility = View.GONE
+                        imageView.visibility = View.GONE
+                        loadBar.visibility = View.VISIBLE
+                        loadBar.progress = 0
+                    }
+                }
+
+                "de.intektor.kentai.uploadReferenceFinished" -> {
+                    val referenceUUID = intent.getStringExtra("referenceUUID").toUUID()
+                    val successful = intent.getBooleanExtra("successful", false)
+                    if (referenceUUID == message.referenceUUID) {
+                        if (successful) {
+                            imageView.visibility = View.VISIBLE
+                            loadBar.visibility = View.GONE
+                            isUploaded = true
+                            isDownloaded = true
+
+                            val b = ThumbnailUtils.createVideoThumbnail(getReferenceFile(chatInfo.chatUUID, referenceUUID, FileType.AUDIO, activity.filesDir).path, MediaStore.Images.Thumbnails.MINI_KIND)
+                            imageView.setImageBitmap(b)
+                        } else {
+                            loadBar.visibility = View.GONE
+                            loadButton.visibility = View.VISIBLE
+                            imageView.visibility = View.VISIBLE
+                        }
+                    }
+                }
+
+                "de.intektor.kentai.uploadProgress" -> {
+                    val referenceUUID = intent.getStringExtra("referenceUUID").toUUID()
+                    val progress = intent.getDoubleExtra("progress", 0.0)
+                    if (referenceUUID == message.referenceUUID) {
+                        loadBar.progress = (progress * 100).toInt()
+                    }
+                }
+
+                "de.intektor.kentai.downloadReferenceFinished" -> {
+                    val referenceUUID = intent.getStringExtra("referenceUUID").toUUID()
+                    val successful = intent.getBooleanExtra("successful", false)
+                    if (referenceUUID == message.referenceUUID) {
+                        if (successful) {
+                            isUploaded = true
+                            isDownloaded = true
+                            loadButton.visibility = View.GONE
+                            loadBar.visibility = View.GONE
+                            imageView.visibility = View.VISIBLE
+
+                            val b = ThumbnailUtils.createVideoThumbnail(getReferenceFile(chatInfo.chatUUID, referenceUUID, FileType.AUDIO, activity.filesDir).path, MediaStore.Images.Thumbnails.MINI_KIND)
+                            imageView.setImageBitmap(b)
+                        } else {
+                            loadBar.visibility = View.GONE
+                            loadButton.visibility = View.VISIBLE
+                            imageView.visibility = View.VISIBLE
+                        }
+                    }
+                }
+
+                "de.intektor.kentai.downloadProgress" -> {
+                    val referenceUUID = intent.getStringExtra("referenceUUID").toUUID()
+                    val progress = intent.getDoubleExtra("progress", 0.0)
+                    if (referenceUUID == message.referenceUUID) {
+                        loadBar.progress = (progress * 100).toInt()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun isReferenceDownloaded(referenceUUID: UUID, fileType: FileType): Boolean =
+            getReferenceFile(chatInfo.chatUUID, referenceUUID, fileType, activity.filesDir).exists()
+
+    private fun isReferenceUploaded(referenceUUID: UUID): Boolean {
+        return KentaiClient.INSTANCE.dataBase.rawQuery("SELECT state FROM reference_upload_table WHERE reference_uuid = ?", arrayOf(referenceUUID.toString())).use { query ->
+            if (query.moveToNext()) {
+                val uploadState = UploadState.values()[query.getInt(0)]
+                when (uploadState) {
+                    UploadState.IN_PROGRESS -> false
+                    UploadState.UPLOADED -> true
+                }
+            } else {
+                false
+            }
+        }
+    }
+
     inner abstract class ChatMessageViewHolder(view: View) : AbstractViewHolder(view)
 
     inner class UsernameChatInfoViewHolder(view: View) : AbstractViewHolder(view) {
@@ -451,5 +755,5 @@ class ChatAdapter(private val componentList: MutableList<Any>, val chatInfo: Cha
 
     class UsernameChatInfo(val username: String, val color: String)
 
-    class TimeStatusChatInfo(val time: Long, val status: MessageStatus, val isClient: Boolean)
+    class TimeStatusChatInfo(val time: Long, var status: MessageStatus, val isClient: Boolean)
 }

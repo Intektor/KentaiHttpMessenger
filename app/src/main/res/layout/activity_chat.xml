@@ -1,42 +1,45 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-                xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:tools="http://schemas.android.com/tools"
-                android:layout_width="fill_parent"
-                android:layout_height="fill_parent"
-                android:background="#e1e1e1"
-                android:orientation="vertical"
-                android:gravity="end"
->
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:gravity="end"
+    android:orientation="vertical">
 
     <android.support.v7.widget.RecyclerView
         android:id="@+id/msgListView"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:layout_above="@+id/form"
         android:layout_alignParentStart="true"
         android:layout_alignParentTop="true"
         android:scrollbars="vertical"
-        tools:listitem="@layout/chatbubble"
-        android:layout_above="@+id/form" />
+        tools:listitem="@layout/chatbubble" />
 
     <LinearLayout
-            android:id="@+id/form"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_alignParentBottom="true"
-            android:layout_alignParentLeft="true"
-            android:background="#91f1f1f1"
-            android:orientation="horizontal"
-            android:paddingBottom="0dp" android:weightSum="1">
+        android:id="@+id/form"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentLeft="true"
+        android:background="#EEEEEE"
+        android:orientation="horizontal"
+        android:paddingBottom="0dp"
+        android:weightSum="1">
 
 
         <EditText
             android:id="@+id/messageBox"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="wrap_content"
             android:layout_weight="0.99"
-            android:alpha="1"
             android:ems="10"
-            android:inputType="textMultiLine" />
+            android:inputType="textMultiLine"
+            android:maxLines="4"
+            android:hint="@string/chat_activity_write_message"
+            android:textColorHint="#757575"
+            android:textColor="#212121"/>
 
         <TextView
             android:id="@+id/recordingTimeView"
@@ -57,6 +60,7 @@
             android:layout_height="45dp"
             android:layout_below="@+id/msgListView"
             android:layout_marginBottom="0dp"
+            android:background="@drawable/round_button"
             app:srcCompat="@android:drawable/ic_btn_speak_now" />
     </LinearLayout>
 

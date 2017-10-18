@@ -246,12 +246,12 @@ class GroupInfoActivity : AppCompatActivity(), GroupMemberAdapter.ClickListener 
     }
 
     private fun sendGroupModification(groupModification: GroupModification) {
+        val wrapper = ChatMessageWrapper(ChatMessageGroupModification(groupModification, KentaiClient.INSTANCE.userUUID, System.currentTimeMillis()),
+                MessageStatus.WAITING, true, System.currentTimeMillis())
+        wrapper.message.referenceUUID = UUID.randomUUID()
         sendMessageToServer(this@GroupInfoActivity,
                 PendingMessage(
-                        ChatMessageWrapper(
-                                ChatMessageGroupModification(
-                                        groupModification, KentaiClient.INSTANCE.userUUID, System.currentTimeMillis()),
-                                MessageStatus.WAITING, true, System.currentTimeMillis()),
+                        wrapper,
                         chatInfo.chatUUID, chatInfo.participants.filter { it.receiverUUID != KentaiClient.INSTANCE.userUUID }))
     }
 

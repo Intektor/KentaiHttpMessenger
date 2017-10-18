@@ -16,6 +16,7 @@ object AdditionalInfoRegistry {
         register(AdditionalInfoGroupInviteMessage::class.java)
         register(AdditionalInfoGroupModification::class.java)
         register(AdditionalInfoVoiceMessage::class.java)
+        register(AdditionalInfoVideoMessage::class.java)
     }
 
     private fun register(clazz: Class<out IAdditionalInfo>) {

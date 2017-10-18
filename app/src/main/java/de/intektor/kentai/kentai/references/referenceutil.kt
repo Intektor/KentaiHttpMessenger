@@ -5,8 +5,10 @@ import android.content.Intent
 import android.database.sqlite.SQLiteDatabase
 import android.os.AsyncTask
 import android.widget.Toast
+import com.google.common.hash.Hashing
+import com.google.common.io.BaseEncoding
 import de.intektor.kentai.KentaiClient
-import de.intektor.kentai.kentai.address
+import de.intektor.kentai.kentai.httpAddress
 import de.intektor.kentai.kentai.firebase.SendService
 import de.intektor.kentai.kentai.httpClient
 import de.intektor.kentai_http_common.chat.ChatType
@@ -19,12 +21,16 @@ import de.intektor.kentai_http_common.util.toAESKey
 import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
-import java.io.*
+import java.io.DataInputStream
+import java.io.File
+import java.io.FilterInputStream
+import java.io.InputStream
 import java.security.Key
 import java.util.*
 import javax.crypto.Cipher
 import javax.crypto.CipherInputStream
 import javax.crypto.spec.IvParameterSpec
+import javax.crypto.spec.SecretKeySpec
 
 /**
  * @author Intektor
@@ -33,14 +39,31 @@ fun uploadAudio(context: Context, database: SQLiteDatabase, chatUUID: UUID, refe
     uploadReference(context, database, chatUUID, referenceUUID, audioFile, FileType.AUDIO)
 }
 
-fun downloadAudio(context: Context, database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, chatType: ChatType) {
-    downloadReference(context, database, chatUUID, referenceUUID, FileType.AUDIO, chatType)
+fun downloadAudio(context: Context, database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, chatType: ChatType, hash: String) {
+    downloadReference(context, database, chatUUID, referenceUUID, FileType.AUDIO, chatType, hash)
 }
 
-private fun downloadReference(context: Context, database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, fileType: FileType, chatType: ChatType) {
+fun uploadImage(context: Context, database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, imageFile: File) {
+    uploadReference(context, database, chatUUID, referenceUUID, imageFile, FileType.IMAGE)
+}
+
+fun downloadImage(context: Context, database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, chatType: ChatType, hash: String) {
+    downloadReference(context, database, chatUUID, referenceUUID, FileType.IMAGE, chatType, hash)
+}
+
+fun uploadVideo(context: Context, database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, imageFile: File) {
+    uploadReference(context, database, chatUUID, referenceUUID, imageFile, FileType.VIDEO)
+}
+
+fun downloadVideo(context: Context, database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, chatType: ChatType, hash: String) {
+    downloadReference(context, database, chatUUID, referenceUUID, FileType.VIDEO, chatType, hash)
+}
+
+private fun downloadReference(context: Context, database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, fileType: FileType, chatType: ChatType, hash: String) {
     object : AsyncTask<Unit, Unit, DownloadReferenceRequest.Response>() {
 
         override fun doInBackground(vararg p0: Unit?): DownloadReferenceRequest.Response {
+            //This key is used to either decrypt the key sent in the file or to encrypt the full file
             val decryptionKey: Key = when (chatType) {
                 ChatType.TWO_PEOPLE -> {
                     KentaiClient.INSTANCE.privateMessageKey!!
@@ -58,7 +81,7 @@ private fun downloadReference(context: Context, database: SQLiteDatabase, chatUU
 
             val body = RequestBody.create(MediaType.parse("JSON"), gson.toJson(DownloadReferenceRequest(referenceUUID)))
             val request = Request.Builder()
-                    .url(address + DownloadReferenceRequest.TARGET)
+                    .url(httpAddress + DownloadReferenceRequest.TARGET)
                     .post(body)
                     .build()
             httpClient.newCall(request).execute().use { response ->
@@ -69,10 +92,11 @@ private fun downloadReference(context: Context, database: SQLiteDatabase, chatUU
                         when (responseCode) {
                             Response.NOT_FOUND -> return Response.NOT_FOUND
                             Response.DELETED -> return Response.DELETED
+                            Response.IN_PROGRESS -> return Response.IN_PROGRESS
                             Response.SUCCESS -> {
                                 val actKey: Key = if (chatType == ChatType.TWO_PEOPLE) {
                                     val readUTF = dataIn.readUTF()
-                                    readUTF.decryptRSA(decryptionKey).toAESKey()
+                                    SecretKeySpec(BaseEncoding.base64().decode(readUTF.decryptRSA(decryptionKey)), "AES")
                                 } else {
                                     decryptionKey
                                 }
@@ -80,11 +104,11 @@ private fun downloadReference(context: Context, database: SQLiteDatabase, chatUU
                                 val iV = ByteArray(dataIn.readInt())
                                 response.body()!!.byteStream().read(iV)
 
-                                val cipher: Cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING")
+                                val cipher: Cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
                                 cipher.init(Cipher.DECRYPT_MODE, actKey, IvParameterSpec(iV))
 
                                 CipherInputStream(ResponseInputStream(response.body()!!.byteStream(), totalToReceive, referenceUUID, context), cipher).use { cipherIn ->
-                                    cipherIn.copyTo(FileOutputStream(getReferenceFile(chatUUID, referenceUUID, fileType, context.filesDir)))
+                                    cipherIn.copyTo(getReferenceFile(chatUUID, referenceUUID, fileType, context.filesDir).outputStream())
                                 }
                                 database.compileStatement("INSERT INTO reference_upload_table (chat_uuid, reference_uuid, file_type, state) VALUES(?, ?, ?, ?)").use { statement ->
                                     statement.bindString(1, chatUUID.toString())
@@ -93,6 +117,7 @@ private fun downloadReference(context: Context, database: SQLiteDatabase, chatUU
                                     statement.bindLong(4, UploadState.UPLOADED.ordinal.toLong())
                                     statement.execute()
                                 }
+                                return Response.SUCCESS
                             }
                         }
                     }
@@ -100,20 +125,26 @@ private fun downloadReference(context: Context, database: SQLiteDatabase, chatUU
                     return Response.NOT_FOUND
                 }
             }
-            return Response.NOT_FOUND
         }
 
         override fun onPostExecute(result: DownloadReferenceRequest.Response) {
             super.onPostExecute(result)
+            var successful = false
             when (result) {
                 Response.NOT_FOUND -> Toast.makeText(context, "Not found!", Toast.LENGTH_SHORT).show()
                 Response.DELETED -> Toast.makeText(context, "Deleted!", Toast.LENGTH_SHORT).show()
+                Response.IN_PROGRESS -> Toast.makeText(context, "In progress!", Toast.LENGTH_SHORT).show()
                 Response.SUCCESS -> {
-
+                    val referenceFile = getReferenceFile(chatUUID, referenceUUID, fileType, context.filesDir)
+                    if (Hashing.sha512().hashBytes(referenceFile.readBytes()).toString() != hash) {
+                        Toast.makeText(context, "File hashes don't match!", Toast.LENGTH_SHORT).show()
+                    } else {
+                        successful = true
+                    }
                 }
             }
             val i = Intent("de.intektor.kentai.downloadReferenceFinished")
-            i.putExtra("successful", result == Response.SUCCESS)
+            i.putExtra("successful", successful)
             i.putExtra("referenceUUID", referenceUUID.toString())
             context.sendBroadcast(i)
         }
@@ -151,6 +182,8 @@ fun getReferenceFile(chatUUID: UUID, referenceUUID: UUID, fileType: FileType, fi
 
     return File("${filesDir.path}/resources/$chatUUID/$referenceUUID.${when (fileType) {
         FileType.AUDIO -> "3gp"
+        FileType.IMAGE -> "jpeg"
+        FileType.VIDEO -> "mp4"
     }}")
 }
 

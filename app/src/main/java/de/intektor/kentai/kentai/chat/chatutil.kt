@@ -5,17 +5,18 @@ import android.content.Intent
 import android.database.sqlite.SQLiteDatabase
 import com.google.common.io.BaseEncoding
 import de.intektor.kentai.KentaiClient
+import de.intektor.kentai.R
+import de.intektor.kentai.fragment.ChatListViewAdapter
 import de.intektor.kentai.kentai.android.writeMessageWrapper
+import de.intektor.kentai.kentai.contacts.Contact
 import de.intektor.kentai.kentai.firebase.SendService
 import de.intektor.kentai.kentai.httpPost
-import de.intektor.kentai_http_common.chat.ChatMessageRegistry
-import de.intektor.kentai_http_common.chat.ChatType
-import de.intektor.kentai_http_common.chat.GroupRole
-import de.intektor.kentai_http_common.chat.MessageStatus
+import de.intektor.kentai_http_common.chat.*
 import de.intektor.kentai_http_common.client_to_server.KeyRequest
 import de.intektor.kentai_http_common.gson.genGson
 import de.intektor.kentai_http_common.server_to_client.KeyResponse
 import de.intektor.kentai_http_common.util.toKey
+import de.intektor.kentai_http_common.util.toUUID
 import java.security.Key
 import java.security.interfaces.RSAPublicKey
 import java.util.*
@@ -162,6 +163,10 @@ fun updateMessageStatus(dataBase: SQLiteDatabase, messageUUID: UUID, messageStat
     statement.execute()
 }
 
+/**
+ * This method always asks the server for the keys, no checking in the database is done.
+ * The keys are then written to the database
+ */
 fun requestPublicKey(userUUIDs: List<UUID>, dataBase: SQLiteDatabase): Map<UUID, RSAPublicKey> {
     val gson = genGson()
     val response = gson.fromJson(httpPost(gson.toJson(KeyRequest(userUUIDs)), KeyRequest.TARGET), KeyResponse::class.java)
@@ -173,6 +178,30 @@ fun requestPublicKey(userUUIDs: List<UUID>, dataBase: SQLiteDatabase): Map<UUID,
         statement.execute()
     }
     return response.keys
+}
+
+/**
+ * This method first tries reading the key from the database, if this fails it asks the server for the key.
+ * If a new key was found this key gets written to the database
+ * @see requestPublicKey
+ */
+fun requestPublicKey(userUUID: UUID, dataBase: SQLiteDatabase): RSAPublicKey {
+    return dataBase.rawQuery("SELECT message_key FROM contacts WHERE user_uuid = ?", arrayOf(userUUID.toString())).use { query ->
+        if (query.moveToNext()) {
+            if (!query.isNull(0)) {
+                val messageKey = query.getString(0)
+                if (messageKey.isNotEmpty()) {
+                    messageKey.toKey() as RSAPublicKey
+                } else {
+                    requestPublicKey(listOf(userUUID), dataBase)[userUUID]!!
+                }
+            } else {
+                requestPublicKey(listOf(userUUID), dataBase)[userUUID]!!
+            }
+        } else {
+            requestPublicKey(listOf(userUUID), dataBase)[userUUID]!!
+        }
+    }
 }
 
 fun addChatParticipant(chatUUID: UUID, userUUID: UUID, dataBase: SQLiteDatabase) {
@@ -195,4 +224,73 @@ fun addChatParticipant(chatUUID: UUID, userUUID: UUID, dataBase: SQLiteDatabase)
             statement.execute()
         }
     }
+}
+
+fun readChatMessageWrappers(dataBase: SQLiteDatabase, where: String, whereArgs: Array<String>? = null, order: String? = null, limit: Int? = null): List<ChatMessageWrapper> {
+    dataBase.query("chat_table", arrayOf("message_uuid", "additional_info", "text", "time", "type", "sender_uuid", "client", "reference"), where, whereArgs, null, null, order, limit?.toString()).use { query ->
+        val list = mutableListOf<ChatMessageWrapper>()
+        while (query.moveToNext()) {
+            val uuid = UUID.fromString(query.getString(0))
+            val blob = query.getBlob(1)
+            val text = query.getString(2)
+            val time = query.getLong(3)
+            val type = query.getInt(4)
+            val sender = query.getString(5)
+            val client: Boolean = query.getInt(6) != 0
+            val reference = query.getString(7).toUUID()
+
+            val cursor = dataBase.rawQuery("SELECT status, time FROM message_status_change WHERE message_uuid = '$uuid' ORDER BY time DESC LIMIT 1", null)
+            cursor.moveToNext()
+            val status = MessageStatus.values()[cursor.getInt(0)]
+            val timeChange = cursor.getLong(1)
+            cursor.close()
+
+            val message = ChatMessageRegistry.create(type)
+            message.id = uuid
+            message.senderUUID = sender.toUUID()
+            message.text = text
+            message.timeSent = time
+            message.referenceUUID = reference
+            message.processAdditionalInfo(blob)
+
+            list.add(ChatMessageWrapper(message, status, client, timeChange))
+        }
+        return list
+    }
+}
+
+fun readContacts(dataBase: SQLiteDatabase): List<Contact> {
+    return dataBase.rawQuery("SELECT username, alias, user_uuid, message_key FROM contacts;", null).use { cursor ->
+        val contactList = mutableListOf<Contact>()
+        while (cursor.moveToNext()) {
+            val username = cursor.getString(0)
+            val alias = cursor.getString(1)
+            val userUUID = UUID.fromString(cursor.getString(2))
+            val messageKey = cursor.getString(3).toKey()
+            contactList.add(Contact(username, alias, userUUID, messageKey))
+        }
+        contactList
+    }
+}
+
+fun readChats(dataBase: SQLiteDatabase, context: Context): List<ChatListViewAdapter.ChatItem> {
+    val list = mutableListOf<ChatListViewAdapter.ChatItem>()
+    dataBase.rawQuery("SELECT chat_name, chat_uuid, type FROM chats", null).use { cursor ->
+        while (cursor.moveToNext()) {
+            val chatName = cursor.getString(0)
+            val chatUUID = UUID.fromString(cursor.getString(1))
+            val chatType = ChatType.values()[cursor.getInt(2)]
+
+            val chatInfo = ChatInfo(chatUUID, chatName, chatType, readChatParticipants(KentaiClient.INSTANCE.dataBase, chatUUID))
+
+            val wrapperList = readChatMessageWrappers(KentaiClient.INSTANCE.dataBase, "chat_uuid = '$chatUUID'", null, "time DESC", 1)
+            val finalWrapper = if (wrapperList.isEmpty()) {
+                ChatMessageWrapper(ChatMessageText(context.getString(R.string.overview_activity_no_message), UUID.randomUUID(), 0L), MessageStatus.WAITING, true, 0L)
+            } else {
+                wrapperList.first()
+            }
+            list.add(ChatListViewAdapter.ChatItem(chatInfo, finalWrapper, 0))
+        }
+    }
+    return list
 }

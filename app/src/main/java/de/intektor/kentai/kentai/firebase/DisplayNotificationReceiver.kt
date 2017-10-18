@@ -9,6 +9,7 @@ import android.content.SharedPreferences
 import android.database.sqlite.SQLiteDatabase
 import android.graphics.Color
 import android.graphics.Typeface
+import android.media.RingtoneManager
 import android.os.Build
 import android.support.annotation.RequiresApi
 import android.support.v4.app.NotificationCompat
@@ -20,17 +21,16 @@ import de.intektor.kentai.ChatActivity
 import de.intektor.kentai.OverviewActivity
 import de.intektor.kentai.R
 import de.intektor.kentai.kentai.DbHelper
+import de.intektor.kentai.kentai.android.readMessageWrapper
 import de.intektor.kentai.kentai.chat.ChatInfo
 import de.intektor.kentai.kentai.chat.readChatParticipants
 import de.intektor.kentai.kentai.firebase.additional_information.AdditionalInfoRegistry
 import de.intektor.kentai.kentai.firebase.additional_information.IAdditionalInfo
 import de.intektor.kentai.kentai.firebase.additional_information.info.AdditionalInfoGroupInviteMessage
 import de.intektor.kentai.kentai.firebase.additional_information.info.AdditionalInfoGroupModification
+import de.intektor.kentai.kentai.firebase.additional_information.info.AdditionalInfoVideoMessage
 import de.intektor.kentai.kentai.firebase.additional_information.info.AdditionalInfoVoiceMessage
-import de.intektor.kentai_http_common.chat.ChatMessage
-import de.intektor.kentai_http_common.chat.ChatMessageRegistry
-import de.intektor.kentai_http_common.chat.ChatType
-import de.intektor.kentai_http_common.chat.MessageType
+import de.intektor.kentai_http_common.chat.*
 import de.intektor.kentai_http_common.chat.group_modification.GroupModificationChangeName
 import de.intektor.kentai_http_common.util.minString
 import de.intektor.kentai_http_common.util.toUUID
@@ -62,10 +62,6 @@ class DisplayNotificationReceiver : BroadcastReceiver() {
         val senderName = intent.getStringExtra("senderName")
         val chatName = intent.getStringExtra("chatName")
         val senderUUID = UUID.fromString(intent.getStringExtra("senderUUID"))
-        val message_id = UUID.fromString(intent.getStringExtra("message.id"))
-        val message_text = intent.getStringExtra("message.text")
-        val message_additionalInfo = intent.getByteArrayExtra("message.additionalInfo")
-        val message_timeSent = intent.getLongExtra("message.timeSent", 0L)
         val message_messageID = intent.getIntExtra("message.messageID", 0)
         val additionalInfoID = intent.getIntExtra("additionalInfoID", 0)
         val additionalInfoContent = intent.getByteArrayExtra("additionalInfoContent")
@@ -73,17 +69,15 @@ class DisplayNotificationReceiver : BroadcastReceiver() {
         val additionalInfo = AdditionalInfoRegistry.create(additionalInfoID)
         additionalInfo.readFromStream(DataInputStream(ByteArrayInputStream(additionalInfoContent)))
 
-        val chatMessage = ChatMessageRegistry.create(message_messageID)
-        chatMessage.id = message_id
-        chatMessage.senderUUID = senderUUID
-        chatMessage.text = message_text
-        chatMessage.timeSent = message_timeSent
-        chatMessage.processAdditionalInfo(message_additionalInfo)
+        val wrapper = intent.readMessageWrapper(0)
+
+        if (wrapper.message is ChatMessageStatusChange) return
+        if (wrapper.message is ChatMessageTyping) return
 
         if (Build.VERSION.SDK_INT < 24) {
-            handleNotificationUnderSDK24(context, chatUUID, chatType, senderName, chatName, senderUUID, message_messageID, chatMessage, additionalInfo)
+            handleNotificationUnderSDK24(context, chatUUID, chatType, senderName, chatName, senderUUID, message_messageID, wrapper.message, additionalInfo)
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            handleNotificationSDK24(context, chatUUID, chatType, senderName, chatName, senderUUID, message_messageID, chatMessage, additionalInfo)
+            handleNotificationSDK24(context, chatUUID, chatType, senderName, chatName, senderUUID, message_messageID, wrapper.message, additionalInfo)
         }
     }
 
@@ -105,7 +99,7 @@ class DisplayNotificationReceiver : BroadcastReceiver() {
 
     private fun popNotificationSDKUnderNougat(context: Context, list: List<NotificationHolder>, notificationManager: NotificationManager, additionalInfo: IAdditionalInfo) {
         val builder = NotificationCompat.Builder(context, "new_messages")
-        builder.setSmallIcon(R.drawable.received)
+        builder.setSmallIcon(R.mipmap.ic_launcher)
         builder.setContentTitle("You have ${list.size} new messages!")
         builder.setContentText(format(list.last(), true, true, context, additionalInfo))
 
@@ -126,8 +120,13 @@ class DisplayNotificationReceiver : BroadcastReceiver() {
         builder.setLights(Color.BLUE, 1, 1)
         builder.color = Color.BLUE
         builder.priority = 1
+        builder.setVibrate(longArrayOf(0L, 200L, 100L, 200L, 1000L))
         builder.setAutoCancel(true)
-        if (Build.VERSION.SDK_INT >= 21) builder.setVibrate(LongArray(0))
+
+        val alarmSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+        builder.setSound(alarmSound)
+
+        if (Build.VERSION.SDK_INT >= 21) builder.setVibrate(longArrayOf(500L))
 
         val resultIntent = Intent(context, OverviewActivity::class.java)
         val resultPendingIntent = PendingIntent.getActivity(context, 0, resultIntent, PendingIntent.FLAG_UPDATE_CURRENT)
@@ -178,13 +177,17 @@ class DisplayNotificationReceiver : BroadcastReceiver() {
             builder.setWhen(newMessage.time)
             builder.setShowWhen(true)
             builder.setGroup(GROUP_KEY)
-            builder.setSmallIcon(R.drawable.received)
+            builder.setSmallIcon(R.mipmap.ic_launcher)
             builder.setAutoCancel(true)
             builder.mContentTitle = chatName
             builder.mContentText = format(newMessage, false, chatType == ChatType.GROUP, context, additionalInfo)
             builder.setSubText(chatName)
             builder.priority = 1
-            builder.setVibrate(kotlin.LongArray(0))
+            builder.setVibrate(longArrayOf(0L, 200L, 100L, 200L, 1000L))
+
+            val alarmSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            builder.setSound(alarmSound)
+
             val inboxStyle = NotificationCompat.InboxStyle()
             inboxStyle.setBigContentTitle("$chatName: $count messages")
             inboxStyle.setSummaryText(format(newMessage, false, newMessage.chatType == ChatType.GROUP, context, additionalInfo))
@@ -290,6 +293,25 @@ class DisplayNotificationReceiver : BroadcastReceiver() {
                     context.getString(R.string.notification_voice_message_name, senderName, additionalInfo.lengthSeconds)
                 } else {
                     context.getString(R.string.notification_voice_message, additionalInfo.lengthSeconds)
+                }
+            }
+            MessageType.IMAGE_MESSAGE -> {
+                if (addGroup && addName) {
+                    context.getString(R.string.notification_image_message_group_name, chatName, senderName)
+                } else if (addName) {
+                    context.getString(R.string.notification_image_message_name, senderName)
+                } else {
+                    context.getString(R.string.notification_image_message)
+                }
+            }
+            MessageType.VIDEO_MESSAGE -> {
+                additionalInfo as AdditionalInfoVideoMessage
+                if (addGroup && addName) {
+                    context.getString(R.string.notification_video_message_group_name, chatName, senderName, additionalInfo.durationSeconds)
+                } else if (addName) {
+                    context.getString(R.string.notification_video_message_name, senderName, additionalInfo.durationSeconds)
+                } else {
+                    context.getString(R.string.notification_video_message, additionalInfo.durationSeconds)
                 }
             }
             else -> TODO()
