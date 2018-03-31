@@ -22,7 +22,7 @@ class ShareReceiveActivity : AppCompatActivity(), FragmentChatsOverview.ClickLis
 
         shareReceiveList.layoutManager = LinearLayoutManager(this)
 
-        val list = readChats(KentaiClient.INSTANCE.dataBase, this)
+        val list = readChats(KentaiClient.INSTANCE.dataBase, this).sortedByDescending { it.lastChatMessage.message.timeSent }
 
         shareReceiveList.adapter = ChatListViewAdapter(list, this)
 
@@ -36,7 +36,7 @@ class ShareReceiveActivity : AppCompatActivity(), FragmentChatsOverview.ClickLis
             if (type == "text/plain") {
                 val message = ChatMessageText(intent.getStringExtra(Intent.EXTRA_TEXT), KentaiClient.INSTANCE.userUUID, System.currentTimeMillis())
                 val wrapper = ChatMessageWrapper(message, MessageStatus.WAITING, true, System.currentTimeMillis())
-                sendMessageToServer(this, PendingMessage(wrapper, item.chatInfo.chatUUID, item.chatInfo.participants))
+                sendMessageToServer(this, PendingMessage(wrapper, item.chatInfo.chatUUID, item.chatInfo.participants.filter { it.receiverUUID != KentaiClient.INSTANCE.userUUID }))
 
                 val i = Intent(this@ShareReceiveActivity, ChatActivity::class.java)
                 i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)

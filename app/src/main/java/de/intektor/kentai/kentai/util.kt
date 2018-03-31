@@ -6,7 +6,7 @@ import okhttp3.MediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
-import java.io.File
+import java.io.*
 import java.util.concurrent.TimeUnit
 
 
@@ -16,8 +16,8 @@ import java.util.concurrent.TimeUnit
 fun internalFile(name: String) = File(KentaiClient.INSTANCE.filesDir.path + "/" + name)
 
 //TODO
-//val address = "192.168.178.46"
-val address = "intektor.de"
+val address = "192.168.178.46"
+//val address = "intektor.de"
 
 val httpAddress = "http://$address:17349/"
 
@@ -38,3 +38,11 @@ fun httpPost(json: String, target: String): String {
 fun getName(contact: Contact): String {
     return contact.name
 }
+
+fun StringBuilder.newLine() {
+    this.append('\n')
+}
+
+fun FileOutputStream.dataOut() = DataOutputStream(this)
+
+fun FileInputStream.dataIn() = DataInputStream(this)

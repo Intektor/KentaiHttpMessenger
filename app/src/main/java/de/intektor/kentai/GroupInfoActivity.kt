@@ -13,7 +13,6 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import de.intektor.kentai.group_info_activity.GroupMemberAdapter
 import de.intektor.kentai.kentai.chat.*
-import de.intektor.kentai.kentai.contacts.Contact
 import de.intektor.kentai.kentai.groups.handleGroupModification
 import de.intektor.kentai_http_common.chat.ChatType
 import de.intektor.kentai_http_common.chat.GroupRole
@@ -44,19 +43,7 @@ class GroupInfoActivity : AppCompatActivity(), GroupMemberAdapter.ClickListener 
 
         setGroupNameToUI()
 
-        KentaiClient.INSTANCE.dataBase.rawQuery("SELECT group_role_table.user_uuid, group_role_table.role, contacts.username, contacts.alias " +
-                "FROM group_role_table " +
-                "LEFT JOIN contacts ON group_role_table.user_uuid = contacts.user_uuid " +
-                "WHERE chat_uuid = ?", arrayOf(chatInfo.chatUUID.toString())).use { query ->
-            while (query.moveToNext()) {
-                val userUUID = query.getString(0).toUUID()
-                val role = GroupRole.values()[query.getInt(1)]
-                val username = if (userUUID != KentaiClient.INSTANCE.userUUID) query.getString(2) else getString(R.string.group_role_member_yourself_label)
-                val alias = query.getString(3)
-                roleMap.put(userUUID, role)
-                memberList.add(GroupMember(Contact(username, alias, userUUID, null), role))
-            }
-        }
+        loadRoles()
 
         myRole = roleMap[KentaiClient.INSTANCE.userUUID]
         groupInfoEditGroup.isEnabled = myRole != null && myRole != GroupRole.DEFAULT
@@ -259,19 +246,14 @@ class GroupInfoActivity : AppCompatActivity(), GroupMemberAdapter.ClickListener 
         super.onResume()
         roleMap.clear()
         memberList.clear()
-        KentaiClient.INSTANCE.dataBase.rawQuery("SELECT group_role_table.user_uuid, group_role_table.role, contacts.username, contacts.alias " +
-                "FROM group_role_table " +
-                "LEFT JOIN contacts ON group_role_table.user_uuid = contacts.user_uuid " +
-                "WHERE chat_uuid = ?", arrayOf(chatInfo.chatUUID.toString())).use { query ->
-            while (query.moveToNext()) {
-                val userUUID = query.getString(0).toUUID()
-                val role = GroupRole.values()[query.getInt(1)]
-                val username = if (userUUID != KentaiClient.INSTANCE.userUUID) query.getString(2) else getString(R.string.group_role_member_yourself_label)
-                val alias = query.getString(3)
-                roleMap.put(userUUID, role)
-                memberList.add(GroupMember(Contact(username, alias, userUUID, null), role))
-            }
-        }
+        loadRoles()
         groupInfoMemberList.adapter.notifyDataSetChanged()
+    }
+
+    private fun loadRoles() {
+        val groupRoles = readGroupRoles(KentaiClient.INSTANCE.dataBase, chatInfo.chatUUID)
+        for (groupRole in groupRoles) {
+            roleMap.put(groupRole.contact.userUUID, groupRole.role)
+        }
     }
 }

@@ -2,29 +2,38 @@ package de.intektor.kentai
 
 import android.app.Activity
 import android.app.Application
-import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.database.sqlite.SQLiteDatabase
+import android.graphics.Typeface
 import android.net.ConnectivityManager
 import android.net.NetworkInfo
+import android.net.Uri
+import android.os.AsyncTask
 import android.os.Bundle
 import android.os.Parcelable
+import android.support.v7.app.AlertDialog
+import android.text.Spannable
+import android.text.SpannableString
+import android.text.style.StyleSpan
+import android.util.Log
 import de.intektor.kentai.fragment.ChatListViewAdapter
-import de.intektor.kentai.kentai.DbHelper
+import de.intektor.kentai.kentai.*
 import de.intektor.kentai.kentai.android.readMessageWrapper
 import de.intektor.kentai.kentai.chat.ChatInfo
 import de.intektor.kentai.kentai.chat.ChatMessageWrapper
 import de.intektor.kentai.kentai.chat.ChatReceiver
 import de.intektor.kentai.kentai.direct.connection.DirectConnectionManager
-import de.intektor.kentai.kentai.internalFile
 import de.intektor.kentai_http_common.chat.ChatMessageText
 import de.intektor.kentai_http_common.chat.ChatType
 import de.intektor.kentai_http_common.chat.MessageStatus
 import de.intektor.kentai_http_common.chat.group_modification.GroupModificationChangeName
 import de.intektor.kentai_http_common.chat.group_modification.GroupModificationRegistry
+import de.intektor.kentai_http_common.client_to_server.CurrentVersionRequest
+import de.intektor.kentai_http_common.gson.genGson
+import de.intektor.kentai_http_common.server_to_client.CurrentVersionResponse
 import de.intektor.kentai_http_common.tcp.server_to_client.Status
 import de.intektor.kentai_http_common.tcp.server_to_client.UserChange
 import de.intektor.kentai_http_common.util.readKey
@@ -37,7 +46,6 @@ import java.io.File
 import java.security.Key
 import java.util.*
 import kotlin.collections.HashMap
-
 
 /**
  * @author Intektor
@@ -89,11 +97,17 @@ class KentaiClient : Application() {
 
         val chatNotificationBroadcastReceiver: BroadcastReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
+                val unreadMessages = intent.getIntExtra("unreadMessages", 0)
+
                 val activity = currentActivity
                 val chatUUID = UUID.fromString(intent.getStringExtra("chatUUID"))
+                val chatType = ChatType.values()[intent.getIntExtra("chatType", 0)]
                 val senderName = intent.getStringExtra("senderName")
+                val chatName = intent.getStringExtra("chatName")
                 val senderUUID = UUID.fromString(intent.getStringExtra("senderUUID"))
-                val unreadMessages = intent.getIntExtra("unreadMessages", 0)
+                val message_messageID = intent.getIntExtra("message.messageID", 0)
+                val additionalInfoID = intent.getIntExtra("additionalInfoID", 0)
+                val additionalInfoContent = intent.getByteArrayExtra("additionalInfoContent")
 
                 val wrapper = intent.readMessageWrapper(0)
 
@@ -103,6 +117,8 @@ class KentaiClient : Application() {
                         activity.scrollToBottom()
                     }
                 } else if (activity is OverviewActivity) {
+                    handleNotification(context, chatUUID, chatType, senderName, chatName, senderUUID, message_messageID, additionalInfoID, additionalInfoContent, wrapper)
+
                     val currentChats = activity.getCurrentChats()
                     if (!currentChats.any { it.chatInfo.chatUUID == chatUUID }) {
                         val cursor = dataBase.rawQuery("SELECT message_key FROM contacts WHERE user_uuid = ?", arrayOf(senderUUID.toString()))
@@ -114,6 +130,8 @@ class KentaiClient : Application() {
                     } else {
                         activity.updateLatestChatMessage(chatUUID, wrapper, unreadMessages)
                     }
+                } else {
+                    handleNotification(context, chatUUID, chatType, senderName, chatName, senderUUID, message_messageID, additionalInfoID, additionalInfoContent, wrapper)
                 }
                 abortBroadcast()
             }
@@ -238,15 +256,10 @@ class KentaiClient : Application() {
                     filter = IntentFilter("de.intektor.kentai.typing")
                     this@KentaiClient.registerReceiver(typingBroadcastReceiver, filter)
 
-                    //The user has opened the app, that means we know that he has seen all the new notifications, we can clear the database
-                    dataBase.execSQL("DELETE FROM notification_messages WHERE 1")
-
-                    //Remove all notifications
-                    val notificationManager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-                    notificationManager.cancel(0)
-
                     //Establish a TCP connection to the kentai server
                     launchTCPConnection()
+
+                    CheckForNewVersionTask().execute(this@KentaiClient)
                 }
                 activitiesStarted++
             }
@@ -332,7 +345,7 @@ class KentaiClient : Application() {
             override fun onReceive(context: Context, intent: Intent) {
                 val currentActivity = this@KentaiClient.currentActivity
                 if (currentActivity is ChatActivity) {
-                   currentActivity.connectionClosed()
+                    currentActivity.connectionClosed()
                 }
             }
 
@@ -340,10 +353,78 @@ class KentaiClient : Application() {
     }
 
     fun launchTCPConnection() {
-        DirectConnectionManager.launchConnection(dataBase, applicationContext)
+        DirectConnectionManager.launchConnection(dataBase)
     }
 
     fun exitTCPConnection() {
         DirectConnectionManager.exitConnection()
+    }
+
+    class CheckForNewVersionTask : AsyncTask<KentaiClient, Unit, Pair<CurrentVersionResponse?, KentaiClient>>() {
+        override fun doInBackground(vararg params: KentaiClient): Pair<CurrentVersionResponse?, KentaiClient> {
+            val kentaiClient = params[0]
+            return try {
+                val pInfo = kentaiClient.packageManager.getPackageInfo(kentaiClient.packageName, 0)
+                val gson = genGson()
+                val response = httpPost(gson.toJson(CurrentVersionRequest(pInfo.versionCode.toLong())), CurrentVersionRequest.TARGET)
+                gson.fromJson<CurrentVersionResponse>(response, CurrentVersionResponse::class.java) to kentaiClient
+            } catch (t: Throwable) {
+                null to kentaiClient
+            }
+        }
+
+        override fun onPostExecute(response: Pair<CurrentVersionResponse?, KentaiClient>) {
+            val versionResponse = response.first
+            val kentaiClient = response.second
+            if (versionResponse == null) {
+                Log.e("ERROR", "Fetching the most recent version of kentai failed")
+                return
+            }
+
+            val pInfo = kentaiClient.packageManager.getPackageInfo(kentaiClient.packageName, 0)
+            if (versionResponse.changes.isNotEmpty()) {
+                val mostRecent = versionResponse.changes.first()
+                if (mostRecent.versionCode > pInfo.versionCode) {
+                    val sB = StringBuilder()
+                    for (change in versionResponse.changes) {
+                        val title = SpannableString(change.versionName)
+                        title.setSpan(StyleSpan(Typeface.BOLD), 0, title.length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+                        sB.append(title)
+
+                        val additions = change.changes.filter { it.changeType == CurrentVersionResponse.ChangeType.ADDITION }
+                        val fixes = change.changes.filter { it.changeType == CurrentVersionResponse.ChangeType.FIX }
+                        val removals = change.changes.filter { it.changeType == CurrentVersionResponse.ChangeType.REMOVAL }
+                        val tweaks = change.changes.filter { it.changeType == CurrentVersionResponse.ChangeType.TWEAK }
+
+                        fun listChanges(headline: Int, list: List<CurrentVersionResponse.Change>) {
+                            if (list.isNotEmpty()) {
+                                sB.newLine()
+                                sB.append(kentaiClient.getString(headline)).newLine()
+                                for (change in list) {
+                                    sB.append(kentaiClient.getString(R.string.new_kentai_version_alert_change, change.text)).newLine()
+                                }
+                            }
+                        }
+
+                        listChanges(R.string.new_kentai_version_alert_addition, additions)
+                        listChanges(R.string.new_kentai_version_alert_removals, removals)
+                        listChanges(R.string.new_kentai_version_alert_fixes, fixes)
+                        listChanges(R.string.new_kentai_version_alert_tweaks, tweaks)
+                    }
+
+                    AlertDialog.Builder(kentaiClient.currentActivity!!)
+                            .setTitle(R.string.new_kentai_version_alert_title)
+                            .setMessage(sB.toString())
+                            .setPositiveButton(R.string.new_kentai_version_alert_install, { _, _ ->
+                                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(mostRecent.downloadLink))
+                                kentaiClient.startActivity(browserIntent)
+                            })
+                            .setNegativeButton(R.string.new_kentai_version_alert_dismiss, { _, _ ->
+
+                            })
+                            .show()
+                }
+            }
+        }
     }
 }

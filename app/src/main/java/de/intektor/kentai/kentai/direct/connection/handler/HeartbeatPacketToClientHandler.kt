@@ -11,6 +11,6 @@ import java.net.Socket
 class HeartbeatPacketToClientHandler : IPacketHandler<HeartbeatPacketToClient> {
 
     override fun handlePacket(packet: HeartbeatPacketToClient, socketFrom: Socket) {
-        DirectConnectionManager.lastHearbeatTime = System.currentTimeMillis()
+        DirectConnectionManager.lastHeartbeatTime = System.currentTimeMillis()
     }
 }

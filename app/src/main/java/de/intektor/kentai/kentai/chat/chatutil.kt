@@ -11,12 +11,18 @@ import de.intektor.kentai.kentai.android.writeMessageWrapper
 import de.intektor.kentai.kentai.contacts.Contact
 import de.intektor.kentai.kentai.firebase.SendService
 import de.intektor.kentai.kentai.httpPost
+import de.intektor.kentai.kentai.references.UploadState
 import de.intektor.kentai_http_common.chat.*
 import de.intektor.kentai_http_common.client_to_server.KeyRequest
 import de.intektor.kentai_http_common.gson.genGson
+import de.intektor.kentai_http_common.reference.FileType
 import de.intektor.kentai_http_common.server_to_client.KeyResponse
+import de.intektor.kentai_http_common.util.readUUID
 import de.intektor.kentai_http_common.util.toKey
 import de.intektor.kentai_http_common.util.toUUID
+import de.intektor.kentai_http_common.util.writeUUID
+import java.io.DataInputStream
+import java.io.DataOutputStream
 import java.security.Key
 import java.security.interfaces.RSAPublicKey
 import java.util.*
@@ -26,14 +32,15 @@ import kotlin.collections.ArrayList
  * @author Intektor
  */
 fun createChat(chatInfo: ChatInfo, dataBase: SQLiteDatabase, clientUUID: UUID) {
-    var statement = dataBase.compileStatement("INSERT INTO chats (chat_name, chat_uuid, type, unread_messages) VALUES (?, ?, ?, ?)")
-    statement.bindString(1, chatInfo.chatName)
-    statement.bindString(2, chatInfo.chatUUID.toString())
-    statement.bindLong(3, chatInfo.chatType.ordinal.toLong())
-    statement.bindLong(4, 0L)
-    statement.execute()
+    dataBase.compileStatement("INSERT INTO chats (chat_name, chat_uuid, type, unread_messages) VALUES (?, ?, ?, ?)").use { statement ->
+        statement.bindString(1, chatInfo.chatName)
+        statement.bindString(2, chatInfo.chatUUID.toString())
+        statement.bindLong(3, chatInfo.chatType.ordinal.toLong())
+        statement.bindLong(4, 0L)
+        statement.execute()
+    }
 
-    if (chatInfo.chatType == ChatType.TWO_PEOPLE) {
+    if (chatInfo.chatType == ChatType.TWO_PEOPLE && chatInfo.isUserParticipant(clientUUID)) {
         dataBase.compileStatement("INSERT INTO user_to_chat_uuid (user_uuid, chat_uuid) VALUES(?, ?)").use { statement ->
             statement.bindString(1, chatInfo.participants.first { it.receiverUUID != clientUUID }.receiverUUID.toString())
             statement.bindString(2, chatInfo.chatUUID.toString())
@@ -42,11 +49,12 @@ fun createChat(chatInfo: ChatInfo, dataBase: SQLiteDatabase, clientUUID: UUID) {
     }
 
     for (i in 0 until chatInfo.participants.size) {
-        statement = dataBase.compileStatement("INSERT INTO chat_participants (chat_uuid, participant_uuid, is_active) VALUES(?, ?, ?)")
-        statement.bindString(1, chatInfo.chatUUID.toString())
-        statement.bindString(2, chatInfo.participants[i].receiverUUID.toString())
-        statement.bindLong(3, 1L)
-        statement.execute()
+        dataBase.compileStatement("INSERT INTO chat_participants (chat_uuid, participant_uuid, is_active) VALUES(?, ?, ?)").use { statement ->
+            statement.bindString(1, chatInfo.chatUUID.toString())
+            statement.bindString(2, chatInfo.participants[i].receiverUUID.toString())
+            statement.bindLong(3, 1L)
+            statement.execute()
+        }
     }
 }
 
@@ -57,6 +65,17 @@ fun createGroupChat(chatInfo: ChatInfo, roleMap: Map<UUID, GroupRole>, groupKey:
     dataBase.compileStatement("INSERT INTO group_key_table (chat_uuid, group_key) VALUES(?, ?)").use { statement ->
         statement.bindString(1, chatInfo.chatUUID.toString())
         statement.bindString(2, BaseEncoding.base64().encode(groupKey.encoded))
+        statement.execute()
+    }
+}
+
+fun deleteChat(chatUUID: UUID, dataBase: SQLiteDatabase) {
+    dataBase.compileStatement("DELETE FROM chat_table WHERE chat_uuid = ?").use { statement ->
+        statement.bindString(1, chatUUID.toString())
+        statement.execute()
+    }
+    dataBase.compileStatement("DELETE FROM chats WHERE chat_uuid = ?").use { statement ->
+        statement.bindString(1, chatUUID.toString())
         statement.execute()
     }
 }
@@ -259,6 +278,13 @@ fun readChatMessageWrappers(dataBase: SQLiteDatabase, where: String, whereArgs: 
     }
 }
 
+fun getAmountChatMessages(dataBase: SQLiteDatabase, chatUUID: UUID): Int {
+    dataBase.rawQuery("SELECT COUNT(chat_uuid) AS amount FROM chat_table WHERE chat_uuid = ?", arrayOf(chatUUID.toString())).use { cursor ->
+        cursor.moveToNext()
+        return cursor.getInt(0)
+    }
+}
+
 fun readContacts(dataBase: SQLiteDatabase): List<Contact> {
     return dataBase.rawQuery("SELECT username, alias, user_uuid, message_key FROM contacts;", null).use { cursor ->
         val contactList = mutableListOf<Contact>()
@@ -275,11 +301,12 @@ fun readContacts(dataBase: SQLiteDatabase): List<Contact> {
 
 fun readChats(dataBase: SQLiteDatabase, context: Context): List<ChatListViewAdapter.ChatItem> {
     val list = mutableListOf<ChatListViewAdapter.ChatItem>()
-    dataBase.rawQuery("SELECT chat_name, chat_uuid, type FROM chats", null).use { cursor ->
+    dataBase.rawQuery("SELECT chat_name, chat_uuid, type, unread_messages FROM chats", null).use { cursor ->
         while (cursor.moveToNext()) {
             val chatName = cursor.getString(0)
             val chatUUID = UUID.fromString(cursor.getString(1))
             val chatType = ChatType.values()[cursor.getInt(2)]
+            val unreadMessages = cursor.getInt(3)
 
             val chatInfo = ChatInfo(chatUUID, chatName, chatType, readChatParticipants(KentaiClient.INSTANCE.dataBase, chatUUID))
 
@@ -289,8 +316,130 @@ fun readChats(dataBase: SQLiteDatabase, context: Context): List<ChatListViewAdap
             } else {
                 wrapperList.first()
             }
-            list.add(ChatListViewAdapter.ChatItem(chatInfo, finalWrapper, 0))
+            list.add(ChatListViewAdapter.ChatItem(chatInfo, finalWrapper, unreadMessages))
         }
     }
     return list
+}
+
+fun setUnreadMessages(dataBase: SQLiteDatabase, chatUUID: UUID, unreadMessages: Int) {
+    dataBase.execSQL("UPDATE chats SET unread_messages = $unreadMessages WHERE chat_uuid = ?", arrayOf(chatUUID.toString()))
+}
+
+fun incrementUnreadMessages(dataBase: SQLiteDatabase, chatUUID: UUID) {
+    dataBase.execSQL("UPDATE chats SET unread_messages = unread_messages + 1 WHERE chat_uuid = ?", arrayOf(chatUUID.toString()))
+}
+
+fun writeMessageWrapper(dataOut: DataOutputStream, wrapper: ChatMessageWrapper) {
+    dataOut.writeInt(ChatMessageRegistry.getID(wrapper.message.javaClass))
+
+    dataOut.writeUTF(wrapper.message.aesKey)
+    dataOut.writeUTF(wrapper.message.initVector)
+    dataOut.writeUTF(wrapper.message.signature)
+    dataOut.writeUTF(wrapper.message.text)
+
+    dataOut.writeUUID(wrapper.message.id)
+    dataOut.writeUUID(wrapper.message.senderUUID)
+    dataOut.writeUUID(wrapper.message.referenceUUID)
+
+    dataOut.writeLong(wrapper.message.timeSent)
+    val additionalInfo = wrapper.message.getAdditionalInfo()
+    dataOut.writeBoolean(additionalInfo != null)
+    if (additionalInfo != null) {
+        dataOut.writeInt(additionalInfo.size)
+        dataOut.write(additionalInfo)
+    }
+
+    dataOut.writeBoolean(wrapper.client)
+    dataOut.writeInt(wrapper.status.ordinal)
+    dataOut.writeLong(wrapper.statusChangeTime)
+}
+
+fun readMessageWrapper(dataIn: DataInputStream): ChatMessageWrapper {
+    val message = ChatMessageRegistry.create(dataIn.readInt())
+    message.aesKey = dataIn.readUTF()
+    message.initVector = dataIn.readUTF()
+    message.signature = dataIn.readUTF()
+    message.text = dataIn.readUTF()
+
+    message.id = dataIn.readUUID()
+    message.senderUUID = dataIn.readUUID()
+    message.referenceUUID = dataIn.readUUID()
+
+    message.timeSent = dataIn.readLong()
+
+    if (dataIn.readBoolean()) {
+        val additionalInfo = ByteArray(dataIn.readInt())
+        dataIn.read(additionalInfo)
+        message.processAdditionalInfo(additionalInfo)
+    }
+
+    val client = dataIn.readBoolean()
+    val status = MessageStatus.values()[dataIn.readInt()]
+    val statusChangeTime = dataIn.readLong()
+    return ChatMessageWrapper(message, status, client, statusChangeTime)
+}
+
+fun getAmountMessageStatusChange(dataBase: SQLiteDatabase): Int {
+    dataBase.rawQuery("SELECT COUNT(id) FROM message_status_change", arrayOf()).use { cursor ->
+        cursor.moveToNext()
+        return cursor.getInt(0)
+    }
+}
+
+fun readMessageStatusChange(dataBase: SQLiteDatabase, from: Int, limit: Int): List<MessageStatusChange> {
+    dataBase.rawQuery("SELECT message_uuid, status, time FROM message_status_change WHERE id > $from -1 ORDER BY id ASC LIMIT $limit", null).use { cursor ->
+        val list = mutableListOf<MessageStatusChange>()
+        while (cursor.moveToNext()) {
+            list.add(MessageStatusChange(cursor.getString(0).toUUID(), MessageStatus.values()[cursor.getInt(1)], cursor.getLong(2)))
+        }
+        return list
+    }
+}
+
+data class MessageStatusChange(val messageUUID: UUID, val status: MessageStatus, val time: Long)
+
+fun readGroupRoles(dataBase: SQLiteDatabase, chatUUID: UUID): List<GroupMember> {
+    dataBase.rawQuery("SELECT group_role_table.user_uuid, group_role_table.role, contacts.username, contacts.alias " +
+            "FROM group_role_table " +
+            "LEFT JOIN contacts ON group_role_table.user_uuid = contacts.user_uuid " +
+            "WHERE chat_uuid = ?", arrayOf(chatUUID.toString())).use { query ->
+        val list = mutableListOf<GroupMember>()
+        while (query.moveToNext()) {
+            val userUUID = query.getString(0).toUUID()
+            val role = GroupRole.values()[query.getInt(1)]
+            val username = query.getString(2)
+            val alias = query.getString(3)
+            list.add(GroupMember(Contact(username, alias, userUUID, null), role))
+        }
+        return list
+    }
+}
+
+fun saveMessageStatusChange(dataBase: SQLiteDatabase, msc: MessageStatusChange) {
+    dataBase.compileStatement("INSERT INTO message_status_change (message_uuid, status, time) VALUES(?, ?, ?)").use { statement ->
+        statement.bindString(1, msc.messageUUID.toString())
+        statement.bindLong(2, msc.status.ordinal.toLong())
+        statement.bindLong(3, msc.time)
+        statement.execute()
+    }
+}
+
+fun setReferenceState(dataBase: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, fileType: FileType, state: UploadState) {
+    dataBase.compileStatement("INSERT INTO reference_upload_table (chat_uuid, reference_uuid, file_type, state) VALUES(?, ?, ?, ?)").use { statement ->
+        statement.bindString(1, chatUUID.toString())
+        statement.bindString(2, referenceUUID.toString())
+        statement.bindLong(3, fileType.ordinal.toLong())
+        statement.bindLong(4, state.ordinal.toLong())
+        statement.execute()
+    }
+}
+
+fun getReferenceState(dataBase: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID): UploadState {
+    dataBase.rawQuery("SELECT state FROM reference_upload_table WHERE chat_uuid = ? AND reference_uuid = ?", arrayOf(chatUUID.toString(), referenceUUID.toString())).use { cursor ->
+        if (cursor.moveToNext()) {
+            return UploadState.values()[cursor.getInt(0)]
+        }
+    }
+    return UploadState.IN_PROGRESS
 }

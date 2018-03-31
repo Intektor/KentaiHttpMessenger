@@ -26,4 +26,8 @@ data class ChatInfo(val chatUUID: UUID, val chatName: String, val chatType: Chat
 
         override fun newArray(size: Int): Array<ChatInfo?> = arrayOfNulls(size)
     }
+
+    fun isUserParticipant(userUUID: UUID): Boolean = participants.any { it.receiverUUID == userUUID }
+
+    fun userProfile(userUUID: UUID): ChatReceiver = participants.first { it.receiverUUID == userUUID }
 }

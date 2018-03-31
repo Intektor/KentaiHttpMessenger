@@ -15,6 +15,9 @@
     <string name="register_username_not_available">Sorry! This username is already taken!</string>
     <string name="register_username_available_proceed">PROCEED</string>
     <string name="register_register_error_title">ERROR</string>
+    <string name="register_error_while_connecting">Could not connect to server!</string>
+    <string name="register_transfer_text">Or transfer from an old device?</string>
+    <string name="register_qr_image_content_description">Scan this on your old phone</string>
 
     <!-- String related to add contact -->
 
@@ -95,6 +98,7 @@
     <string name="chat_user_offline_closed_anytime">Online %1$s</string>
     <string name="chat_user_typing_group">%1$s typing…</string>
     <string name="chat_activity_write_message">Enter message</string>
+    <string name="chat_activity_nine_gag_video_title">%1$s (Video)</string>
 
     <!-- Strings related to group info -->
 
@@ -126,11 +130,62 @@
     <string name="add_group_member_add_alert_title">Add User</string>
     <string name="add_group_member_add_alert_message">Do you really want to add this user?</string>
     <string name="add_group_member_add_alert_positive">PROCEED</string>
-    <string name="add_group_member_add_alert_negative">CANCEl</string>
+    <string name="add_group_member_add_alert_negative">CANCEL</string>
 
     <!-- Strings related to Overview Activity -->
     <string name="overview_activity_no_message">No messages</string>
+    <string name="overview_activity_delete_chat">Delete Chat</string>
+    <string name="overview_activity_delete_chat_title">Delete Chat</string>
+    <string name="overview_activity_delete_chat_message">Do you really want to delete this chat?</string>
+    <string name="overview_activity_delete_chat_do_delete">DELETE</string>
+    <string name="overview_activity_delete_chat_cancel">CANCEL</string>
+    <string name="overview_activity_menu_transfer">Transfer</string>
+    <string name="overview_activity_menu_chat_backup">Chat Backup</string>
+    <string name="overview_activity_menu_chat_backup_create">Create Chat Backup</string>
+    <string name="overview_activity_menu_chat_backup_use">Use Chat Backup</string>
+    <string name="overview_activity_chat_backup_alert_title">Chat Backup</string>
+    <string name="overview_activity_chat_backup_alert_message">Enter the name of the chat backup</string>
+    <string name="overview_activity_chat_backup_alert_proceed">Create Chat Backup</string>
+    <string name="overview_activity_chat_backup_alert_cancel">Cancel</string>
+    <string name="overview_activity_chat_backup_alert_default_name">My Backup</string>
+    <string name="overview_activity_chat_backup_alert_progress_title">Creating backup</string>
+    <string name="overview_activity_chat_backup_alert_progress_message">Please wait, this might take some time</string>
+    <string name="overview_activity_chat_backup_alert_progress_upload_title">Uploading backup</string>
+    <string name="overview_activity_chat_backup_alert_progress_upload_message">Please wait, this will be done shortly!</string>
+    <string name="overview_activity_request_google_accounts_permission_message">In order to upload your backup to google drive, kentai needs your Google account (via contacts). </string>
+    <string name="overview_activity_missing_google_play_service_alert_title">Google Play Services</string>
+    <string name="overview_activity_missing_google_play_service_alert_message">Kentai needs Google Play Services to be installed in order to upload your backup to Google Drive.
+    Please install Google Play Services on your device and relaunch kentai</string>
+    <string name="overview_activity_chat_backup_alert_successful_upload_alert_title">Chat Backup</string>
+    <string name="overview_activity_chat_backup_alert_successful_upload_alert_message">Successfully uploaded your chat backup to google drive</string>
+    <string name="overview_activity_chat_backup_pick_alert_title">Pick a backup</string>
+    <string name="overview_activity_chat_backup_use_download_progress_dialog_title">Downloading backup</string>
+    <string name="overview_activity_chat_backup_use_download_progress_dialog_message">Your backup is being downloaded, please be patient…</string>
+    <string name="overview_activity_chat_backup_use_install_alert_dialog_title">Warning!</string>
+    <string name="overview_activity_chat_backup_use_install_alert_dialog_message">You are about to install a chat backup! This will overwrite all of your current chats! You will lose unsaved messages!
+    Maybe create a backup of your current chats just to be sure?</string>
+    <string name="overview_activity_chat_backup_use_install_alert_dialog_proceed">⚠️Install!⚠️</string>
+    <string name="overview_activity_chat_backup_use_install_alert_dialog_cancel">✅Cancel✅</string>
+    <string name="overview_activity_chat_backup_use_install_progress_dialog_title">Installing Chat Backup</string>
+    <string name="overview_activity_chat_backup_use_install_progress_dialog_message">Please be patient, this might take some time!</string>
 
     <!-- Strings related to Share Receive Activity -->
     <string name="share_receive_label">Kentai</string>
+
+    <!-- Strings related to the new version of kentai alert dialog -->
+    <string name="new_kentai_version_alert_title">A new version of kentai is available</string>
+    <string name="new_kentai_version_alert_dismiss">Dismiss</string>
+    <string name="new_kentai_version_alert_install">Install</string>
+    <string name="new_kentai_version_alert_addition">Additions:</string>
+    <string name="new_kentai_version_alert_removals">Removals:</string>
+    <string name="new_kentai_version_alert_tweaks">Tweaks:</string>
+    <string name="new_kentai_version_alert_fixes">Fixes:</string>
+    <string name="new_kentai_version_alert_change">- %1$s</string>
+
+    <!-- Strings related to kentai transport -->
+    <string name="transport_message_title">Warning!</string>
+    <string name="transport_message_message">You are about to give away your essential key pairs that is used for all authorization and messaging in kentai! Everyone with this key pair can send
+    messages in your name. Do NEVER do this in a public WLAN hotspot, do this at your home or another save place to avoid a possible loss. Are you really sure you want to do this?</string>
+    <string name="transport_message_cancel">Cancel</string>
+    <string name="transport_message_proceed">Proceed</string>
 </resources>

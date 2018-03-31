@@ -179,7 +179,7 @@ class SendService : Service() {
                 val chatUUID = query.getString(0).toUUID()
                 val referenceUUID = query.getString(1).toUUID()
                 val fileType = FileType.values()[query.getInt(2)]
-                val referenceFile = getReferenceFile(chatUUID, referenceUUID, fileType, filesDir)
+                val referenceFile = getReferenceFile(chatUUID, referenceUUID, fileType, filesDir, this@SendService)
                 list.add(buildReferenceInfo(chatUUID, fileType, referenceFile, referenceUUID))
             }
         }

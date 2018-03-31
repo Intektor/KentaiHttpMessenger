@@ -30,6 +30,14 @@ class ChatListViewAdapter(private val mValues: List<ChatItem>, private val mList
         holder.nameView.text = chatItem.chatInfo.chatName
         holder.hintView.text = chatItem.lastChatMessage.message.text.minString(0..20)
         holder.timeView.text = timeInstance.format(chatItem.lastChatMessage.message.timeSent)
+        holder.unreadMessages.text = chatItem.unreadMessages.toString()
+
+        if (chatItem.unreadMessages < 1) {
+            holder.unreadMessages.visibility = View.INVISIBLE
+        } else {
+            holder.unreadMessages.visibility = View.VISIBLE
+        }
+
         holder.messageStatusView.setImageResource(when (chatItem.lastChatMessage.status) {
             MessageStatus.WAITING -> R.drawable.waiting
             MessageStatus.SENT -> R.drawable.sent
@@ -40,6 +48,8 @@ class ChatListViewAdapter(private val mValues: List<ChatItem>, private val mList
         holder.view.setOnClickListener {
             mListener?.onClickItem(holder.item)
         }
+
+        holder.view.tag = position
 
         fragment?.registerForContextMenu(holder.view)
     }
@@ -55,6 +65,7 @@ class ChatListViewAdapter(private val mValues: List<ChatItem>, private val mList
         val hintView: TextView = view.findViewById(R.id.hint)
         val timeView: TextView = view.findViewById(R.id.time)
         val messageStatusView: ImageView = view.findViewById(R.id.messaage_status)
+        val unreadMessages: TextView = view.findViewById(R.id.chatItemUnreadMessages)
 
         lateinit var item: ChatItem
 

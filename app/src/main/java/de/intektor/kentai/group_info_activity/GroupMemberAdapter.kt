@@ -18,9 +18,10 @@ import de.intektor.kentai_http_common.chat.GroupRole
 class GroupMemberAdapter(val list: List<GroupMember>, private val clickListener: ClickListener, val activity: AppCompatActivity) : RecyclerView.Adapter<GroupMemberAdapter.ViewHolder>() {
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.username.text = list[position].contact.name
+        val member = list[position]
+        holder.username.text = if (member.contact.userUUID == KentaiClient.INSTANCE.userUUID) activity.getString(R.string.group_role_member_yourself_label) else member.contact.name
         holder.status.text = "TODO"
-        when (list[position].role) {
+        when (member.role) {
             GroupRole.ADMIN -> {
                 holder.subtitle.setText(R.string.group_role_admin)
                 holder.subtitle.setTextColor(Color.RED)
@@ -35,7 +36,7 @@ class GroupMemberAdapter(val list: List<GroupMember>, private val clickListener:
             }
         }
 
-        if (list[position].contact.userUUID != KentaiClient.INSTANCE.userUUID) {
+        if (member.contact.userUUID != KentaiClient.INSTANCE.userUUID) {
             activity.registerForContextMenu(holder.view)
         }
 

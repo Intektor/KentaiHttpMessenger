@@ -22,4 +22,27 @@
         android:title="@string/new_contact_label"
         app:showAsAction="always" />
 
+    <item
+        android:id="@+id/chat_backup"
+        android:title="@string/overview_activity_menu_chat_backup"
+        app:showAsAction="never">
+
+        <menu>
+            <item
+                android:id="@+id/create_chat_backup"
+                android:title="@string/overview_activity_menu_chat_backup_create"
+                app:showAsAction="never" />
+
+            <item
+                android:id="@+id/use_chat_backup"
+                android:title="@string/overview_activity_menu_chat_backup_use"
+                app:showAsAction="never" />
+        </menu>
+
+    </item>
+
+    <item
+        android:id="@+id/phone_transfer"
+        android:title="@string/overview_activity_menu_transfer"
+        app:showAsAction="never" />
 </menu>

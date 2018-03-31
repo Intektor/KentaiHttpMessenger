@@ -9,6 +9,11 @@ import java.util.*
  * @author Intektor
  */
 fun addContact(userUUID: UUID, userName: String, dataBase: SQLiteDatabase, messageKey: Key? = null) {
+    val contained = dataBase.rawQuery("SELECT COUNT(user_uuid) FROM contacts WHERE user_uuid = '$userUUID'", arrayOf()).use { cursor ->
+        cursor.moveToNext()
+        cursor.getInt(0) > 0
+    }
+    if (contained) return
     dataBase.compileStatement("INSERT INTO contacts (user_uuid, username, alias, message_key) VALUES (?, ?, ?, ?)").use { statement ->
         statement.bindString(1, userUUID.toString())
         statement.bindString(2, userName)

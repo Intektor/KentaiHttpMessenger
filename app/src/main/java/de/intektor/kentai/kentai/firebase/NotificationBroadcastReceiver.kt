@@ -28,7 +28,7 @@ class NotificationBroadcastReceiver : BroadcastReceiver() {
             val chatMessage = ChatMessageText(remoteInput.toString(), KentaiClient.INSTANCE.userUUID, System.currentTimeMillis())
             val wrapper = ChatMessageWrapper(chatMessage, MessageStatus.WAITING, true, System.currentTimeMillis())
             wrapper.message.referenceUUID = UUID.randomUUID()
-            sendMessageToServer(context, PendingMessage(wrapper, chatUUID, participants))
+            sendMessageToServer(context, PendingMessage(wrapper, chatUUID, participants.filter { it.receiverUUID != KentaiClient.INSTANCE.userUUID }))
         }
     }
 

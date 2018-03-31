@@ -175,12 +175,7 @@ class FMService : FirebaseMessagingService() {
                     val changeStatusIntent = Intent("de.intektor.kentai.messageStatusUpdate")
                     changeStatusIntent.putExtra("amount", 1)
 
-                    dataBase.compileStatement("INSERT INTO message_status_change (message_uuid, status, time) VALUES(?, ?, ?)").use { statement ->
-                        statement.bindString(1, message.messageUUID)
-                        statement.bindLong(2, message.status.toInt().toLong())
-                        statement.bindLong(3, System.currentTimeMillis())
-                        statement.execute()
-                    }
+                    saveMessageStatusChange(dataBase, MessageStatusChange(message.messageUUID.toUUID(), MessageStatus.values()[message.status.toInt()], System.currentTimeMillis()))
 
                     changeStatusIntent.putExtra("messageUUID0", message.messageUUID)
                     changeStatusIntent.putExtra("chatUUID0", chatUUID.toString())
@@ -249,10 +244,7 @@ class FMService : FirebaseMessagingService() {
                     updateChatAndSendBroadcast(message, chatInfo, senderUsername, senderUUID, registryID, AdditionalInfoVideoMessage(message.durationSeconds.toInt()))
                 }
                 MessageType.TYPING_MESSAGE -> {
-                    val typingIntent = Intent("de.intektor.kentai.typing")
-                    typingIntent.putExtra("chatUUID", chatUUID)
-                    typingIntent.putExtra("senderUUID", senderUUID)
-                    sendBroadcast(typingIntent)
+
                 }
             }
         }
@@ -267,14 +259,18 @@ class FMService : FirebaseMessagingService() {
             val chatType = cursor2.getInt(2)
             cursor2.close()
 
-            dataBase.execSQL("UPDATE chats SET unread_messages = unread_messages + 1 WHERE chat_uuid = '${chatInfo.chatUUID}'")
+            if (message !is ChatMessageStatusChange) {
+                dataBase.execSQL("UPDATE chats SET unread_messages = unread_messages + 1 WHERE chat_uuid = '${chatInfo.chatUUID}'")
+            }
 
             val byteOut = ByteArrayOutputStream()
             val dataOut = DataOutputStream(byteOut)
             additionalInformation.writeToStream(dataOut)
 
+            val newUnreadMessages = if (message !is ChatMessageStatusChange) unreadMessages + 1 else unreadMessages
+
             val intent = Intent("de.intektor.kentai.chatNotification")
-            intent.putExtra("unreadMessages", unreadMessages + 1)
+            intent.putExtra("unreadMessages", newUnreadMessages)
             intent.putExtra("chatType", chatType)
             intent.putExtra("chatUUID", chatInfo.chatUUID.toString())
             intent.putExtra("chatName", chatName)

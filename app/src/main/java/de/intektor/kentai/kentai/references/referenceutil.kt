@@ -4,12 +4,14 @@ import android.content.Context
 import android.content.Intent
 import android.database.sqlite.SQLiteDatabase
 import android.os.AsyncTask
+import android.os.Environment
 import android.widget.Toast
 import com.google.common.hash.Hashing
 import com.google.common.io.BaseEncoding
 import de.intektor.kentai.KentaiClient
-import de.intektor.kentai.kentai.httpAddress
+import de.intektor.kentai.kentai.chat.setReferenceState
 import de.intektor.kentai.kentai.firebase.SendService
+import de.intektor.kentai.kentai.httpAddress
 import de.intektor.kentai.kentai.httpClient
 import de.intektor.kentai_http_common.chat.ChatType
 import de.intektor.kentai_http_common.client_to_server.DownloadReferenceRequest
@@ -59,6 +61,7 @@ fun downloadVideo(context: Context, database: SQLiteDatabase, chatUUID: UUID, re
     downloadReference(context, database, chatUUID, referenceUUID, FileType.VIDEO, chatType, hash)
 }
 
+//TODO
 private fun downloadReference(context: Context, database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, fileType: FileType, chatType: ChatType, hash: String) {
     object : AsyncTask<Unit, Unit, DownloadReferenceRequest.Response>() {
 
@@ -107,16 +110,19 @@ private fun downloadReference(context: Context, database: SQLiteDatabase, chatUU
                                 val cipher: Cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
                                 cipher.init(Cipher.DECRYPT_MODE, actKey, IvParameterSpec(iV))
 
+                                val referenceFile = getReferenceFile(chatUUID, referenceUUID, fileType, context.filesDir, context)
+
                                 CipherInputStream(ResponseInputStream(response.body()!!.byteStream(), totalToReceive, referenceUUID, context), cipher).use { cipherIn ->
-                                    cipherIn.copyTo(getReferenceFile(chatUUID, referenceUUID, fileType, context.filesDir).outputStream())
+                                    cipherIn.copyTo(referenceFile.outputStream())
                                 }
-                                database.compileStatement("INSERT INTO reference_upload_table (chat_uuid, reference_uuid, file_type, state) VALUES(?, ?, ?, ?)").use { statement ->
-                                    statement.bindString(1, chatUUID.toString())
-                                    statement.bindString(2, referenceUUID.toString())
-                                    statement.bindLong(3, fileType.ordinal.toLong())
-                                    statement.bindLong(4, UploadState.UPLOADED.ordinal.toLong())
-                                    statement.execute()
+
+                                if (fileType == FileType.IMAGE) {
+                                    referenceFile.inputStream().use { inputStream ->
+                                        inputStream.copyTo(File(Environment.getExternalStorageDirectory().toString() + "/Pictures/Kentai/$referenceUUID.${fileType.extension}").outputStream())
+                                    }
                                 }
+
+                                setReferenceState(database, chatUUID, referenceUUID, fileType, UploadState.UPLOADED)
                                 return Response.SUCCESS
                             }
                         }
@@ -135,7 +141,7 @@ private fun downloadReference(context: Context, database: SQLiteDatabase, chatUU
                 Response.DELETED -> Toast.makeText(context, "Deleted!", Toast.LENGTH_SHORT).show()
                 Response.IN_PROGRESS -> Toast.makeText(context, "In progress!", Toast.LENGTH_SHORT).show()
                 Response.SUCCESS -> {
-                    val referenceFile = getReferenceFile(chatUUID, referenceUUID, fileType, context.filesDir)
+                    val referenceFile = getReferenceFile(chatUUID, referenceUUID, fileType, context.filesDir, context)
                     if (Hashing.sha512().hashBytes(referenceFile.readBytes()).toString() != hash) {
                         Toast.makeText(context, "File hashes don't match!", Toast.LENGTH_SHORT).show()
                     } else {
@@ -177,14 +183,10 @@ private fun uploadReference(context: Context, database: SQLiteDatabase, chatUUID
     context.sendBroadcast(i)
 }
 
-fun getReferenceFile(chatUUID: UUID, referenceUUID: UUID, fileType: FileType, filesDir: File): File {
+fun getReferenceFile(chatUUID: UUID, referenceUUID: UUID, fileType: FileType, filesDir: File, context: Context): File {
     File("${filesDir.path}/resources/$chatUUID/").mkdirs()
 
-    return File("${filesDir.path}/resources/$chatUUID/$referenceUUID.${when (fileType) {
-        FileType.AUDIO -> "3gp"
-        FileType.IMAGE -> "jpeg"
-        FileType.VIDEO -> "mp4"
-    }}")
+    return File("${filesDir.path}/resources/$chatUUID/$referenceUUID.${fileType.extension}")
 }
 
 enum class UploadState {
