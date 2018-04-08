@@ -37,6 +37,9 @@ class TransferScannerActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        val kentaiClient = applicationContext as KentaiClient
+
+
         scannerView.setResultHandler { result ->
             if (result.barcodeFormat == BarcodeFormat.QR_CODE) {
                 AlertDialog.Builder(this)
@@ -61,13 +64,13 @@ class TransferScannerActivity : AppCompatActivity() {
                                 dataOut.writeUTF(BaseEncoding.base64().encode(aesKey.encoded).encryptRSA(key))
                                 dataOut.writeUTF(BaseEncoding.base64().encode(initVector).encryptRSA(key))
 
-                                dataOut.writeUTF(KentaiClient.INSTANCE.username.encryptAES(aesKey, initVector))
-                                dataOut.writeUTF(KentaiClient.INSTANCE.userUUID.toString().encryptAES(aesKey, initVector))
+                                dataOut.writeUTF(kentaiClient.username.encryptAES(aesKey, initVector))
+                                dataOut.writeUTF(kentaiClient.userUUID.toString().encryptAES(aesKey, initVector))
 
-                                dataOut.writeUTF(BaseEncoding.base64().encode(KentaiClient.INSTANCE.privateAuthKey!!.encoded).encryptAES(aesKey, initVector))
-                                dataOut.writeUTF(BaseEncoding.base64().encode(KentaiClient.INSTANCE.publicAuthKey!!.encoded).encryptAES(aesKey, initVector))
-                                dataOut.writeUTF(BaseEncoding.base64().encode(KentaiClient.INSTANCE.privateMessageKey!!.encoded).encryptAES(aesKey, initVector))
-                                dataOut.writeUTF(BaseEncoding.base64().encode(KentaiClient.INSTANCE.publicMessageKey!!.encoded).encryptAES(aesKey, initVector))
+                                dataOut.writeUTF(BaseEncoding.base64().encode(kentaiClient.privateAuthKey!!.encoded).encryptAES(aesKey, initVector))
+                                dataOut.writeUTF(BaseEncoding.base64().encode(kentaiClient.publicAuthKey!!.encoded).encryptAES(aesKey, initVector))
+                                dataOut.writeUTF(BaseEncoding.base64().encode(kentaiClient.privateMessageKey!!.encoded).encryptAES(aesKey, initVector))
+                                dataOut.writeUTF(BaseEncoding.base64().encode(kentaiClient.publicMessageKey!!.encoded).encryptAES(aesKey, initVector))
                             }
                         }).show()
             }

@@ -2,6 +2,7 @@ package de.intektor.kentai.kentai.direct.connection.handler
 
 import android.content.Intent
 import de.intektor.kentai.KentaiClient
+import de.intektor.kentai.kentai.direct.connection.DirectConnectionManager
 import de.intektor.kentai_http_common.tcp.IPacketHandler
 import de.intektor.kentai_http_common.tcp.server_to_client.UserStatusChangePacketToClient
 import java.net.Socket
@@ -12,6 +13,8 @@ import java.net.Socket
 class UserStatusChangePacketToClientHandler : IPacketHandler<UserStatusChangePacketToClient> {
 
     override fun handlePacket(packet: UserStatusChangePacketToClient, socketFrom: Socket) {
+        val thread = Thread.currentThread() as DirectConnectionManager.LaunchThread
+
         val i = Intent("de.intektor.kentai.user_status_change")
         i.putExtra("amount", packet.list.size)
 
@@ -21,6 +24,6 @@ class UserStatusChangePacketToClientHandler : IPacketHandler<UserStatusChangePac
             i.putExtra("time$index", userChange.time)
         }
 
-        KentaiClient.INSTANCE.applicationContext.sendBroadcast(i)
+        thread.kentaiClient.applicationContext.sendBroadcast(i)
     }
 }

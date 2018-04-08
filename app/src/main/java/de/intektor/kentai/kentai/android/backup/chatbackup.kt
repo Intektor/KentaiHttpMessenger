@@ -28,29 +28,29 @@ import java.util.zip.ZipInputStream
 /**
  * @author Intektor
  */
-fun createChatBackup(backupName: String, context: Context, callback: (Int) -> (Unit)): File {
+fun createChatBackup(backupName: String, context: Context, callback: (Int) -> (Unit), kentaiClient: KentaiClient): File {
     val dateFormat = DateFormat.getDateTimeInstance()
 
-    internalFile("backups/").mkdirs()
+    internalFile("backups/", kentaiClient).mkdirs()
 
     val fileName = "backups/$backupName-${dateFormat.format(Date())}"
 
-    val zipBuilder = ZipBuilder(internalFile(fileName))
+    val zipBuilder = ZipBuilder(internalFile(fileName, kentaiClient))
 
     callback.invoke(5)
 
     val dataOut = DataOutputStream(zipBuilder.zipOut)
 
-    val chats = readChats(KentaiClient.INSTANCE.dataBase, context)
+    val chats = readChats(kentaiClient.dataBase, context)
     for (chat in chats) {
         val info = chat.chatInfo
         val baseFolder = "chat-${info.chatUUID}"
-        val messageAmount = getAmountChatMessages(KentaiClient.INSTANCE.dataBase, info.chatUUID)
+        val messageAmount = getAmountChatMessages(kentaiClient.dataBase, info.chatUUID)
 
         var current = 0
         var lastTime = 0L
         while (current < messageAmount) {
-            val list = readChatMessageWrappers(KentaiClient.INSTANCE.dataBase, "chat_uuid = '${info.chatUUID}' AND time > $lastTime", null, "time ASC", 10)
+            val list = readChatMessageWrappers(kentaiClient.dataBase, "chat_uuid = '${info.chatUUID}' AND time > $lastTime", null, "time ASC", 10)
 
             for (messageWrapper in list) {
                 zipBuilder.zipOut.putNextEntry(ZipEntry("$baseFolder/${messageWrapper.message.id}.km"))
@@ -67,7 +67,7 @@ fun createChatBackup(backupName: String, context: Context, callback: (Int) -> (U
         if (chat.chatInfo.chatType == ChatType.GROUP) {
             zipBuilder.zipOut.putNextEntry(ZipEntry("$baseFolder/roles.kcri"))
 
-            val groupRoles = readGroupRoles(KentaiClient.INSTANCE.dataBase, chat.chatInfo.chatUUID)
+            val groupRoles = readGroupRoles(kentaiClient.dataBase, chat.chatInfo.chatUUID)
             dataOut.writeInt(groupRoles.size)
             for (role in groupRoles) {
                 writeGroupMember(role, dataOut)
@@ -75,7 +75,7 @@ fun createChatBackup(backupName: String, context: Context, callback: (Int) -> (U
 
             zipBuilder.zipOut.putNextEntry(ZipEntry("$baseFolder/key.kk"))
 
-            KentaiClient.INSTANCE.dataBase.rawQuery("SELECT group_key FROM group_key_table WHERE chat_uuid = ?", arrayOf(info.chatUUID.toString())).use { query ->
+            kentaiClient.dataBase.rawQuery("SELECT group_key FROM group_key_table WHERE chat_uuid = ?", arrayOf(info.chatUUID.toString())).use { query ->
                 query.moveToNext()
                 val key = query.getString(0)
                 dataOut.writeUTF(key)
@@ -85,7 +85,7 @@ fun createChatBackup(backupName: String, context: Context, callback: (Int) -> (U
 
     callback.invoke(40)
 
-    val contacts = readContacts(KentaiClient.INSTANCE.dataBase)
+    val contacts = readContacts(kentaiClient.dataBase)
     for (contact in contacts) {
         zipBuilder.zipOut.putNextEntry(ZipEntry("contacts/${contact.userUUID}.kc"))
         writeContact(contact, dataOut)
@@ -94,9 +94,9 @@ fun createChatBackup(backupName: String, context: Context, callback: (Int) -> (U
     callback.invoke(60)
 
     var count = 0
-    val max = getAmountMessageStatusChange(KentaiClient.INSTANCE.dataBase)
+    val max = getAmountMessageStatusChange(kentaiClient.dataBase)
     while (count < max) {
-        val list = readMessageStatusChange(KentaiClient.INSTANCE.dataBase, count, 10)
+        val list = readMessageStatusChange(kentaiClient.dataBase, count, 10)
         for (change in list) {
             zipBuilder.zipOut.putNextEntry(ZipEntry("message_status_change/${change.messageUUID}.kmsc"))
             writeMessageStatusChange(change, dataOut)
@@ -112,10 +112,10 @@ fun createChatBackup(backupName: String, context: Context, callback: (Int) -> (U
     }
 
     zipBuilder.close()
-    return internalFile(fileName)
+    return internalFile(fileName, kentaiClient)
 }
 
-fun installChatBackup(database: SQLiteDatabase, chatBackup: File, context: Context) {
+fun installChatBackup(database: SQLiteDatabase, chatBackup: File, context: Context, kentaiClient: KentaiClient) {
     val zipIn = ZipInputStream(chatBackup.inputStream())
     val path = context.cacheDir.path + "/currentBackup"
     File(path).mkdirs()
@@ -148,7 +148,7 @@ fun installChatBackup(database: SQLiteDatabase, chatBackup: File, context: Conte
         val chatInfo = readChatInfo(chatInfoDataIn)
         when (chatInfo.chatType) {
             ChatType.TWO_PEOPLE -> {
-                createChat(chatInfo, database, KentaiClient.INSTANCE.userUUID)
+                createChat(chatInfo, database, kentaiClient.userUUID)
             }
             ChatType.GROUP -> {
                 val rolesDataIn = rolesFile.inputStream().dataIn()
@@ -169,7 +169,7 @@ fun installChatBackup(database: SQLiteDatabase, chatBackup: File, context: Conte
                 val keyDataIn = keyFile.inputStream().dataIn()
                 val key = keyDataIn.readUTF().toAESKey()
 
-                createGroupChat(chatInfo, map, key, database, KentaiClient.INSTANCE.userUUID)
+                createGroupChat(chatInfo, map, key, database, kentaiClient.userUUID)
             }
             else -> {
                 TODO()
@@ -203,7 +203,7 @@ fun installChatBackup(database: SQLiteDatabase, chatBackup: File, context: Conte
             val list = pathList[1].split('.')
             val referenceUUID = list[0]
             val type = FileType.forExtension(list[1])
-            setReferenceState(database, chatUUID.toUUID(), referenceUUID.toUUID(), type!!, UploadState.UPLOADED)
+            setReferenceState(database, chatUUID.toUUID(), referenceUUID.toUUID(), type!!, UploadState.FINISHED)
         }
     }
 }

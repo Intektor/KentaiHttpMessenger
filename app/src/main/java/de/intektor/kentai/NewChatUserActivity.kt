@@ -9,7 +9,9 @@ import android.support.v7.widget.DefaultItemAnimator
 import android.support.v7.widget.LinearLayoutManager
 import android.support.v7.widget.SearchView
 import android.view.Menu
+import android.view.MenuItem
 import de.intektor.kentai.fragment.ContactViewAdapter
+import de.intektor.kentai.kentai.KEY_CHAT_INFO
 import de.intektor.kentai.kentai.chat.ChatInfo
 import de.intektor.kentai.kentai.chat.ChatReceiver
 import de.intektor.kentai.kentai.chat.createChat
@@ -28,12 +30,14 @@ class NewChatUserActivity : AppCompatActivity(), android.support.v7.widget.Searc
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_new_chat)
 
+        val kentaiClient = applicationContext as KentaiClient
+
         new_chat_list.itemAnimator = DefaultItemAnimator()
 
         new_chat_list.layoutManager = LinearLayoutManager(this)
 
         val contactList = mutableListOf<Contact>()
-        val cursor = KentaiClient.INSTANCE.dataBase.rawQuery("SELECT username, alias, user_uuid, message_key FROM contacts;", null)
+        val cursor = kentaiClient.dataBase.rawQuery("SELECT username, alias, user_uuid, message_key FROM contacts;", null)
 
         while (cursor.moveToNext()) {
             val username = cursor.getString(0)
@@ -58,19 +62,22 @@ class NewChatUserActivity : AppCompatActivity(), android.support.v7.widget.Searc
     }
 
     fun startNewChat(contact: Contact) {
+        val kentaiClient = applicationContext as KentaiClient
+        
         val chatInfo = ChatInfo(UUID.randomUUID(), contact.name, ChatType.TWO_PEOPLE,
-                listOf(ChatReceiver(KentaiClient.INSTANCE.userUUID, KentaiClient.INSTANCE.publicMessageKey, ChatReceiver.ReceiverType.USER),
+                listOf(ChatReceiver(kentaiClient.userUUID, kentaiClient.publicMessageKey, ChatReceiver.ReceiverType.USER),
                         ChatReceiver(contact.userUUID, contact.message_key, ChatReceiver.ReceiverType.USER)))
-        createChat(chatInfo, KentaiClient.INSTANCE.dataBase, KentaiClient.INSTANCE.userUUID)
+        createChat(chatInfo, kentaiClient.dataBase, kentaiClient.userUUID)
         val intent = Intent(this@NewChatUserActivity, ChatActivity::class.java)
-        intent.putExtra("chatInfo", chatInfo)
+        intent.putExtra(KEY_CHAT_INFO, chatInfo)
         startActivity(intent)
+        finish()
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_new_chat_user, menu)
         val searchItem = menu.findItem(R.id.new_chat_user_action_search)
-        val searchView = MenuItemCompat.getActionView(searchItem) as SearchView
+        val searchView = searchItem.actionView as SearchView
 
         searchView.setOnQueryTextListener(this)
 

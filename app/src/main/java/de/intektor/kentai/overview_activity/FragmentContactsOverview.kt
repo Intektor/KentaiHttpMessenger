@@ -19,14 +19,16 @@ class FragmentContactsOverview : Fragment() {
 
     private var mListener: ListElementClickListener? = null
 
-    override fun onCreateView(inflater: LayoutInflater?, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        val view = inflater!!.inflate(R.layout.fragment_contact_list, container, false)
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
+        val view = inflater.inflate(R.layout.fragment_contact_list, container, false)
+
+        val kentaiClient = context!!.applicationContext as KentaiClient
 
         if (view is RecyclerView) {
             val context = view.getContext()
             view.layoutManager = LinearLayoutManager(context)
 
-            view.adapter = ContactViewAdapter(readContacts(KentaiClient.INSTANCE.dataBase).toMutableList(), mListener)
+            view.adapter = ContactViewAdapter(readContacts(kentaiClient.dataBase).toMutableList(), mListener)
         }
         return view
     }

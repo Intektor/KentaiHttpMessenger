@@ -1,5 +1,6 @@
 package de.intektor.kentai.kentai
 
+import android.content.Context
 import de.intektor.kentai.KentaiClient
 import de.intektor.kentai.kentai.contacts.Contact
 import okhttp3.MediaType
@@ -13,16 +14,17 @@ import java.util.concurrent.TimeUnit
 /**
  * @author Intektor
  */
-fun internalFile(name: String) = File(KentaiClient.INSTANCE.filesDir.path + "/" + name)
+fun internalFile(name: String, context: Context) = File(context.filesDir.path + "/" + name)
 
 //TODO
-val address = "192.168.178.46"
+val address = "192.168.178.31"
 //val address = "intektor.de"
 
 val httpAddress = "http://$address:17349/"
 
 val httpClient = OkHttpClient.Builder()
-        .readTimeout(120, TimeUnit.SECONDS)
+        .readTimeout(5, TimeUnit.SECONDS)
+        .writeTimeout(5, TimeUnit.SECONDS)
         .build()
 
 fun httpPost(json: String, target: String): String {
@@ -35,9 +37,7 @@ fun httpPost(json: String, target: String): String {
     return response.body()?.string() ?: throw RuntimeException()
 }
 
-fun getName(contact: Contact): String {
-    return contact.name
-}
+fun getName(contact: Contact): String = contact.name
 
 fun StringBuilder.newLine() {
     this.append('\n')

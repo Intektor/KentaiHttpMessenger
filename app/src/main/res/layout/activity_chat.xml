@@ -1,76 +1,120 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<android.support.constraint.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/chatActivityParentLayout"
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
     android:gravity="end"
     android:orientation="vertical">
 
     <android.support.v7.widget.RecyclerView
-        android:id="@+id/msgListView"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_above="@+id/form"
-        android:layout_alignParentStart="true"
-        android:layout_alignParentTop="true"
-        android:scrollbars="vertical"
-        tools:listitem="@layout/chatbubble" />
+        android:id="@+id/chatActivityMessageList"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintBottom_toTopOf="@+id/chatActivityButtonTakePicture"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        tools:listitem="@layout/chatbubble">
 
-    <LinearLayout
-        android:id="@+id/form"
-        android:layout_width="match_parent"
+    </android.support.v7.widget.RecyclerView>
+
+    <ImageButton
+        android:id="@+id/chatActivitySendMessage"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:layout_marginBottom="8dp"
+        android:layout_marginEnd="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:srcCompat="@drawable/ic_send_white_24dp" />
+
+    <Button
+        android:id="@+id/chatActivityButtonTakePicture"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginStart="8dp"
+        android:text="📷"
+        app:layout_constraintBottom_toTopOf="@+id/chatActivityTextInput"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <Button
+        android:id="@+id/chatActivityButtonPickPicture"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginStart="8dp"
+        android:text="🖼️"
+        app:layout_constraintBottom_toTopOf="@+id/chatActivityTextInput"
+        app:layout_constraintStart_toEndOf="@+id/chatActivityButtonTakePicture" />
+
+    <Button
+        android:id="@+id/chatActivityButtonPickVideo"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginStart="8dp"
+        android:text="📼"
+        app:layout_constraintBottom_toTopOf="@+id/chatActivityTextInput"
+        app:layout_constraintStart_toEndOf="@+id/chatActivityButtonPickPicture" />
+
+    <Button
+        android:id="@+id/chatActivityButtonRecordVoice"
+        android:layout_width="80dp"
+        android:layout_height="40dp"
+        android:text="🎤"
+        app:layout_constraintBottom_toTopOf="@+id/chatActivityTextInput"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <de.intektor.kentai.kentai.chat.RichEditText
+        android:id="@+id/chatActivityTextInput"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:layout_alignParentLeft="true"
-        android:background="#EEEEEE"
-        android:orientation="horizontal"
-        android:paddingBottom="0dp"
-        android:weightSum="1">
+        android:layout_marginBottom="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginStart="8dp"
+        android:ems="10"
+        android:hint="@string/chat_activity_write_message"
+        android:inputType="textMultiLine"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/chatActivitySendMessage"
+        app:layout_constraintStart_toStartOf="parent" />
 
+    <android.support.v7.widget.RecyclerView
+        android:id="@+id/chatActivityViewingUsersList"
+        android:layout_width="100dp"
+        android:layout_height="wrap_content"
+        android:scrollbars="vertical"
+        app:layout_constraintBottom_toBottomOf="@+id/chatActivityMessageList"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.0" />
 
-        <EditText
-            android:id="@+id/messageBox"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_weight="0.99"
-            android:ems="10"
-            android:inputType="textMultiLine"
-            android:maxLines="4"
-            android:hint="@string/chat_activity_write_message"
-            android:textColorHint="#757575"
-            android:textColor="#212121"/>
+    <RelativeLayout
+        android:id="@+id/chatActivityRecordingLayout"
+        android:layout_width="200dp"
+        android:layout_height="60dp"
+        android:layout_marginBottom="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="8dp"
+        android:background="@color/colorPrimary"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="@+id/chatActivityMessageList"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
 
         <TextView
-            android:id="@+id/recordingTimeView"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_above="@+id/form"
-            android:layout_alignParentEnd="true"
-            android:layout_weight="0.99"
+            android:id="@+id/chatActivityRecordingText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:foregroundGravity="center"
             android:gravity="center"
-            android:text="hLLO"
-            android:textAlignment="center"
-            android:textAppearance="@style/TextAppearance.AppCompat.Medium"
-            android:visibility="gone" />
+            android:text=""
+            android:textSize="18sp" />
 
-        <ImageButton
-            android:id="@+id/sendMessageButton"
-            android:layout_width="45dp"
-            android:layout_height="45dp"
-            android:layout_below="@+id/msgListView"
-            android:layout_marginBottom="0dp"
-            android:background="@drawable/round_button"
-            app:srcCompat="@android:drawable/ic_btn_speak_now" />
-    </LinearLayout>
+    </RelativeLayout>
 
-    <ProgressBar
-        android:id="@+id/chatLoadMoreProgressBar"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentStart="false"
-        android:layout_alignParentTop="true"
-        android:layout_centerInParent="true"
-        android:visibility="visible" />
-
-</RelativeLayout>
+</android.support.constraint.ConstraintLayout>

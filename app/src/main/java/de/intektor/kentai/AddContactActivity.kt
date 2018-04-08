@@ -38,22 +38,10 @@ class AddContactActivity : AppCompatActivity() {
             return
         }
 
-        object : AsyncTask<Unit, Unit, AddContactResponse>() {
-            override fun doInBackground(vararg params: Unit): AddContactResponse {
-                val gson = genGson()
-
-                val res = httpPost(gson.toJson(AddContactRequest(username.toString())), AddContactRequest.TARGET)
-
-                return gson.fromJson(res, AddContactResponse::class.java)
-            }
-
-            override fun onPostExecute(result: AddContactResponse) {
-                attemptAddContactCallback(result.isValid, result.messageKey, result.userUUID)
-            }
-        }.execute()
+        AddContactTask({ response -> attemptAddContactCallback(response.isValid, response.messageKey, response.userUUID) }, username.toString()).execute()
     }
 
-    fun attemptAddContactCallback(isValid: Boolean, messageKey: RSAPublicKey?, userUUID: UUID) {
+    private fun attemptAddContactCallback(isValid: Boolean, messageKey: RSAPublicKey?, userUUID: UUID) {
         val builder = AlertDialog.Builder(this)
         builder.setMessage(if (isValid) R.string.add_contact_existing_user else R.string.add_contact_not_existing_user)
         builder.setTitle(if (isValid) R.string.add_contact_existing_user_title else R.string.add_contact_not_existing_user_title)
@@ -70,6 +58,21 @@ class AddContactActivity : AppCompatActivity() {
     }
 
     private fun addNewContact(key: RSAPublicKey, userUUID: UUID) {
-        addContact(userUUID, add_contact_username_field.text.toString(), KentaiClient.INSTANCE.dataBase, key)
+        val kentaiClient = applicationContext as KentaiClient
+        addContact(userUUID, add_contact_username_field.text.toString(), kentaiClient.dataBase, key)
+    }
+
+    private class AddContactTask(val callback: (AddContactResponse) -> (Unit), val username: String) : AsyncTask<Unit, Unit, AddContactResponse>() {
+        override fun doInBackground(vararg p0: Unit?): AddContactResponse {
+            val gson = genGson()
+
+            val res = httpPost(gson.toJson(AddContactRequest(username)), AddContactRequest.TARGET)
+
+            return gson.fromJson(res, AddContactResponse::class.java)
+        }
+
+        override fun onPostExecute(result: AddContactResponse) {
+            callback.invoke(result)
+        }
     }
 }

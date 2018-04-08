@@ -11,6 +11,7 @@ import de.intektor.kentai.kentai.android.writeMessageWrapper
 import de.intektor.kentai.kentai.contacts.Contact
 import de.intektor.kentai.kentai.firebase.SendService
 import de.intektor.kentai.kentai.httpPost
+import de.intektor.kentai.kentai.internalFile
 import de.intektor.kentai.kentai.references.UploadState
 import de.intektor.kentai_http_common.chat.*
 import de.intektor.kentai_http_common.client_to_server.KeyRequest
@@ -25,6 +26,7 @@ import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.security.Key
 import java.security.interfaces.RSAPublicKey
+import java.sql.SQLInvalidAuthorizationSpecException
 import java.util.*
 import kotlin.collections.ArrayList
 
@@ -78,6 +80,10 @@ fun deleteChat(chatUUID: UUID, dataBase: SQLiteDatabase) {
         statement.bindString(1, chatUUID.toString())
         statement.execute()
     }
+    dataBase.compileStatement("DELETE FROM user_to_chat_uuid WHERE chat_uuid = ?").use { statement ->
+        statement.bindString(1, chatUUID.toString())
+        statement.execute()
+    }
 }
 
 fun putGroupRoles(roleMap: Map<UUID, GroupRole>, chatUUID: UUID, dataBase: SQLiteDatabase) {
@@ -122,19 +128,23 @@ fun saveMessage(chatUUID: UUID, wrapper: ChatMessageWrapper, dataBase: SQLiteDat
 /**
  * Deletes a message from a chat, keep in mind that this only affects the database part, UI has to be done manually
  */
-fun deleteMessage(chatUUID: UUID, messageUUID: UUID, dataBase: SQLiteDatabase) {
+fun deleteMessage(chatUUID: UUID, messageUUID: UUID, referenceUUID: UUID, dataBase: SQLiteDatabase) {
     dataBase.compileStatement("DELETE FROM chat_table WHERE chat_uuid = ? AND message_uuid = ?").use { statement ->
         statement.bindString(1, chatUUID.toString())
         statement.bindString(2, messageUUID.toString())
         statement.execute()
     }
+    dataBase.compileStatement("DELETE FROM reference_upload_table WHERE reference_uuid = ?").use { statement ->
+        statement.bindString(1, referenceUUID.toString())
+        statement.execute()
+    }
 }
 
-fun sendMessageToServer(context: Context, pendingMessages: List<PendingMessage>) {
+fun sendMessageToServer(context: Context, pendingMessages: List<PendingMessage>, dataBase: SQLiteDatabase) {
     for ((message, chatUUID) in pendingMessages) {
-        saveMessage(chatUUID, message, KentaiClient.INSTANCE.dataBase)
+        saveMessage(chatUUID, message, dataBase)
 
-        val statement = KentaiClient.INSTANCE.dataBase.compileStatement("INSERT INTO pending_messages (chat_uuid, message_uuid) VALUES (?, ?)")
+        val statement = dataBase.compileStatement("INSERT INTO pending_messages (chat_uuid, message_uuid) VALUES (?, ?)")
         statement.bindString(1, chatUUID.toString())
         statement.bindString(2, message.message.id.toString())
 
@@ -155,8 +165,8 @@ fun sendMessageToServer(context: Context, pendingMessages: List<PendingMessage>)
     context.sendBroadcast(broadcastIntent)
 }
 
-fun sendMessageToServer(context: Context, pendingMessage: PendingMessage) {
-    sendMessageToServer(context, listOf(pendingMessage))
+fun sendMessageToServer(context: Context, pendingMessage: PendingMessage, dataBase: SQLiteDatabase) {
+    sendMessageToServer(context, listOf(pendingMessage), dataBase)
 }
 
 fun readChatParticipants(dataBase: SQLiteDatabase, chatUUID: UUID): List<ChatReceiver> {
@@ -299,6 +309,16 @@ fun readContacts(dataBase: SQLiteDatabase): List<Contact> {
     }
 }
 
+fun readContact(dataBase: SQLiteDatabase, userUUID: UUID): Contact {
+    return dataBase.rawQuery("SELECT username, alias, message_key FROM contacts WHERE user_uuid = ?", arrayOf(userUUID.toString())).use { cursor ->
+        cursor.moveToNext()
+        val username = cursor.getString(0)
+        val alias = cursor.getString(1)
+        val messageKey = cursor.getString(2).toKey()
+        Contact(username, alias, userUUID, messageKey)
+    }
+}
+
 fun readChats(dataBase: SQLiteDatabase, context: Context): List<ChatListViewAdapter.ChatItem> {
     val list = mutableListOf<ChatListViewAdapter.ChatItem>()
     dataBase.rawQuery("SELECT chat_name, chat_uuid, type, unread_messages FROM chats", null).use { cursor ->
@@ -308,9 +328,9 @@ fun readChats(dataBase: SQLiteDatabase, context: Context): List<ChatListViewAdap
             val chatType = ChatType.values()[cursor.getInt(2)]
             val unreadMessages = cursor.getInt(3)
 
-            val chatInfo = ChatInfo(chatUUID, chatName, chatType, readChatParticipants(KentaiClient.INSTANCE.dataBase, chatUUID))
+            val chatInfo = ChatInfo(chatUUID, chatName, chatType, readChatParticipants(dataBase, chatUUID))
 
-            val wrapperList = readChatMessageWrappers(KentaiClient.INSTANCE.dataBase, "chat_uuid = '$chatUUID'", null, "time DESC", 1)
+            val wrapperList = readChatMessageWrappers(dataBase, "chat_uuid = '$chatUUID'", null, "time DESC", 1)
             val finalWrapper = if (wrapperList.isEmpty()) {
                 ChatMessageWrapper(ChatMessageText(context.getString(R.string.overview_activity_no_message), UUID.randomUUID(), 0L), MessageStatus.WAITING, true, 0L)
             } else {
@@ -426,12 +446,20 @@ fun saveMessageStatusChange(dataBase: SQLiteDatabase, msc: MessageStatusChange) 
 }
 
 fun setReferenceState(dataBase: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, fileType: FileType, state: UploadState) {
-    dataBase.compileStatement("INSERT INTO reference_upload_table (chat_uuid, reference_uuid, file_type, state) VALUES(?, ?, ?, ?)").use { statement ->
-        statement.bindString(1, chatUUID.toString())
-        statement.bindString(2, referenceUUID.toString())
-        statement.bindLong(3, fileType.ordinal.toLong())
-        statement.bindLong(4, state.ordinal.toLong())
-        statement.execute()
+    try {
+        dataBase.compileStatement("INSERT INTO reference_upload_table (chat_uuid, reference_uuid, file_type, state) VALUES(?, ?, ?, ?)").use { statement ->
+            statement.bindString(1, chatUUID.toString())
+            statement.bindString(2, referenceUUID.toString())
+            statement.bindLong(3, fileType.ordinal.toLong())
+            statement.bindLong(4, state.ordinal.toLong())
+            statement.execute()
+        }
+    } catch (t: Throwable) {
+        dataBase.compileStatement("UPDATE reference_upload_table SET state = ? WHERE reference_uuid = ?").use { statement ->
+            statement.bindLong(1, state.ordinal.toLong())
+            statement.bindString(2, referenceUUID.toString())
+            statement.execute()
+        }
     }
 }
 
@@ -441,5 +469,39 @@ fun getReferenceState(dataBase: SQLiteDatabase, chatUUID: UUID, referenceUUID: U
             return UploadState.values()[cursor.getInt(0)]
         }
     }
-    return UploadState.IN_PROGRESS
+    return UploadState.NOT_STARTED
+}
+
+fun readClientContact(context: Context): Contact {
+    val userInfo = internalFile("username.info", context)
+    return if (userInfo.exists()) {
+        DataInputStream(userInfo.inputStream()).use { input ->
+            Contact(input.readUTF(), "", input.readUUID(), null)
+        }
+    } else throw IllegalStateException("No client user!")
+}
+
+fun hasClient(context: Context) = internalFile("username.info", context).exists()
+
+fun load20Messages(kentaiClient: KentaiClient, chatUUID: UUID, firstMessageTime: Long): List<ChatMessageWrapper> {
+    val list = readChatMessageWrappers(kentaiClient.dataBase, "chat_uuid = '$chatUUID' AND time < $firstMessageTime", null, "time DESC", 20)
+    return list.reversed()
+}
+
+fun getUserChat(dataBase: SQLiteDatabase, contact: Contact, kentaiClient: KentaiClient): ChatInfo {
+    return dataBase.rawQuery("SELECT chat_uuid FROM user_to_chat_uuid WHERE user_uuid = ?", arrayOf(contact.userUUID.toString())).use { query ->
+        val chatUUID: UUID
+        val wasRandom: Boolean
+        if (query.moveToNext()) {
+            chatUUID = query.getString(0).toUUID()
+            wasRandom = false
+        } else {
+            chatUUID = UUID.randomUUID()
+            wasRandom = true
+        }
+        val chatInfo = ChatInfo(chatUUID, contact.name, ChatType.TWO_PEOPLE,
+                listOf(ChatReceiver(contact.userUUID, contact.message_key, ChatReceiver.ReceiverType.USER), ChatReceiver(kentaiClient.userUUID, null, ChatReceiver.ReceiverType.USER, true)))
+        if (wasRandom) createChat(chatInfo, kentaiClient.dataBase, kentaiClient.userUUID)
+        chatInfo
+    }
 }

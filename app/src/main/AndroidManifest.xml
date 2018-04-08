@@ -13,7 +13,6 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.GET_ACCOUNTS" />
 
-
     <application
         android:name=".KentaiClient"
         android:allowBackup="true"
@@ -49,7 +48,6 @@
         <service
             android:name=".kentai.firebase.SendService"
             android:exported="false" />
-
         <service
             android:name=".kentai.android.backup.BackupService"
             android:exported="false" />
@@ -70,6 +68,7 @@
             android:parentActivityName=".OverviewActivity" />
         <activity
             android:name=".ContactInfoActivity"
+            android:label="@string/contact_info_label"
             android:parentActivityName=".ChatActivity" />
         <activity
             android:name=".NewChatGroupActivity"
@@ -114,7 +113,7 @@
             android:label="@string/add_group_member_activity_label"
             android:launchMode="singleTop"
             android:parentActivityName=".GroupInfoActivity" />
-        <activity android:name=".ChatMessageInfoTwoPeopleActivity"></activity>
+        <activity android:name=".ChatMessageInfoTwoPeopleActivity" />
         <activity
             android:name=".ShareReceiveActivity"
             android:label="@string/share_receive_label">
@@ -137,7 +136,20 @@
                 android:resource="@xml/provider_paths" />
         </provider>
 
-        <activity android:name=".TransferScannerActivity"></activity>
+        <activity android:name=".TransferScannerActivity" />
+        <activity
+            android:name=".SendMediaActivity"
+            android:parentActivityName=".ChatActivity" />
+        <activity
+            android:name=".ViewMediaActivity"
+            android:label="@string/view_media_label" />
+        <activity
+            android:name=".ViewIndividualMediaActivity"
+            android:label="@string/view_individual_media_label" />
+        <activity android:name=".SettingsOverviewActivity"
+            android:label="@string/settings_overview_label" />
+
+        <activity android:name="com.theartofdev.edmodo.cropper.CropImageActivity" />
     </application>
 
 </manifest>

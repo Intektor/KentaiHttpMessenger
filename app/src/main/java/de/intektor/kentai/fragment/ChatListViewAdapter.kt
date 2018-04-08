@@ -15,11 +15,11 @@ import de.intektor.kentai_http_common.chat.MessageStatus
 import de.intektor.kentai_http_common.util.minString
 import java.text.SimpleDateFormat
 
-class ChatListViewAdapter(private val mValues: List<ChatItem>, private val mListener: ClickListener?, val fragment: Fragment? = null) : RecyclerView.Adapter<ChatListViewAdapter.ViewHolder>() {
+class ChatListViewAdapter(private val mValues: List<ChatItem>, private val clickResponse: (ChatItem) -> (Unit), val fragment: Fragment? = null) : RecyclerView.Adapter<ChatListViewAdapter.ViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context)
-                .inflate(R.layout.fragment_chat, parent, false)
+                .inflate(R.layout.chat_item, parent, false)
         return ViewHolder(view)
     }
 
@@ -28,7 +28,7 @@ class ChatListViewAdapter(private val mValues: List<ChatItem>, private val mList
         val chatItem = mValues[position]
         holder.item = chatItem
         holder.nameView.text = chatItem.chatInfo.chatName
-        holder.hintView.text = chatItem.lastChatMessage.message.text.minString(0..20)
+        holder.hintView.text = chatItem.lastChatMessage.message.text
         holder.timeView.text = timeInstance.format(chatItem.lastChatMessage.message.timeSent)
         holder.unreadMessages.text = chatItem.unreadMessages.toString()
 
@@ -45,8 +45,10 @@ class ChatListViewAdapter(private val mValues: List<ChatItem>, private val mList
             MessageStatus.SEEN -> R.drawable.seen
         })
 
+        holder.selectedView.visibility = if (chatItem.selected) View.VISIBLE else View.GONE
+
         holder.view.setOnClickListener {
-            mListener?.onClickItem(holder.item)
+            clickResponse.invoke(holder.item)
         }
 
         holder.view.tag = position
@@ -54,18 +56,17 @@ class ChatListViewAdapter(private val mValues: List<ChatItem>, private val mList
         fragment?.registerForContextMenu(holder.view)
     }
 
-    override fun getItemCount(): Int {
-        return mValues.size
-    }
+    override fun getItemCount(): Int = mValues.size
 
-    class ChatItem(var chatInfo: ChatInfo, var lastChatMessage: ChatMessageWrapper, var unreadMessages: Int)
+    class ChatItem(var chatInfo: ChatInfo, var lastChatMessage: ChatMessageWrapper, var unreadMessages: Int, val chatPicturePath: String = "", var selected: Boolean = false)
 
     inner class ViewHolder(val view: View) : RecyclerView.ViewHolder(view) {
-        val nameView: TextView = view.findViewById(R.id.name)
-        val hintView: TextView = view.findViewById(R.id.hint)
-        val timeView: TextView = view.findViewById(R.id.time)
-        val messageStatusView: ImageView = view.findViewById(R.id.messaage_status)
+        val nameView: TextView = view.findViewById(R.id.chatItemName)
+        val hintView: TextView = view.findViewById(R.id.chatItemLastMessage)
+        val timeView: TextView = view.findViewById(R.id.chatItemTime)
+        val messageStatusView: ImageView = view.findViewById(R.id.chatItemMessageStatus)
         val unreadMessages: TextView = view.findViewById(R.id.chatItemUnreadMessages)
+        val selectedView: ImageView = view.findViewById(R.id.chatItemCheck)
 
         lateinit var item: ChatItem
 

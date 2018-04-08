@@ -1,7 +1,6 @@
 package de.intektor.kentai
 
-import android.app.Activity
-import android.app.Application
+import android.app.*
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -12,6 +11,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkInfo
 import android.net.Uri
 import android.os.AsyncTask
+import android.os.Build
 import android.os.Bundle
 import android.os.Parcelable
 import android.support.v7.app.AlertDialog
@@ -22,9 +22,7 @@ import android.util.Log
 import de.intektor.kentai.fragment.ChatListViewAdapter
 import de.intektor.kentai.kentai.*
 import de.intektor.kentai.kentai.android.readMessageWrapper
-import de.intektor.kentai.kentai.chat.ChatInfo
-import de.intektor.kentai.kentai.chat.ChatMessageWrapper
-import de.intektor.kentai.kentai.chat.ChatReceiver
+import de.intektor.kentai.kentai.chat.*
 import de.intektor.kentai.kentai.direct.connection.DirectConnectionManager
 import de.intektor.kentai_http_common.chat.ChatMessageText
 import de.intektor.kentai_http_common.chat.ChatType
@@ -71,29 +69,36 @@ class KentaiClient : Application() {
 
     val userStatusMap: HashMap<UUID, UserChange> = HashMap()
 
-    companion object {
-        lateinit var INSTANCE: KentaiClient
-    }
+    lateinit var directConnectionManager: DirectConnectionManager
 
-    init {
-        INSTANCE = this
-    }
+    val currentLoadingTable = mutableMapOf<UUID, Double>()
 
     override fun onCreate() {
         super.onCreate()
 
-        val userInfo = internalFile("username.info")
-        if (userInfo.exists()) {
-            val input = DataInputStream(userInfo.inputStream())
-            username = input.readUTF()
-            userUUID = UUID.fromString(input.readUTF())
-            input.close()
+
+        if (hasClient(this)) {
+            val client = readClientContact(this)
+            username = client.name
+            userUUID = client.userUUID
         }
 
         File(filesDir.path + "/resources/").mkdirs()
 
         dbHelper = DbHelper(applicationContext)
         dataBase = dbHelper.writableDatabase
+
+        directConnectionManager = DirectConnectionManager(this)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val name = getString(R.string.notification_channel_new_messages_name)
+            val description = getString(R.string.notification_channel_new_messages_description)
+            val importance = NotificationManager.IMPORTANCE_HIGH
+            val channel = NotificationChannel("new_messages", name, importance)
+            channel.description = description
+            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
 
         val chatNotificationBroadcastReceiver: BroadcastReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
@@ -112,7 +117,7 @@ class KentaiClient : Application() {
                 val wrapper = intent.readMessageWrapper(0)
 
                 if (activity is ChatActivity && activity.chatInfo.chatUUID == chatUUID) {
-                    activity.addMessages(wrapper, false)
+                    activity.addMessage(wrapper, true)
                     if (activity.onBottom) {
                         activity.scrollToBottom()
                     }
@@ -133,13 +138,12 @@ class KentaiClient : Application() {
                 } else {
                     handleNotification(context, chatUUID, chatType, senderName, chatName, senderUUID, message_messageID, additionalInfoID, additionalInfoContent, wrapper)
                 }
-                abortBroadcast()
             }
         }
 
         val updateMessageStatusBroadcastReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
-                val activity = KentaiClient.INSTANCE.currentActivity
+                val activity = currentActivity
 
                 val amount = intent.getIntExtra("amount", 0)
 
@@ -173,7 +177,7 @@ class KentaiClient : Application() {
                     //TODO: set the correct unread messages
                     activity.updateLatestChatMessage(sentToChatUUID, message, 1)
                 } else if (activity is ChatActivity && activity.chatInfo.chatUUID == sentToChatUUID) {
-                    activity.addMessages(message, false)
+                    activity.addMessage(message, true)
                     if (activity.onBottom) {
                         activity.scrollToBottom()
                     }
@@ -221,6 +225,8 @@ class KentaiClient : Application() {
             }
         }
 
+        this@KentaiClient.registerReceiver(chatNotificationBroadcastReceiver, IntentFilter("de.intektor.kentai.chatNotification"))
+
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             override fun onActivityPaused(activity: Activity?) {
 
@@ -233,13 +239,8 @@ class KentaiClient : Application() {
             override fun onActivityStarted(activity: Activity?) {
                 currentActivity = activity
                 if (activitiesStarted == 0) {
-                    //Register receiver, so we can catch FCM messages in the application instead of letting the DisplayNotificationReceiver do the job
-                    var filter = IntentFilter("de.intektor.kentai.chatNotification")
-                    filter.priority = 1
+                    var filter = IntentFilter("de.intektor.kentai.messageStatusUpdate")
 
-                    this@KentaiClient.registerReceiver(chatNotificationBroadcastReceiver, filter)
-
-                    filter = IntentFilter("de.intektor.kentai.messageStatusUpdate")
                     filter.priority = 1
 
                     this@KentaiClient.registerReceiver(updateMessageStatusBroadcastReceiver, filter)
@@ -273,7 +274,7 @@ class KentaiClient : Application() {
             override fun onActivityStopped(activity: Activity?) {
                 activitiesStarted--
                 if (activitiesStarted == 0) {
-                    this@KentaiClient.unregisterReceiver(chatNotificationBroadcastReceiver)
+//                    this@KentaiClient.unregisterReceiver(chatNotificationBroadcastReceiver)
                     this@KentaiClient.unregisterReceiver(updateMessageStatusBroadcastReceiver)
                     this@KentaiClient.unregisterReceiver(groupInviteBroadcastReceiver)
                     this@KentaiClient.unregisterReceiver(groupModificationBroadcastReceiver)
@@ -281,6 +282,7 @@ class KentaiClient : Application() {
 
                     //Exit the TCP connection to the kentai server
                     exitTCPConnection()
+                    currentActivity = null
                 }
             }
 
@@ -353,11 +355,11 @@ class KentaiClient : Application() {
     }
 
     fun launchTCPConnection() {
-        DirectConnectionManager.launchConnection(dataBase)
+        directConnectionManager.launchConnection(dataBase)
     }
 
     fun exitTCPConnection() {
-        DirectConnectionManager.exitConnection()
+        directConnectionManager.exitConnection()
     }
 
     class CheckForNewVersionTask : AsyncTask<KentaiClient, Unit, Pair<CurrentVersionResponse?, KentaiClient>>() {

@@ -12,6 +12,7 @@ import android.os.IBinder
 import android.os.Parcelable
 import android.util.Log
 import com.google.common.io.BaseEncoding
+import de.intektor.kentai.KentaiClient
 import de.intektor.kentai.kentai.*
 import de.intektor.kentai.kentai.android.readMessageWrapper
 import de.intektor.kentai.kentai.chat.*
@@ -60,12 +61,6 @@ class SendService : Service() {
     private var privateMessageKey: RSAPrivateKey? = null
 
     @Volatile
-    private lateinit var userUUID: UUID
-
-    @Volatile
-    private lateinit var username: String
-
-    @Volatile
     private lateinit var dataBase: SQLiteDatabase
 
     companion object {
@@ -74,15 +69,12 @@ class SendService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        val dBHelper = DbHelper(this)
-        dataBase = dBHelper.writableDatabase
-        val userInfo = internalFile("username.info")
-        if (userInfo.exists()) {
-            val input = DataInputStream(userInfo.inputStream())
-            username = input.readUTF()
-            userUUID = input.readUTF().toUUID()
-            input.close()
-        }
+
+        val kentaiClient = applicationContext as KentaiClient
+
+        dataBase = kentaiClient.dataBase
+
+        val userUUID = kentaiClient.userUUID
 
         val chatMessageReceiver: BroadcastReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
@@ -109,7 +101,7 @@ class SendService : Service() {
                 val fileType = FileType.values()[intent.getIntExtra("fileType", 0)]
                 val referenceUUID = intent.getStringExtra("referenceUUID").toUUID()
 
-                referenceUploadQueue.add(buildReferenceInfo(chatUUID, fileType, referenceFile, referenceUUID))
+                referenceUploadQueue.add(buildReferenceInfo(chatUUID, fileType, referenceFile, referenceUUID, userUUID))
             }
         }
         registerReceiver(referenceMessageReceiver, IntentFilter("de.intektor.kentai.referenceUpload"))
@@ -121,8 +113,8 @@ class SendService : Service() {
                 val state = info.state
 
                 if (state == NetworkInfo.State.CONNECTED) {
-                    chatMessageSendingQueue.addAll(buildPendingMessages())
-                    referenceUploadQueue.addAll(buildReferencesToSend())
+                    chatMessageSendingQueue.addAll(buildPendingMessages(userUUID))
+                    referenceUploadQueue.addAll(buildReferencesToSend(userUUID))
                 }
             }
         }
@@ -139,7 +131,7 @@ class SendService : Service() {
                 }
 
                 try {
-                    sendPendingMessages(list)
+                    sendPendingMessages(list, userUUID)
                 } catch (t: Throwable) {
                     Log.e("ERROR", "", t)
                     //read all entries from pending messages
@@ -155,7 +147,7 @@ class SendService : Service() {
         }
     }
 
-    fun buildPendingMessages(): List<PendingMessage> {
+    fun buildPendingMessages(userUUID: UUID): List<PendingMessage> {
         val list = mutableListOf<PendingMessage>()
         dataBase.rawQuery("SELECT chat_uuid, message_uuid FROM pending_messages;", null).use { query ->
             while (query.moveToNext()) {
@@ -172,21 +164,21 @@ class SendService : Service() {
         return list
     }
 
-    fun buildReferencesToSend(): List<ReferenceInfo> {
+    fun buildReferencesToSend(userUUID: UUID): List<ReferenceInfo> {
         val list = mutableListOf<ReferenceInfo>()
         dataBase.rawQuery("SELECT chat_uuid, reference_uuid, file_type FROM reference_upload_table WHERE state != 1", arrayOf()).use { query ->
             while (query.moveToNext()) {
                 val chatUUID = query.getString(0).toUUID()
                 val referenceUUID = query.getString(1).toUUID()
                 val fileType = FileType.values()[query.getInt(2)]
-                val referenceFile = getReferenceFile(chatUUID, referenceUUID, fileType, filesDir, this@SendService)
-                list.add(buildReferenceInfo(chatUUID, fileType, referenceFile, referenceUUID))
+                val referenceFile = getReferenceFile(referenceUUID, fileType, filesDir, this@SendService)
+                list.add(buildReferenceInfo(chatUUID, fileType, referenceFile, referenceUUID, userUUID))
             }
         }
         return list
     }
 
-    private fun buildReferenceInfo(chatUUID: UUID, fileType: FileType, referenceFile: File, referenceUUID: UUID): ReferenceInfo {
+    private fun buildReferenceInfo(chatUUID: UUID, fileType: FileType, referenceFile: File, referenceUUID: UUID, userUUID: UUID): ReferenceInfo {
         var chatType: ChatType = ChatType.TWO_PEOPLE
 
         dataBase.rawQuery("SELECT type FROM chats WHERE chat_uuid = ?;", arrayOf(chatUUID.toString())).use { cursor ->
@@ -213,7 +205,7 @@ class SendService : Service() {
         }
     }
 
-    private fun sendPendingMessages(list: MutableList<PendingMessage>) {
+    private fun sendPendingMessages(list: MutableList<PendingMessage>, userUUID: UUID) {
         if (privateAuthKey == null) {
             privateAuthKey = readPrivateKey(DataInputStream(File(filesDir.path + "/keys/authKeyPrivate.key").inputStream()))
             publicAuthKey = readKey(DataInputStream(File(filesDir.path + "/keys/authKeyPublic.key").inputStream()))
@@ -272,9 +264,11 @@ class SendService : Service() {
     }
 
     private fun sendReferenceToServer(referenceInfo: ReferenceInfo) {
-        val intent = Intent("de.intektor.kentai.uploadReferenceStarted")
+        val intent = Intent(ACTION_UPLOAD_REFERENCE_STARTED)
         intent.putExtra("referenceUUID", referenceInfo.referenceUUID)
         sendBroadcast(intent)
+
+        val kentaiClient = applicationContext as KentaiClient
 
         val cipher: Cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
 
@@ -304,13 +298,15 @@ class SendService : Service() {
 
                     cipher.init(Cipher.ENCRYPT_MODE, key, IvParameterSpec(iV))
 
-                    referenceInfo.toUpload.inputStream().use { input ->
-                        val responseStream = ResponseOutputStream(CipherOutputStream(dataOut, cipher), referenceInfo.toUpload.length(), referenceInfo)
+                    BufferedInputStream(referenceInfo.toUpload.inputStream()).use { input ->
+                        val responseStream = ResponseOutputStream(BufferedOutputStream(CipherOutputStream(dataOut, cipher)), referenceInfo.toUpload.length(), referenceInfo, kentaiClient)
+//                        val responseStream = ResponseOutputStream(dataOut, referenceInfo.toUpload.length(), referenceInfo, kentaiClient)
                         responseStream.use { output ->
-                            input.copyTo(output)
+                            input.copyTo(output, 1024 * 1024)
                         }
                     }
                 }
+                kentaiClient.currentLoadingTable -= referenceInfo.referenceUUID
             }
         }
 
@@ -326,15 +322,10 @@ class SendService : Service() {
                     UploadResponse.values()[dataIn.readInt()]
                 }
                 if (uploadResponse == UploadResponse.NOW_UPLOADED || uploadResponse == UploadResponse.ALREADY_UPLOADED) {
-                    dataBase.compileStatement("UPDATE reference_upload_table SET state = ? WHERE reference_uuid = ?").use { statement ->
-                        statement.bindLong(1, UploadState.UPLOADED.ordinal.toLong())
-                        statement.bindString(2, referenceInfo.referenceUUID.toString())
-                        val i = statement.executeUpdateDelete()
-                        Log.i("INFO", i.toString())
-                    }
+                    setReferenceState(dataBase, referenceInfo.chatUUID, referenceInfo.referenceUUID, referenceInfo.fileType, UploadState.FINISHED)
                 }
 
-                val i = Intent("de.intektor.kentai.uploadReferenceFinished")
+                val i = Intent(ACTION_UPLOAD_REFERENCE_FINISHED)
                 i.putExtra("referenceUUID", referenceInfo.referenceUUID.toString())
                 i.putExtra("successful", response.isSuccessful)
                 sendBroadcast(i)
@@ -343,7 +334,7 @@ class SendService : Service() {
             //Clear everything from the queue so we start sending when we have an internet connection next time
             referenceUploadQueue.clear()
 
-            val i = Intent("de.intektor.kentai.uploadReferenceFinished")
+            val i = Intent(ACTION_UPLOAD_REFERENCE_FINISHED)
             i.putExtra("referenceUUID", referenceInfo.referenceUUID.toString())
             i.putExtra("successful", false)
             sendBroadcast(i)
@@ -354,7 +345,7 @@ class SendService : Service() {
 
     data class ReferenceInfo(val chatUUID: UUID, val referenceUUID: UUID, val encryptionKey: Key, val toUpload: File, val fileType: FileType, val chatType: ChatType, val sendTo: List<ChatReceiver>)
 
-    inner class ResponseOutputStream(outputStream: OutputStream, private val totalToSend: Long, val info: ReferenceInfo) : FilterOutputStream(outputStream) {
+    inner class ResponseOutputStream(outputStream: OutputStream, private val totalToSend: Long, val info: ReferenceInfo, val kentaiClient: KentaiClient) : FilterOutputStream(outputStream) {
 
         var bytesWritten = 0L
         var prefSent = 0.0
@@ -373,12 +364,14 @@ class SendService : Service() {
 
         private fun update() {
             val currentPercent = bytesWritten.toDouble() / totalToSend.toDouble()
-            if (prefSent + 10 < currentPercent) {
+            if (prefSent + 0.1 < currentPercent) {
                 prefSent = currentPercent
-                val i = Intent("de.intektor.kentai.uploadProgress")
-                i.putExtra("referenceUUID", info.referenceUUID)
+                val i = Intent(ACTION_UPLOAD_REFERENCE_PROGRESS)
+                i.putExtra(KEY_REFERENCE_UUID, info.referenceUUID.toString())
                 i.putExtra("progress", currentPercent)
                 sendBroadcast(i)
+
+                kentaiClient.currentLoadingTable[info.referenceUUID] = prefSent
             }
         }
     }

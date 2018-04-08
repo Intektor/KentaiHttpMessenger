@@ -13,30 +13,47 @@
         android:id="@+id/bubble_layout"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:background="@drawable/bubble_right">
 
-        <ImageView
-            android:id="@+id/chatMessageImageView"
-            android:layout_width="200dp"
-            android:layout_height="250dp"
-            app:srcCompat="@mipmap/ic_launcher"
-            android:scaleType="fitCenter"
-            android:adjustViewBounds="true"/>
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
 
-        <ProgressBar
-            android:id="@+id/chatMessageImageViewLoadBar"
-            style="?android:attr/progressBarStyle"
-            android:layout_width="200dp"
-            android:layout_height="250dp"
-            android:visibility="gone" />
+            <ImageView
+                android:id="@+id/chatMessageImageView"
+                android:layout_width="200dp"
+                android:layout_height="250dp"
+                android:layout_margin="8dp"
+                android:adjustViewBounds="false"
+                android:scaleType="centerCrop"
+                app:srcCompat="@mipmap/ic_launcher" />
 
-        <ImageButton
-            android:id="@+id/chatMessageImageViewLoadButton"
+            <ProgressBar
+                android:id="@+id/chatMessageImageViewLoadBar"
+                style="?android:attr/progressBarStyle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:visibility="visible" />
+
+            <ImageView
+                android:id="@+id/chatMessageImageViewLoadButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_gravity="center"
+                android:visibility="visible"
+                app:srcCompat="@drawable/ic_file_download_white_24dp" />
+
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/chatMessageImageViewText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:visibility="gone"
-            app:srcCompat="@android:drawable/ic_menu_upload"
-            />
+            android:autoLink="all"
+            android:text="TextView"
+            android:textSize="18sp" />
 
     </LinearLayout>
 

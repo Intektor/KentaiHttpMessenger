@@ -15,11 +15,11 @@ import de.intektor.kentai_http_common.chat.GroupRole
 /**
  * @author Intektor
  */
-class GroupMemberAdapter(val list: List<GroupMember>, private val clickListener: ClickListener, val activity: AppCompatActivity) : RecyclerView.Adapter<GroupMemberAdapter.ViewHolder>() {
+class GroupMemberAdapter(val list: List<GroupMember>, private val clickListener: ClickListener, val activity: AppCompatActivity, val kentaiClient: KentaiClient) : RecyclerView.Adapter<GroupMemberAdapter.ViewHolder>() {
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val member = list[position]
-        holder.username.text = if (member.contact.userUUID == KentaiClient.INSTANCE.userUUID) activity.getString(R.string.group_role_member_yourself_label) else member.contact.name
+        holder.username.text = if (member.contact.userUUID == kentaiClient.userUUID) activity.getString(R.string.group_role_member_yourself_label) else member.contact.name
         holder.status.text = "TODO"
         when (member.role) {
             GroupRole.ADMIN -> {
@@ -36,7 +36,7 @@ class GroupMemberAdapter(val list: List<GroupMember>, private val clickListener:
             }
         }
 
-        if (member.contact.userUUID != KentaiClient.INSTANCE.userUUID) {
+        if (member.contact.userUUID != kentaiClient.userUUID) {
             activity.registerForContextMenu(holder.view)
         }
 

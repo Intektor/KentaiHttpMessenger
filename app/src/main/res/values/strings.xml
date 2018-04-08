@@ -64,9 +64,20 @@
     <string name="notification_video_message_name">%1$s: ▶ ️Voice message: (%2$ds)</string>
     <string name="notification_video_message">▶ ️Voice message: (%1$ds)</string>
 
+    <string name="notification_channel_new_messages_name">New messages</string>
+    <string name="notification_channel_new_messages_description">This is the notification channel where you receive notifications about messages
+    that have been sent to you.</string>
+
     <string name="chat_info">Chat Info</string>
 
+    <!-- Strings related to user chat info / contact activity -->
     <string name="contact_info_edit_alias">Edit Alias</string>
+    <string name="contact_info_sent_media">View sent media</string>
+    <string name="contact_info_username_label">Username:</string>
+    <string name="contact_info_alias_label">Alias:</string>
+    <string name="contact_info_label">Contact Info</string>
+
+
     <string name="title_activity_start_chat">StartChatActivity</string>
     <string name="section_format">Hello World from section: %1$d</string>
     <string name="new_contact_label">NEW CONTACT</string>
@@ -99,6 +110,8 @@
     <string name="chat_user_typing_group">%1$s typing…</string>
     <string name="chat_activity_write_message">Enter message</string>
     <string name="chat_activity_nine_gag_video_title">%1$s (Video)</string>
+    <string name="chat_activity_voice_record">%1$d:%2$d</string>
+    <string name="chat_activity_menu_profile">Chat Profile</string>
 
     <!-- Strings related to group info -->
 
@@ -168,9 +181,11 @@
     <string name="overview_activity_chat_backup_use_install_alert_dialog_cancel">✅Cancel✅</string>
     <string name="overview_activity_chat_backup_use_install_progress_dialog_title">Installing Chat Backup</string>
     <string name="overview_activity_chat_backup_use_install_progress_dialog_message">Please be patient, this might take some time!</string>
+    <string name="overview_activity_update_fcm_key_label">Update FCM key!</string>
+    <string name="overview_activity_settings_label">Settings</string>
 
     <!-- Strings related to Share Receive Activity -->
-    <string name="share_receive_label">Kentai</string>
+    <string name="share_receive_label">Share with Kentai…</string>
 
     <!-- Strings related to the new version of kentai alert dialog -->
     <string name="new_kentai_version_alert_title">A new version of kentai is available</string>
@@ -188,4 +203,22 @@
     messages in your name. Do NEVER do this in a public WLAN hotspot, do this at your home or another save place to avoid a possible loss. Are you really sure you want to do this?</string>
     <string name="transport_message_cancel">Cancel</string>
     <string name="transport_message_proceed">Proceed</string>
+
+    <!-- Strings related to send media -->
+    <string name="send_media_activity_title">Send to %1$s</string>
+    <string name="send_media_file_not_found">Could not find file! Maybe try again?</string>
+    <string name="send_media_gif">Gif</string>
+    <string name="send_media_video">Video</string>
+
+    <!-- Strings related to view individual media -->
+    <string name="view_individual_media_who_when">Sent by %1$s at %2$s</string>
+    <string name="view_individual_media_label">Media</string>
+    <string name="view_individual_media_share">Share</string>
+
+    <!-- Strings related to view media -->
+    <string name="view_media_label">Sent/Received Media</string>
+
+    <!-- Strings related to settings overview -->
+    <string name="settings_overview_label">Settings</string>
+    <string name="settings_overview_change_profile_picture">Change profile picture</string>
 </resources>

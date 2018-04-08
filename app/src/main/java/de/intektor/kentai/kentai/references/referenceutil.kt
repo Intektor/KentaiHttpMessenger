@@ -3,6 +3,9 @@ package de.intektor.kentai.kentai.references
 import android.content.Context
 import android.content.Intent
 import android.database.sqlite.SQLiteDatabase
+import android.graphics.Movie
+import android.media.MediaMetadataRetriever
+import android.net.Uri
 import android.os.AsyncTask
 import android.os.Environment
 import android.widget.Toast
@@ -11,6 +14,8 @@ import com.google.common.io.BaseEncoding
 import de.intektor.kentai.KentaiClient
 import de.intektor.kentai.kentai.chat.setReferenceState
 import de.intektor.kentai.kentai.firebase.SendService
+import de.intektor.kentai.kentai.getRealImagePath
+import de.intektor.kentai.kentai.getRealVideoPath
 import de.intektor.kentai.kentai.httpAddress
 import de.intektor.kentai.kentai.httpClient
 import de.intektor.kentai_http_common.chat.ChatType
@@ -23,10 +28,7 @@ import de.intektor.kentai_http_common.util.toAESKey
 import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
-import java.io.DataInputStream
-import java.io.File
-import java.io.FilterInputStream
-import java.io.InputStream
+import java.io.*
 import java.security.Key
 import java.util.*
 import javax.crypto.Cipher
@@ -37,39 +39,41 @@ import javax.crypto.spec.SecretKeySpec
 /**
  * @author Intektor
  */
+
 fun uploadAudio(context: Context, database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, audioFile: File) {
     uploadReference(context, database, chatUUID, referenceUUID, audioFile, FileType.AUDIO)
 }
 
-fun downloadAudio(context: Context, database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, chatType: ChatType, hash: String) {
-    downloadReference(context, database, chatUUID, referenceUUID, FileType.AUDIO, chatType, hash)
+fun downloadAudio(context: Context, database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, chatType: ChatType, hash: String, privateMessageKey: Key) {
+    downloadReference(context, database, chatUUID, referenceUUID, FileType.AUDIO, chatType, hash, privateMessageKey)
 }
 
 fun uploadImage(context: Context, database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, imageFile: File) {
     uploadReference(context, database, chatUUID, referenceUUID, imageFile, FileType.IMAGE)
 }
 
-fun downloadImage(context: Context, database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, chatType: ChatType, hash: String) {
-    downloadReference(context, database, chatUUID, referenceUUID, FileType.IMAGE, chatType, hash)
+fun downloadImage(context: Context, database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, chatType: ChatType, hash: String, privateMessageKey: Key) {
+    downloadReference(context, database, chatUUID, referenceUUID, FileType.IMAGE, chatType, hash, privateMessageKey)
 }
 
 fun uploadVideo(context: Context, database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, imageFile: File) {
     uploadReference(context, database, chatUUID, referenceUUID, imageFile, FileType.VIDEO)
 }
 
-fun downloadVideo(context: Context, database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, chatType: ChatType, hash: String) {
-    downloadReference(context, database, chatUUID, referenceUUID, FileType.VIDEO, chatType, hash)
+fun downloadVideo(context: Context, database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, chatType: ChatType, hash: String, privateMessageKey: Key) {
+    downloadReference(context, database, chatUUID, referenceUUID, FileType.VIDEO, chatType, hash, privateMessageKey)
 }
 
-//TODO
-private fun downloadReference(context: Context, database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, fileType: FileType, chatType: ChatType, hash: String) {
+fun downloadReference(context: Context, database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, fileType: FileType, chatType: ChatType, hash: String, privateMessageKey: Key) {
+    val kentaiClient = context.applicationContext as KentaiClient
+
     object : AsyncTask<Unit, Unit, DownloadReferenceRequest.Response>() {
 
         override fun doInBackground(vararg p0: Unit?): DownloadReferenceRequest.Response {
             //This key is used to either decrypt the key sent in the file or to encrypt the full file
             val decryptionKey: Key = when (chatType) {
                 ChatType.TWO_PEOPLE -> {
-                    KentaiClient.INSTANCE.privateMessageKey!!
+                    privateMessageKey
                 }
                 ChatType.GROUP -> {
                     database.rawQuery("SELECT group_key FROM group_key_table WHERE chat_uuid = ?", arrayOf(chatUUID.toString())).use { query ->
@@ -93,37 +97,59 @@ private fun downloadReference(context: Context, database: SQLiteDatabase, chatUU
                         val responseCode = Response.values()[dataIn.readInt()]
                         val totalToReceive = dataIn.readLong()
                         when (responseCode) {
-                            Response.NOT_FOUND -> return Response.NOT_FOUND
-                            Response.DELETED -> return Response.DELETED
-                            Response.IN_PROGRESS -> return Response.IN_PROGRESS
+                            Response.NOT_FOUND -> {
+                                kentaiClient.currentLoadingTable -= referenceUUID
+                                setReferenceState(database, chatUUID, referenceUUID, fileType, UploadState.NOT_STARTED)
+                                return Response.NOT_FOUND
+                            }
+                            Response.DELETED -> {
+                                kentaiClient.currentLoadingTable -= referenceUUID
+
+                                setReferenceState(database, chatUUID, referenceUUID, fileType, UploadState.NOT_STARTED)
+                                return Response.DELETED
+                            }
+                            Response.IN_PROGRESS -> {
+                                kentaiClient.currentLoadingTable -= referenceUUID
+
+                                setReferenceState(database, chatUUID, referenceUUID, fileType, UploadState.NOT_STARTED)
+                                return Response.IN_PROGRESS
+                            }
                             Response.SUCCESS -> {
-                                val actKey: Key = if (chatType == ChatType.TWO_PEOPLE) {
-                                    val readUTF = dataIn.readUTF()
-                                    SecretKeySpec(BaseEncoding.base64().decode(readUTF.decryptRSA(decryptionKey)), "AES")
-                                } else {
-                                    decryptionKey
-                                }
-
-                                val iV = ByteArray(dataIn.readInt())
-                                response.body()!!.byteStream().read(iV)
-
-                                val cipher: Cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
-                                cipher.init(Cipher.DECRYPT_MODE, actKey, IvParameterSpec(iV))
-
-                                val referenceFile = getReferenceFile(chatUUID, referenceUUID, fileType, context.filesDir, context)
-
-                                CipherInputStream(ResponseInputStream(response.body()!!.byteStream(), totalToReceive, referenceUUID, context), cipher).use { cipherIn ->
-                                    cipherIn.copyTo(referenceFile.outputStream())
-                                }
-
-                                if (fileType == FileType.IMAGE) {
-                                    referenceFile.inputStream().use { inputStream ->
-                                        inputStream.copyTo(File(Environment.getExternalStorageDirectory().toString() + "/Pictures/Kentai/$referenceUUID.${fileType.extension}").outputStream())
+                                try {
+                                    val actKey: Key = if (chatType == ChatType.TWO_PEOPLE) {
+                                        val readUTF = dataIn.readUTF()
+                                        SecretKeySpec(BaseEncoding.base64().decode(readUTF.decryptRSA(decryptionKey)), "AES")
+                                    } else {
+                                        decryptionKey
                                     }
-                                }
 
-                                setReferenceState(database, chatUUID, referenceUUID, fileType, UploadState.UPLOADED)
-                                return Response.SUCCESS
+                                    val iV = ByteArray(dataIn.readInt())
+                                    response.body()!!.byteStream().read(iV)
+
+                                    val cipher: Cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
+                                    cipher.init(Cipher.DECRYPT_MODE, actKey, IvParameterSpec(iV))
+
+                                    val referenceFile = getReferenceFile(referenceUUID, fileType, context.filesDir, context)
+
+                                    BufferedInputStream(CipherInputStream(ResponseInputStream(response.body()!!.byteStream(), totalToReceive, referenceUUID, context, kentaiClient), cipher)).use { cipherIn ->
+                                        cipherIn.copyTo(referenceFile.outputStream(), 1024 * 1024)
+                                    }
+
+                                    if (fileType == FileType.IMAGE) {
+                                        File(Environment.getExternalStorageDirectory().toString() + "/Pictures/Kentai/").mkdirs()
+                                        referenceFile.inputStream().use { inputStream ->
+                                            inputStream.copyTo(File(Environment.getExternalStorageDirectory().toString() + "/Pictures/Kentai/$referenceUUID.${fileType.extension}").outputStream())
+                                        }
+                                    }
+
+                                    setReferenceState(database, chatUUID, referenceUUID, fileType, UploadState.FINISHED)
+                                    kentaiClient.currentLoadingTable -= referenceUUID
+                                    return Response.SUCCESS
+                                } catch (t: Throwable) {
+                                    setReferenceState(database, chatUUID, referenceUUID, fileType, UploadState.NOT_STARTED)
+                                    kentaiClient.currentLoadingTable -= referenceUUID
+                                    return Response.NOT_FOUND
+                                }
                             }
                         }
                     }
@@ -141,7 +167,7 @@ private fun downloadReference(context: Context, database: SQLiteDatabase, chatUU
                 Response.DELETED -> Toast.makeText(context, "Deleted!", Toast.LENGTH_SHORT).show()
                 Response.IN_PROGRESS -> Toast.makeText(context, "In progress!", Toast.LENGTH_SHORT).show()
                 Response.SUCCESS -> {
-                    val referenceFile = getReferenceFile(chatUUID, referenceUUID, fileType, context.filesDir, context)
+                    val referenceFile = getReferenceFile(referenceUUID, fileType, context.filesDir, context)
                     if (Hashing.sha512().hashBytes(referenceFile.readBytes()).toString() != hash) {
                         Toast.makeText(context, "File hashes don't match!", Toast.LENGTH_SHORT).show()
                     } else {
@@ -157,7 +183,7 @@ private fun downloadReference(context: Context, database: SQLiteDatabase, chatUU
     }.execute()
 }
 
-private fun uploadReference(context: Context, database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, referenceFile: File, fileType: FileType) {
+fun uploadReference(context: Context, database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, referenceFile: File, fileType: FileType) {
     val alreadyContained = database.rawQuery("SELECT COUNT(*) FROM reference_upload_table WHERE reference_uuid = ?", arrayOf(referenceUUID.toString())).use { query ->
         query.moveToNext()
         query.getInt(0) == 1
@@ -183,18 +209,19 @@ private fun uploadReference(context: Context, database: SQLiteDatabase, chatUUID
     context.sendBroadcast(i)
 }
 
-fun getReferenceFile(chatUUID: UUID, referenceUUID: UUID, fileType: FileType, filesDir: File, context: Context): File {
-    File("${filesDir.path}/resources/$chatUUID/").mkdirs()
+fun getReferenceFile(referenceUUID: UUID, fileType: FileType, filesDir: File, context: Context): File {
+    File("${filesDir.path}/resources/").mkdirs()
 
-    return File("${filesDir.path}/resources/$chatUUID/$referenceUUID.${fileType.extension}")
+    return File("${filesDir.path}/resources/$referenceUUID.${fileType.extension}")
 }
 
 enum class UploadState {
     IN_PROGRESS,
-    UPLOADED
+    FINISHED,
+    NOT_STARTED
 }
 
-private class ResponseInputStream(inputStream: InputStream, private val totalToReceive: Long, val referenceUUID: UUID, val context: Context) : FilterInputStream(inputStream) {
+private class ResponseInputStream(inputStream: InputStream, private val totalToReceive: Long, val referenceUUID: UUID, val context: Context, val kentaiClient: KentaiClient) : FilterInputStream(inputStream) {
 
     var bytesRead = 0L
     var prefRead = 0.0
@@ -213,12 +240,48 @@ private class ResponseInputStream(inputStream: InputStream, private val totalToR
 
     private fun update() {
         val currentPercent = bytesRead.toDouble() / totalToReceive.toDouble()
-        if (prefRead + 10 < currentPercent) {
+        if (prefRead + 0.01 < currentPercent) {
             prefRead = currentPercent
             val i = Intent("de.intektor.kentai.downloadProgress")
             i.putExtra("referenceUUID", referenceUUID)
             i.putExtra("progress", currentPercent)
             context.sendBroadcast(i)
+            kentaiClient.currentLoadingTable[referenceUUID] = prefRead
         }
     }
+}
+
+fun getVideoDuration(referenceFile: File, kentaiClient: KentaiClient): Int {
+    val time: Long = try {
+        val retriever = MediaMetadataRetriever()
+        retriever.setDataSource(kentaiClient, Uri.fromFile(referenceFile))
+        val time = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+
+        retriever.release()
+        time.toLong()
+    } catch (t: Throwable) {
+        val movie = Movie.decodeStream(referenceFile.inputStream())
+        movie.duration().toLong()
+    }
+    return (time / 1000L).toInt()
+}
+
+/**
+ * Saves the media and also gives back the reference file
+ */
+fun saveMediaFileInAppStorage(referenceUUID: UUID, uri: Uri, context: Context, fileType: FileType): File {
+    val realPath = if (File(uri.path).exists()) uri.path else when (fileType) {
+        FileType.VIDEO -> getRealVideoPath(uri, context)
+        FileType.GIF -> getRealVideoPath(uri, context)
+        FileType.IMAGE -> getRealImagePath(uri, context)
+        else -> throw IllegalArgumentException()
+    }
+
+    val referenceFile = getReferenceFile(referenceUUID, fileType, context.filesDir, context)
+
+    File(realPath).inputStream().use { fileIn ->
+        fileIn.copyTo(referenceFile.outputStream())
+    }
+
+    return referenceFile
 }

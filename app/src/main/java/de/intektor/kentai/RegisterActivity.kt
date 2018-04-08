@@ -111,98 +111,105 @@ class RegisterActivity : AppCompatActivity() {
         val messagePair = generateMessageKeys()
         val authPair = generateAuthKeys()
 
-        AttemptRegisterTask().execute(Triple(this, messagePair, authPair))
-    }
-
-    class AttemptRegisterTask : AsyncTask<Triple<RegisterActivity, KeyPair, KeyPair>, Unit, Triple<RegisterRequestResponseToClient?, RegisterActivity, KeyPair?>>() {
-        override fun doInBackground(vararg params: Triple<RegisterActivity, KeyPair, KeyPair>): Triple<RegisterRequestResponseToClient?, RegisterActivity, KeyPair?> {
-            val activity = params[0].first
-            val messagePair = params[0].second
-            val authPair = params[0].third
-            return try {
-                val gson = genGson()
-                val response = httpPost(gson.toJson(RegisterRequestToServer(activity.register_username_field.text.toString(), authPair.public as RSAPublicKey,
-                        messagePair.public as RSAPublicKey, FirebaseInstanceId.getInstance().token)), RegisterRequestToServer.TARGET)
-                Triple(gson.fromJson(response, RegisterRequestResponseToClient::class.java), activity, messagePair)
-            } catch (t: Throwable) {
-                Log.e("ERROR", "Unable to register", t)
-                Triple(null, activity, null)
-            }
-        }
-
-        override fun onPostExecute(response: Triple<RegisterRequestResponseToClient?, RegisterActivity, KeyPair?>) {
-            if (response.first == null || response.third == null) {
-                val builder = AlertDialog.Builder(response.second)
+        val username = register_username_field.text.toString()
+        AttemptRegisterTask({ response ->
+            if (response == null) {
+                val builder = AlertDialog.Builder(this)
                 builder.setTitle(R.string.register_register_error_title)
                 builder.setMessage(R.string.register_error_while_connecting)
                 builder.setPositiveButton("OK", { _, _ ->
 
                 })
                 builder.create().show()
-                return
+                return@AttemptRegisterTask
             }
-            val r = response.first!!
-            val activity = response.second
-            val messagePair = response.third!!
-            if (r.type != RegisterRequestResponseToClient.Type.SUCCESS) {
-                val builder = AlertDialog.Builder(activity)
+            if (response.type != RegisterRequestResponseToClient.Type.SUCCESS) {
+                val builder = AlertDialog.Builder(this)
                 builder.setTitle(R.string.register_register_error_title)
-                builder.setMessage(r.type.name)
+                builder.setMessage(response.type.name)
                 builder.setPositiveButton("OK", { _, _ ->
 
                 })
                 builder.create().show()
             } else {
-                activity.initUser(r.username, r.userUUID!!, messagePair.public)
+                initUser(username, response.userUUID!!, messagePair.public)
 
-                activity.startActivity(Intent(activity, OverviewActivity::class.java))
+                startActivity(Intent(this, OverviewActivity::class.java))
+
+                finish()
             }
+        }, messagePair, authPair, username).execute()
+    }
+
+    class AttemptRegisterTask(val callback: (RegisterRequestResponseToClient?) -> (Unit), val messagePair: KeyPair, val authPair: KeyPair, val username: String) :
+            AsyncTask<Unit, Unit, RegisterRequestResponseToClient?>() {
+        override fun doInBackground(vararg p0: Unit?): RegisterRequestResponseToClient? {
+            return try {
+                val gson = genGson()
+                val response = httpPost(gson.toJson(RegisterRequestToServer(username, authPair.public as RSAPublicKey,
+                        messagePair.public as RSAPublicKey, FirebaseInstanceId.getInstance().token)), RegisterRequestToServer.TARGET)
+                gson.fromJson<RegisterRequestResponseToClient>(response, RegisterRequestResponseToClient::class.java)
+            } catch (t: Throwable) {
+                Log.e("ERROR", "Unable to register", t)
+                null
+            }
+        }
+
+        override fun onPostExecute(response: RegisterRequestResponseToClient?) {
+            callback.invoke(response)
         }
     }
 
-    fun initUser(username: String, userUUID: UUID, publicMessageKey: PublicKey) {
+    private fun initUser(username: String, userUUID: UUID, publicMessageKey: PublicKey) {
+        val kentaiClient = applicationContext as KentaiClient
+
         val dataOut = DataOutputStream(File(filesDir.path + "/username.info").outputStream())
         dataOut.writeUTF(username)
-        dataOut.writeUTF(userUUID.toString())
+        dataOut.writeUUID(userUUID)
         dataOut.close()
-        KentaiClient.INSTANCE.username = username
-        KentaiClient.INSTANCE.userUUID = userUUID
 
-        addContact(userUUID, register_username_field.text.toString(), KentaiClient.INSTANCE.dataBase, publicMessageKey)
+        kentaiClient.username = username
+        kentaiClient.userUUID = userUUID
+
+        addContact(userUUID, username, kentaiClient.dataBase, publicMessageKey)
     }
 
     private fun generateAuthKeys(): KeyPair {
+        val kentaiClient = applicationContext as KentaiClient
+
         val keyGenerator = KeyPairGenerator.getInstance("RSA")
         keyGenerator.initialize(2048)
         val keyPair = keyGenerator.generateKeyPair()
-        internalFile("keys/").mkdirs()
+        internalFile("keys/", this).mkdirs()
 
-        var output = DataOutputStream(internalFile("keys/authKeyPublic.key").outputStream())
+        var output = DataOutputStream(internalFile("keys/authKeyPublic.key", this).outputStream())
         (keyPair.public as RSAPublicKey).writeKey(output)
 
-        output = DataOutputStream(internalFile("keys/authKeyPrivate.key").outputStream())
+        output = DataOutputStream(internalFile("keys/authKeyPrivate.key", this).outputStream())
         (keyPair.private as RSAPrivateKey).writeKey(output)
 
-        KentaiClient.INSTANCE.privateAuthKey = keyPair.private
-        KentaiClient.INSTANCE.publicAuthKey = keyPair.public
+        kentaiClient.privateAuthKey = keyPair.private
+        kentaiClient.publicAuthKey = keyPair.public
 
         return keyPair
     }
 
     private fun generateMessageKeys(): KeyPair {
+        val kentaiClient = applicationContext as KentaiClient
+
         val keyGenerator = KeyPairGenerator.getInstance("RSA")
         keyGenerator.initialize(2048)
         val keyPair = keyGenerator.generateKeyPair()
-        internalFile("keys/").mkdirs()
+        internalFile("keys/", this).mkdirs()
 
-        var output = DataOutputStream(internalFile("keys/encryptionKeyPublic.key").outputStream())
+        var output = DataOutputStream(internalFile("keys/encryptionKeyPublic.key", this).outputStream())
         (keyPair.public as RSAPublicKey).writeKey(output)
 
-        output = DataOutputStream(internalFile("keys/encryptionKeyPrivate.key").outputStream())
+        output = DataOutputStream(internalFile("keys/encryptionKeyPrivate.key", this).outputStream())
         (keyPair.private as RSAPrivateKey).writeKey(output)
 
-        KentaiClient.INSTANCE.privateMessageKey = keyPair.private
-        KentaiClient.INSTANCE.publicMessageKey = keyPair.public
+        kentaiClient.privateMessageKey = keyPair.private
+        kentaiClient.publicMessageKey = keyPair.public
 
         return keyPair
     }
@@ -254,16 +261,16 @@ class RegisterActivity : AppCompatActivity() {
             val privateMessageKey = dataIn.readUTF().decryptAES(aesKey, initVector).toPrivateKey()
             val publicMessageKey = dataIn.readUTF().decryptAES(aesKey, initVector).toKey()
 
-            var output = DataOutputStream(internalFile("keys/authKeyPublic.key").outputStream())
+            var output = DataOutputStream(internalFile("keys/authKeyPublic.key", this).outputStream())
             (publicAuthKey as RSAPublicKey).writeKey(output)
 
-            output = DataOutputStream(internalFile("keys/authKeyPrivate.key").outputStream())
+            output = DataOutputStream(internalFile("keys/authKeyPrivate.key", this).outputStream())
             (privateAuthKey as RSAPrivateKey).writeKey(output)
 
-            output = DataOutputStream(internalFile("keys/encryptionKeyPublic.key").outputStream())
+            output = DataOutputStream(internalFile("keys/encryptionKeyPublic.key", this).outputStream())
             (publicMessageKey as RSAPublicKey).writeKey(output)
 
-            output = DataOutputStream(internalFile("keys/encryptionKeyPrivate.key").outputStream())
+            output = DataOutputStream(internalFile("keys/encryptionKeyPrivate.key", this).outputStream())
             (privateMessageKey as RSAPrivateKey).writeKey(output)
 
             initUser(username, userUUID, publicMessageKey)

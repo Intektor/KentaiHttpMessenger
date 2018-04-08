@@ -12,6 +12,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
 import de.intektor.kentai.group_info_activity.GroupMemberAdapter
+import de.intektor.kentai.kentai.KEY_CHAT_INFO
 import de.intektor.kentai.kentai.chat.*
 import de.intektor.kentai.kentai.groups.handleGroupModification
 import de.intektor.kentai_http_common.chat.ChatType
@@ -39,13 +40,15 @@ class GroupInfoActivity : AppCompatActivity(), GroupMemberAdapter.ClickListener 
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_group_info)
 
-        chatInfo = intent.getParcelableExtra("chatInfo")
+        val kentaiClient = applicationContext as KentaiClient
+
+        chatInfo = intent.getParcelableExtra(KEY_CHAT_INFO)
 
         setGroupNameToUI()
 
         loadRoles()
 
-        myRole = roleMap[KentaiClient.INSTANCE.userUUID]
+        myRole = roleMap[kentaiClient.userUUID]
         groupInfoEditGroup.isEnabled = myRole != null && myRole != GroupRole.DEFAULT
 
         val groupedRoles = memberList.groupBy { it.role }
@@ -64,7 +67,7 @@ class GroupInfoActivity : AppCompatActivity(), GroupMemberAdapter.ClickListener 
             memberList.addAll(groupedRoles[GroupRole.DEFAULT]!!)
         }
 
-        val adapter = GroupMemberAdapter(memberList, this, this)
+        val adapter = GroupMemberAdapter(memberList, this, this, kentaiClient)
         groupInfoMemberList.adapter = adapter
         groupInfoMemberList.layoutManager = LinearLayoutManager(this)
         groupInfoMemberList.adapter.notifyDataSetChanged()
@@ -89,7 +92,7 @@ class GroupInfoActivity : AppCompatActivity(), GroupMemberAdapter.ClickListener 
                     val groupModification = GroupModificationChangeName(chatInfo.chatName, newName, chatInfo.chatUUID.toString())
                     sendGroupModification(groupModification)
                     chatInfo = chatInfo.copy(chatName = newName)
-                    handleGroupModification(groupModification, KentaiClient.INSTANCE.dataBase)
+                    handleGroupModification(groupModification, kentaiClient.dataBase)
                     setGroupNameToUI()
                 }
             })
@@ -141,6 +144,7 @@ class GroupInfoActivity : AppCompatActivity(), GroupMemberAdapter.ClickListener 
     }
 
     override fun onContextItemSelected(item: MenuItem): Boolean {
+        val kentaiClient = applicationContext as KentaiClient
         val index = currentlyClicked
         return when (item.itemId) {
             R.id.menuGroupMemberSendMessage -> {
@@ -148,14 +152,14 @@ class GroupInfoActivity : AppCompatActivity(), GroupMemberAdapter.ClickListener 
                 var key: PublicKey? = null
 
                 val contact = memberList[index].contact
-                KentaiClient.INSTANCE.dataBase.rawQuery("SELECT message_key FROM contacts WHERE user_uuid = ?", arrayOf(contact.userUUID.toString())).use { query ->
+                kentaiClient.dataBase.rawQuery("SELECT message_key FROM contacts WHERE user_uuid = ?", arrayOf(contact.userUUID.toString())).use { query ->
                     query.moveToNext()
                     key = if (query.isNull(0)) {
-                        requestPublicKey(listOf(contact.userUUID), KentaiClient.INSTANCE.dataBase)[contact.userUUID]!!
+                        requestPublicKey(listOf(contact.userUUID), kentaiClient.dataBase)[contact.userUUID]!!
                     } else {
                         val keyString = query.getString(0)
                         if (keyString.isEmpty()) {
-                            requestPublicKey(listOf(contact.userUUID), KentaiClient.INSTANCE.dataBase)[contact.userUUID]!!
+                            requestPublicKey(listOf(contact.userUUID), kentaiClient.dataBase)[contact.userUUID]!!
                         } else {
                             keyString.toKey() as PublicKey
                         }
@@ -164,21 +168,8 @@ class GroupInfoActivity : AppCompatActivity(), GroupMemberAdapter.ClickListener 
 
                 val i = Intent(this@GroupInfoActivity, ChatActivity::class.java)
 
-                KentaiClient.INSTANCE.dataBase.rawQuery("SELECT chat_uuid FROM user_to_chat_uuid WHERE user_uuid = ?", arrayOf(contact.userUUID.toString())).use { query ->
-                    val chatUUID: UUID
-                    val wasRandom: Boolean
-                    if (query.moveToNext()) {
-                        chatUUID = query.getString(0).toUUID()
-                        wasRandom = false
-                    } else {
-                        chatUUID = UUID.randomUUID()
-                        wasRandom = true
-                    }
-                    val chatInfo = ChatInfo(chatUUID, contact.name, ChatType.TWO_PEOPLE,
-                            listOf(ChatReceiver(contact.userUUID, key, ChatReceiver.ReceiverType.USER), ChatReceiver(KentaiClient.INSTANCE.userUUID, null, ChatReceiver.ReceiverType.USER, true)))
-                    if (wasRandom) createChat(chatInfo, KentaiClient.INSTANCE.dataBase, KentaiClient.INSTANCE.userUUID)
-                    i.putExtra("chatInfo", chatInfo)
-                }
+                val chatInfo = getUserChat(kentaiClient.dataBase, contact, kentaiClient)
+                i.putExtra(KEY_CHAT_INFO, chatInfo)
 
                 startActivity(i)
 
@@ -187,7 +178,7 @@ class GroupInfoActivity : AppCompatActivity(), GroupMemberAdapter.ClickListener 
 
             R.id.menuGroupMemberChangeRoleModerator -> {
                 val groupModification = GroupModificationChangeRole(memberList[index].contact.userUUID, memberList[index].role, GroupRole.MODERATOR, chatInfo.chatUUID.toString())
-                handleGroupModification(groupModification, KentaiClient.INSTANCE.dataBase)
+                handleGroupModification(groupModification, kentaiClient.dataBase)
                 sendGroupModification(groupModification)
                 memberList[index] = GroupMember(memberList[index].contact, GroupRole.MODERATOR)
                 groupInfoMemberList.adapter.notifyDataSetChanged()
@@ -196,7 +187,7 @@ class GroupInfoActivity : AppCompatActivity(), GroupMemberAdapter.ClickListener 
 
             R.id.menuGroupMemberChangeRoleDefault -> {
                 val groupModification = GroupModificationChangeRole(memberList[index].contact.userUUID, memberList[index].role, GroupRole.DEFAULT, chatInfo.chatUUID.toString())
-                handleGroupModification(groupModification, KentaiClient.INSTANCE.dataBase)
+                handleGroupModification(groupModification, kentaiClient.dataBase)
                 sendGroupModification(groupModification)
                 memberList[index] = GroupMember(memberList[index].contact, GroupRole.DEFAULT)
                 groupInfoMemberList.adapter.notifyDataSetChanged()
@@ -216,7 +207,7 @@ class GroupInfoActivity : AppCompatActivity(), GroupMemberAdapter.ClickListener 
                         .setNegativeButton(R.string.group_info_kick_alert_cancel, { _, _ -> })
                         .setPositiveButton(R.string.group_info_kick_alert_kick, { _, _ ->
                             val groupModification = GroupModificationKickUser(memberList[index].contact.userUUID, editText.text.toString(), chatInfo.chatUUID.toString())
-                            handleGroupModification(groupModification, KentaiClient.INSTANCE.dataBase)
+                            handleGroupModification(groupModification, kentaiClient.dataBase)
                             sendGroupModification(groupModification)
                             memberList.removeAt(index)
                             groupInfoMemberList.adapter.notifyDataSetChanged()
@@ -233,13 +224,14 @@ class GroupInfoActivity : AppCompatActivity(), GroupMemberAdapter.ClickListener 
     }
 
     private fun sendGroupModification(groupModification: GroupModification) {
-        val wrapper = ChatMessageWrapper(ChatMessageGroupModification(groupModification, KentaiClient.INSTANCE.userUUID, System.currentTimeMillis()),
+        val kentaiClient = applicationContext as KentaiClient
+        val wrapper = ChatMessageWrapper(ChatMessageGroupModification(groupModification, kentaiClient.userUUID, System.currentTimeMillis()),
                 MessageStatus.WAITING, true, System.currentTimeMillis())
         wrapper.message.referenceUUID = UUID.randomUUID()
         sendMessageToServer(this@GroupInfoActivity,
                 PendingMessage(
                         wrapper,
-                        chatInfo.chatUUID, chatInfo.participants.filter { it.receiverUUID != KentaiClient.INSTANCE.userUUID }))
+                        chatInfo.chatUUID, chatInfo.participants.filter { it.receiverUUID != kentaiClient.userUUID }), kentaiClient.dataBase)
     }
 
     override fun onResume() {
@@ -251,9 +243,10 @@ class GroupInfoActivity : AppCompatActivity(), GroupMemberAdapter.ClickListener 
     }
 
     private fun loadRoles() {
-        val groupRoles = readGroupRoles(KentaiClient.INSTANCE.dataBase, chatInfo.chatUUID)
+        val kentaiClient = applicationContext as KentaiClient
+        val groupRoles = readGroupRoles(kentaiClient.dataBase, chatInfo.chatUUID)
         for (groupRole in groupRoles) {
-            roleMap.put(groupRole.contact.userUUID, groupRole.role)
+            roleMap[groupRole.contact.userUUID] = groupRole.role
         }
     }
 }

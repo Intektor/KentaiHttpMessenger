@@ -1,28 +1,36 @@
 package de.intektor.kentai
 
+import android.content.Intent
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
-import android.widget.TextView
+import de.intektor.kentai.kentai.KEY_CHAT_INFO
+import de.intektor.kentai.kentai.KEY_USER_UUID
+import de.intektor.kentai.kentai.chat.getUserChat
+import de.intektor.kentai.kentai.chat.readContact
 import kotlinx.android.synthetic.main.activity_user_chat_info.*
 import java.util.*
 
 class ContactInfoActivity : AppCompatActivity() {
 
-    lateinit var userUUID: UUID
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_user_chat_info)
-        userUUID = intent.getSerializableExtra("userUUID") as UUID
 
-        KentaiClient.INSTANCE.dataBase.rawQuery("SELECT username, alias FROM contacts WHERE user_uuid = ?", arrayOf(userUUID.toString())).use { query ->
-            query.moveToNext()
-            val username = query.getString(0)
-            val alias = query.getString(1)
-            contact_info_username_view.text = username
-            if (alias.isNotEmpty() && alias != username) {
-                contact_info_edit_alias.setText(alias, TextView.BufferType.EDITABLE)
-            }
+        val kentaiClient = applicationContext as KentaiClient
+
+        val userUUID = intent.getSerializableExtra(KEY_USER_UUID) as UUID
+
+        val contact = readContact(kentaiClient.dataBase, userUUID)
+
+        activityUserChatInfoProfileName.text = contact.name
+        activityUserChatInfoProfileAlias.text = contact.alias
+
+        val chatInfo = getUserChat(kentaiClient.dataBase, contact, kentaiClient)
+
+        activityUserChatInfoSentMedia.setOnClickListener {
+            val i = Intent(this@ContactInfoActivity, ViewMediaActivity::class.java)
+            i.putExtra(KEY_CHAT_INFO, chatInfo)
+            startActivity(i)
         }
     }
 }

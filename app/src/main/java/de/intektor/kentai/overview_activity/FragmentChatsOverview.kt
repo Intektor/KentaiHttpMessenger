@@ -12,6 +12,7 @@ import de.intektor.kentai.KentaiClient
 import de.intektor.kentai.R
 import de.intektor.kentai.fragment.ChatListViewAdapter
 import de.intektor.kentai.fragment.ChatListViewAdapter.ChatItem
+import de.intektor.kentai.kentai.KEY_CHAT_INFO
 import de.intektor.kentai.kentai.chat.deleteChat
 import de.intektor.kentai.kentai.chat.readChats
 import java.util.*
@@ -25,23 +26,27 @@ class FragmentChatsOverview : Fragment() {
 
     lateinit var chatList: RecyclerView
 
+    lateinit var kentaiClient: KentaiClient
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setHasOptionsMenu(true)
     }
 
-    override fun onCreateView(inflater: LayoutInflater?, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        chatList = inflater!!.inflate(R.layout.fragment_chat_list, container, false) as RecyclerView
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
+        chatList = inflater.inflate(R.layout.fragment_chat_list, container, false) as RecyclerView
+
 
         val context = chatList.context
         chatList.layoutManager = LinearLayoutManager(context)
 
-        chatList.adapter = ChatListViewAdapter(shownChatList, object : ClickListener {
-            override fun onClickItem(item: ChatItem) {
-                val intent = Intent(KentaiClient.INSTANCE.currentActivity, ChatActivity::class.java)
-                intent.putExtra("chatInfo", item.chatInfo)
-                KentaiClient.INSTANCE.currentActivity!!.startActivity(intent)
-            }
+        kentaiClient = context.applicationContext as KentaiClient
+
+        chatList.adapter = ChatListViewAdapter(shownChatList, { item ->
+                val intent = Intent(kentaiClient.currentActivity, ChatActivity::class.java)
+                intent.putExtra(KEY_CHAT_INFO, item.chatInfo)
+                kentaiClient.currentActivity!!.startActivity(intent)
+
         }, this@FragmentChatsOverview)
 
         return chatList
@@ -50,7 +55,7 @@ class FragmentChatsOverview : Fragment() {
 
     fun addChat(chatItem: ChatItem) {
         shownChatList.add(chatItem)
-        chatMap.put(chatItem.chatInfo.chatUUID, chatItem)
+        chatMap[chatItem.chatInfo.chatUUID] = chatItem
     }
 
     interface ClickListener {
@@ -60,7 +65,7 @@ class FragmentChatsOverview : Fragment() {
     fun updateList() {
         shownChatList.clear()
 
-        readChats(KentaiClient.INSTANCE.dataBase, this@FragmentChatsOverview.context).forEach {
+        readChats(kentaiClient.dataBase, this@FragmentChatsOverview.context!!).forEach {
             addChat(it)
         }
 
@@ -72,7 +77,7 @@ class FragmentChatsOverview : Fragment() {
     private var currentContextSelectedIndex = -1
 
     override fun onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo?) {
-        activity.menuInflater.inflate(R.menu.menu_chat_item, menu)
+        activity?.menuInflater?.inflate(R.menu.menu_chat_item, menu)
 
         val position = v.tag as Int
         currentContextSelectedIndex = position
@@ -83,14 +88,14 @@ class FragmentChatsOverview : Fragment() {
     override fun onContextItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
             R.id.menuChatItemDelete -> {
-                AlertDialog.Builder(activity)
+                AlertDialog.Builder(context!!)
                         .setTitle(R.string.overview_activity_delete_chat_title)
                         .setMessage(R.string.overview_activity_delete_chat_message)
                         .setNegativeButton(R.string.overview_activity_delete_chat_cancel, { _, _ ->
 
                         })
                         .setPositiveButton(R.string.overview_activity_delete_chat_do_delete, { _, _ ->
-                            deleteChat(shownChatList[currentContextSelectedIndex].chatInfo.chatUUID, KentaiClient.INSTANCE.dataBase)
+                            deleteChat(shownChatList[currentContextSelectedIndex].chatInfo.chatUUID, kentaiClient.dataBase)
                             shownChatList.removeAt(currentContextSelectedIndex)
                             chatList.adapter.notifyItemRemoved(currentContextSelectedIndex)
                         })

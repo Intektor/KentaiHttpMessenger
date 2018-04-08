@@ -6,6 +6,7 @@ import android.util.Log
 import com.google.common.io.BaseEncoding
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
+import de.intektor.kentai.KentaiClient
 import de.intektor.kentai.kentai.DbHelper
 import de.intektor.kentai.kentai.android.writeMessageWrapper
 import de.intektor.kentai.kentai.chat.*
@@ -60,7 +61,7 @@ class FMService : FirebaseMessagingService() {
         if (userInfoFile.exists()) {
             val dataIn = DataInputStream(userInfoFile.inputStream())
             username = dataIn.readUTF()
-            userUUID = UUID.fromString(dataIn.readUTF())
+            userUUID = dataIn.readUUID()
         }
     }
 
@@ -160,9 +161,10 @@ class FMService : FirebaseMessagingService() {
             }
 
             if (message.shouldBeStored()) {
+                val kentaiClient = applicationContext as KentaiClient
                 val wrapper = ChatMessageWrapper(ChatMessageStatusChange(chatUUID, messageUUID, MessageStatus.RECEIVED, System.currentTimeMillis(), userUUID!!, System.currentTimeMillis()),
                         MessageStatus.RECEIVED, true, System.currentTimeMillis())
-                sendMessageToServer(this, PendingMessage(wrapper, chatInfo.chatUUID, chatInfo.participants.filter { it.receiverUUID != userUUID }))
+                sendMessageToServer(this, PendingMessage(wrapper, chatInfo.chatUUID, chatInfo.participants.filter { it.receiverUUID != userUUID }), kentaiClient.dataBase)
             }
 
             saveMessage(chatUUID, ChatMessageWrapper(message, MessageStatus.RECEIVED, false, 0L), db)
@@ -279,7 +281,7 @@ class FMService : FirebaseMessagingService() {
             intent.putExtra("additionalInfoID", AdditionalInfoRegistry.getID(additionalInformation.javaClass))
             intent.putExtra("additionalInfoContent", byteOut.toByteArray())
             intent.writeMessageWrapper(ChatMessageWrapper(message, MessageStatus.RECEIVED, false, System.currentTimeMillis()), 0)
-            sendOrderedBroadcast(intent, null)
+            sendBroadcast(intent, null)
         } else {
             Log.w("WARNING", "NO CHAT FOUND, THIS SHOULD NEVER HAPPEN")
         }

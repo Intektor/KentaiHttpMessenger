@@ -4,11 +4,13 @@ import android.content.Intent
 import android.database.sqlite.SQLiteDatabase
 import android.util.Log
 import de.intektor.kentai.KentaiClient
+import de.intektor.kentai.kentai.ACTION_DIRECT_CONNECTION_CONNECTED
 import de.intektor.kentai.kentai.address
 import de.intektor.kentai.kentai.chat.readContacts
 import de.intektor.kentai.kentai.direct.connection.handler.HeartbeatPacketToClientHandler
 import de.intektor.kentai.kentai.direct.connection.handler.TypingPacketToClientHandler
 import de.intektor.kentai.kentai.direct.connection.handler.UserStatusChangePacketToClientHandler
+import de.intektor.kentai.kentai.direct.connection.handler.UserViewChatPacketToClientHandler
 import de.intektor.kentai_http_common.tcp.*
 import de.intektor.kentai_http_common.tcp.client_to_server.HeartbeatPacketToServer
 import de.intektor.kentai_http_common.tcp.client_to_server.IdentificationPacketToServer
@@ -16,6 +18,7 @@ import de.intektor.kentai_http_common.tcp.client_to_server.UserPreferencePacketT
 import de.intektor.kentai_http_common.tcp.server_to_client.HeartbeatPacketToClient
 import de.intektor.kentai_http_common.tcp.server_to_client.TypingPacketToClient
 import de.intektor.kentai_http_common.tcp.server_to_client.UserStatusChangePacketToClient
+import de.intektor.kentai_http_common.tcp.server_to_client.UserViewChatPacketToClient
 import de.intektor.kentai_http_common.util.encryptRSA
 import java.io.DataInputStream
 import java.io.DataOutputStream
@@ -26,7 +29,7 @@ import kotlin.concurrent.thread
 /**
  * @author Intektor
  */
-object DirectConnectionManager {
+class DirectConnectionManager(val kentaiClient: KentaiClient) {
 
     @Volatile
     private var keepConnection: Boolean = false
@@ -47,13 +50,18 @@ object DirectConnectionManager {
             registerHandler(UserStatusChangePacketToClient::class.java, UserStatusChangePacketToClientHandler())
             registerHandler(HeartbeatPacketToClient::class.java, HeartbeatPacketToClientHandler())
             registerHandler(TypingPacketToClient::class.java, TypingPacketToClientHandler())
+            registerHandler(UserViewChatPacketToClient::class.java, UserViewChatPacketToClientHandler())
         }
 
-        thread {
+        CheckThread().start()
+    }
+
+    inner class CheckThread : Thread() {
+        override fun run() {
             while (true) {
                 Thread.sleep(5000L)
                 if (!isConnected) {
-                    launchConnection(KentaiClient.INSTANCE.dataBase)
+                    launchConnection(kentaiClient.dataBase)
                 }
             }
         }
@@ -62,18 +70,40 @@ object DirectConnectionManager {
     fun launchConnection(database: SQLiteDatabase) {
         if (keepConnection) return
         keepConnection = true
-        thread {
-            try {
-                val contactList = readContacts(database)
+        LaunchThread(kentaiClient).start()
+    }
 
-                this.socket = Socket(address, 17348)
+    fun sendPacket(packet: IPacket) {
+        sendPacketQueue.add(packet)
+    }
+
+    fun exitConnection() {
+        keepConnection = false
+        if (socket?.isBound == true) {
+            socket?.close()
+        }
+        kentaiClient.userStatusMap.clear()
+
+        val i = Intent("de.intektor.kentai.tcp_closed")
+        kentaiClient.applicationContext.sendBroadcast(i)
+    }
+
+    inner class LaunchThread(val kentaiClient: KentaiClient) : Thread() {
+
+        override fun run() {
+            try {
+                val contactList = readContacts(kentaiClient.dataBase)
+
+                socket = Socket(address, 17348)
 
                 val dataIn = DataInputStream(socket?.getInputStream())
 
-                val encryptedUserUUID = KentaiClient.INSTANCE.userUUID.toString().encryptRSA(KentaiClient.INSTANCE.privateAuthKey!!)
+                val encryptedUserUUID = kentaiClient.userUUID.toString().encryptRSA(kentaiClient.privateAuthKey!!)
 
-                sendPacket(IdentificationPacketToServer(encryptedUserUUID, KentaiClient.INSTANCE.userUUID), DataOutputStream(socket?.getOutputStream()))
+                sendPacket(IdentificationPacketToServer(encryptedUserUUID, kentaiClient.userUUID), DataOutputStream(socket?.getOutputStream()))
                 sendPacket(UserPreferencePacketToServer(contactList.map { it.userUUID }.toMutableList()), DataOutputStream(socket?.getOutputStream()))
+
+                kentaiClient.sendBroadcast(Intent(ACTION_DIRECT_CONNECTION_CONNECTED))
 
                 thread {
                     while (keepConnection && socket?.isBound == true) {
@@ -119,20 +149,5 @@ object DirectConnectionManager {
                 Log.e("ERROR", "Network", t)
             }
         }
-    }
-
-    fun sendPacket(packet: IPacket) {
-        sendPacketQueue.add(packet)
-    }
-
-    fun exitConnection() {
-        keepConnection = false
-        if (socket?.isBound == true) {
-            socket?.close()
-        }
-        KentaiClient.INSTANCE.userStatusMap.clear()
-
-        val i = Intent("de.intektor.kentai.tcp_closed")
-        KentaiClient.INSTANCE.applicationContext.sendBroadcast(i)
     }
 }

@@ -13,6 +13,7 @@ import android.text.TextWatcher
 import android.view.Menu
 import android.view.MenuItem
 import de.intektor.kentai.fragment.ContactViewAdapter
+import de.intektor.kentai.kentai.KEY_CHAT_INFO
 import de.intektor.kentai.kentai.chat.*
 import de.intektor.kentai.kentai.contacts.Contact
 import de.intektor.kentai.overview_activity.FragmentContactsOverview
@@ -38,17 +39,19 @@ class NewChatGroupActivity : AppCompatActivity(), android.support.v7.widget.Sear
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_new_chat_group)
 
+        val kentaiClient = applicationContext as KentaiClient
+        
         new_chat_list.layoutManager = LinearLayoutManager(this)
 
         val contactList = mutableListOf<Contact>()
-        val cursor = KentaiClient.INSTANCE.dataBase.rawQuery("SELECT username, alias, user_uuid, message_key FROM contacts;", null)
+        val cursor = kentaiClient.dataBase.rawQuery("SELECT username, alias, user_uuid, message_key FROM contacts;", null)
 
         while (cursor.moveToNext()) {
             val username = cursor.getString(0)
             val alias = cursor.getString(1)
             val userUUID = cursor.getString(2).toUUID()
             val messageKey = cursor.getString(3).toKey()
-            if (userUUID != KentaiClient.INSTANCE.userUUID) {
+            if (userUUID != kentaiClient.userUUID) {
                 contactList.add(Contact(username, alias, userUUID, messageKey))
             }
         }
@@ -84,42 +87,44 @@ class NewChatGroupActivity : AppCompatActivity(), android.support.v7.widget.Sear
     }
 
     private fun startNewChat() {
+        val kentaiClient = applicationContext as KentaiClient
+        
         val chatInfo = ChatInfo(UUID.randomUUID(), new_chat_group_group_name.text.toString(), ChatType.GROUP, selected.map {
             ChatReceiver(it.userUUID, it.message_key, ChatReceiver.ReceiverType.USER)
-        }.plus(ChatReceiver(KentaiClient.INSTANCE.userUUID, null, ChatReceiver.ReceiverType.USER)))
+        }.plus(ChatReceiver(kentaiClient.userUUID, null, ChatReceiver.ReceiverType.USER)))
 
         val roleMap = HashMap<UUID, GroupRole>()
-        roleMap.put(KentaiClient.INSTANCE.userUUID, GroupRole.ADMIN)
+        roleMap[kentaiClient.userUUID] = GroupRole.ADMIN
         for (contact in selected) {
-            roleMap.put(contact.userUUID, GroupRole.DEFAULT)
+            roleMap[contact.userUUID] = GroupRole.DEFAULT
         }
 
         val groupKey = generateAESKey() as SecretKey
 
-        createGroupChat(chatInfo, roleMap, groupKey, KentaiClient.INSTANCE.dataBase, KentaiClient.INSTANCE.userUUID)
+        createGroupChat(chatInfo, roleMap, groupKey, kentaiClient.dataBase, kentaiClient.userUUID)
 
-        val message = ChatMessageWrapper(ChatMessageGroupInvite(chatInfo.chatUUID, roleMap, new_chat_group_group_name.text.toString(), groupKey, KentaiClient.INSTANCE.userUUID, System.currentTimeMillis()), MessageStatus.WAITING, true, System.currentTimeMillis())
+        val message = ChatMessageWrapper(ChatMessageGroupInvite(chatInfo.chatUUID, roleMap, new_chat_group_group_name.text.toString(), groupKey, kentaiClient.userUUID, System.currentTimeMillis()), MessageStatus.WAITING, true, System.currentTimeMillis())
 
         val toSend = mutableListOf<PendingMessage>()
 
         for (contact in selected) {
-            KentaiClient.INSTANCE.dataBase.rawQuery("SELECT chat_uuid FROM user_to_chat_uuid WHERE user_uuid = ?", arrayOf(contact.userUUID.toString())).use { query ->
+            kentaiClient.dataBase.rawQuery("SELECT chat_uuid FROM user_to_chat_uuid WHERE user_uuid = ?", arrayOf(contact.userUUID.toString())).use { query ->
                 if (query.moveToNext()) {
                     val chatUUID = query.getString(0).toUUID()
                     toSend.add(PendingMessage(message, chatUUID, chatInfo.participants.filter { it.receiverUUID == contact.userUUID }))
                 } else {
                     val newChatUUID = UUID.randomUUID()
                     createChat(ChatInfo(newChatUUID, contact.name, ChatType.TWO_PEOPLE, listOf(ChatReceiver(contact.userUUID, contact.message_key, ChatReceiver.ReceiverType.USER),
-                            ChatReceiver(KentaiClient.INSTANCE.userUUID, null, ChatReceiver.ReceiverType.USER))), KentaiClient.INSTANCE.dataBase, KentaiClient.INSTANCE.userUUID)
+                            ChatReceiver(kentaiClient.userUUID, null, ChatReceiver.ReceiverType.USER))), kentaiClient.dataBase, kentaiClient.userUUID)
                     toSend.add(PendingMessage(message, newChatUUID, chatInfo.participants.filter { it.receiverUUID == contact.userUUID }))
                 }
             }
         }
 
-        sendMessageToServer(this, toSend)
+        sendMessageToServer(this, toSend, kentaiClient.dataBase)
 
         val intent = Intent(this@NewChatGroupActivity, ChatActivity::class.java)
-        intent.putExtra("chatInfo", chatInfo)
+        intent.putExtra(KEY_CHAT_INFO, chatInfo)
         startActivity(intent)
     }
 
@@ -144,6 +149,8 @@ class NewChatGroupActivity : AppCompatActivity(), android.support.v7.widget.Sear
                         .setPositiveButton(R.string.new_chat_start_chat_proceed, { _, _ -> startNewChat() })
                         .show()
                 val i = Intent(this@NewChatGroupActivity, ChatActivity::class.java)
+                startActivity(i)
+                finish()
                 return true
             }
         }

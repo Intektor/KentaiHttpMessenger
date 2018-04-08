@@ -17,6 +17,7 @@ import com.google.api.client.util.ExponentialBackOff
 import com.google.api.services.drive.Drive
 import com.google.api.services.drive.DriveScopes
 import com.google.api.services.drive.model.File
+import de.intektor.kentai.KentaiClient
 import de.intektor.kentai.R
 import de.intektor.kentai.kentai.Kentai
 import java.text.DateFormat
@@ -43,7 +44,7 @@ class BackupService : Service() {
         registerReceiver(object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 val backupName = intent.getStringExtra(BACKUP_NAME_EXTRA)
-                createAndUploadBackup(backupName)
+                createAndUploadBackup(backupName, context.applicationContext as KentaiClient)
             }
 
         }, IntentFilter(Kentai.ACTION_BACKUP))
@@ -51,7 +52,7 @@ class BackupService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
-    fun createAndUploadBackup(backupName: String) {
+    fun createAndUploadBackup(backupName: String, kentaiClient: KentaiClient) {
         val credential = GoogleAccountCredential
                 .usingOAuth2(applicationContext, SCOPES.asList())
                 .setBackOff(ExponentialBackOff())
@@ -77,7 +78,7 @@ class BackupService : Service() {
             val backupFile = createChatBackup(backupName, this, { progress: Int ->
                 builder.setProgress(100, progress, false)
                 notM.notify(NOTIFICATION_CREATE_BACKUP, builder.build())
-            })
+            }, kentaiClient)
 
             builder.setContentTitle(getString(R.string.overview_activity_chat_backup_alert_progress_title))
             builder.setContentText(getString(R.string.overview_activity_chat_backup_alert_progress_upload_title))

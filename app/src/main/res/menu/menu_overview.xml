@@ -5,6 +5,7 @@
     tools:context="de.intektor.kentai.OverviewActivity">
     <item
         android:id="@+id/new_chat"
+        android:icon="@drawable/ic_message_white_24dp"
         android:title="@string/new_chat_label"
         app:showAsAction="ifRoom">
         <menu>
@@ -18,7 +19,7 @@
     </item>
     <item
         android:id="@+id/new_contact"
-        android:icon="@drawable/add_contact"
+        android:icon="@drawable/ic_person_add_white_24dp"
         android:title="@string/new_contact_label"
         app:showAsAction="always" />
 
@@ -45,4 +46,15 @@
         android:id="@+id/phone_transfer"
         android:title="@string/overview_activity_menu_transfer"
         app:showAsAction="never" />
+
+    <item
+        android:id="@+id/menuOverviewUpdateFCMKey"
+        android:title="@string/overview_activity_update_fcm_key_label"
+        app:showAsAction="never"/>
+
+    <item
+        android:id="@+id/menuOverviewSettings"
+        android:title="@string/overview_activity_settings_label"
+        android:icon="@drawable/ic_settings_white_24dp"
+        app:showAsAction="always"/>
 </menu>

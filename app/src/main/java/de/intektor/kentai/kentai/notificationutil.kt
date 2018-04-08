@@ -75,7 +75,7 @@ fun handleNotificationUnderSDK24(context: Context, chatUUID: UUID, chatType: Cha
 
 fun popNotificationSDKUnderNougat(context: Context, list: List<NotificationHolder>, notificationManager: NotificationManager, additionalInfo: IAdditionalInfo) {
     val builder = NotificationCompat.Builder(context, "new_messages")
-    builder.setSmallIcon(R.mipmap.ic_launcher)
+    builder.setSmallIcon(R.drawable.message_icon)
     builder.setContentTitle("You have ${list.size} new messages!")
     builder.setContentText(format(list.last(), true, true, context, additionalInfo))
 
@@ -136,10 +136,10 @@ fun handleNotificationSDK24(context: Context, chatUUID: UUID, chatType: ChatType
         val sharedPreferences = context.getSharedPreferences(DisplayNotificationReceiver.NOTIFICATION_FILE, Context.MODE_PRIVATE)
 
         var builder = NotificationCompat.Builder(context, "new_messages")
-        builder.mContentTitle = "You have $count new messages!"
-        builder.mContentText = format(newMessage, true, true, context, additionalInfo)
+        builder.setContentTitle("You have $count new messages!")
+        builder.setContentText(format(newMessage, true, true, context, additionalInfo))
         builder.color = Color.WHITE
-        builder.setSmallIcon(R.drawable.received)
+        builder.setSmallIcon(R.drawable.message_icon)
         builder.setAutoCancel(true)
         builder.setGroupSummary(true)
         builder.setGroup(DisplayNotificationReceiver.GROUP_KEY)
@@ -153,10 +153,10 @@ fun handleNotificationSDK24(context: Context, chatUUID: UUID, chatType: ChatType
         builder.setWhen(newMessage.time)
         builder.setShowWhen(true)
         builder.setGroup(DisplayNotificationReceiver.GROUP_KEY)
-        builder.setSmallIcon(R.mipmap.ic_launcher)
+        builder.setSmallIcon(R.drawable.message_icon)
         builder.setAutoCancel(true)
-        builder.mContentTitle = chatName
-        builder.mContentText = format(newMessage, false, chatType == ChatType.GROUP, context, additionalInfo)
+        builder.setContentTitle(chatName)
+        builder.setContentText(format(newMessage, false, chatType == ChatType.GROUP, context, additionalInfo))
         builder.setSubText(chatName)
         builder.priority = 1
         builder.setVibrate(longArrayOf(0L, 200L, 100L, 200L, 1000L))
@@ -186,7 +186,7 @@ fun handleNotificationSDK24(context: Context, chatUUID: UUID, chatType: ChatType
         val chatParticipants = readChatParticipants(dataBase, chatUUID)
 
         val intent = Intent(context, NotificationBroadcastReceiver::class.java)
-        intent.action = REPLY_ACTION
+        intent.action = ACTION_NOTIFICATION_REPLY
         intent.putExtra("chatName", chatName)
         intent.putExtra("chatType", chatType.ordinal)
         intent.putExtra("chatUUID", chatUUID.toString())
@@ -195,11 +195,11 @@ fun handleNotificationSDK24(context: Context, chatUUID: UUID, chatType: ChatType
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         val replyPendingIntent = PendingIntent.getBroadcast(context, 100, intent, PendingIntent.FLAG_UPDATE_CURRENT)
 
-        val remoteInput = android.support.v4.app.RemoteInput.Builder(NOTIFICATION_REPLY_KEY)
+        val remoteInput = android.support.v4.app.RemoteInput.Builder(KEY_NOTIFICATION_REPLY)
                 .setLabel(label)
                 .build()
 
-        val action = NotificationCompat.Action.Builder(R.drawable.received, label, replyPendingIntent)
+        val action = NotificationCompat.Action.Builder(R.drawable.message_icon, label, replyPendingIntent)
                 .addRemoteInput(remoteInput)
                 .setAllowGeneratedReplies(true)
                 .build()
@@ -208,7 +208,7 @@ fun handleNotificationSDK24(context: Context, chatUUID: UUID, chatType: ChatType
 
         val resultIntent = Intent(context, ChatActivity::class.java)
 
-        resultIntent.putExtra("chatInfo", ChatInfo(chatUUID, chatName, chatType, chatParticipants))
+        resultIntent.putExtra(KEY_CHAT_INFO, ChatInfo(chatUUID, chatName, chatType, chatParticipants))
 
         val stackBuilder = TaskStackBuilder.create(context)
         stackBuilder.addParentStack(ChatActivity::class.java)

@@ -6,6 +6,7 @@ import android.app.*
 import android.content.Context
 import android.content.Intent
 import android.net.ConnectivityManager
+import android.os.AsyncTask
 import android.os.Bundle
 import android.support.v4.app.Fragment
 import android.support.v4.app.FragmentManager
@@ -23,6 +24,7 @@ import com.google.api.client.googleapis.extensions.android.gms.auth.GoogleAccoun
 import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.client.util.ExponentialBackOff
 import com.google.api.services.drive.Drive
+import com.google.firebase.iid.FirebaseInstanceId
 import de.intektor.kentai.fragment.ChatListViewAdapter
 import de.intektor.kentai.fragment.ContactViewAdapter
 import de.intektor.kentai.kentai.Kentai
@@ -31,9 +33,13 @@ import de.intektor.kentai.kentai.android.backup.BackupService.Companion.PREF_ACC
 import de.intektor.kentai.kentai.android.backup.installChatBackup
 import de.intektor.kentai.kentai.chat.ChatMessageWrapper
 import de.intektor.kentai.kentai.contacts.Contact
+import de.intektor.kentai.kentai.httpPost
 import de.intektor.kentai.overview_activity.FragmentChatsOverview
 import de.intektor.kentai.overview_activity.FragmentContactsOverview
 import de.intektor.kentai_http_common.chat.MessageStatus
+import de.intektor.kentai_http_common.client_to_server.UpdateFBCMTokenRequest
+import de.intektor.kentai_http_common.gson.genGson
+import de.intektor.kentai_http_common.util.encryptRSA
 import kotlinx.android.synthetic.main.activity_overview.*
 import kotlinx.android.synthetic.main.fragment_chat_list.*
 import pub.devrel.easypermissions.AfterPermissionGranted
@@ -121,6 +127,13 @@ class OverviewActivity : AppCompatActivity(), FragmentContactsOverview.ListEleme
             R.id.use_chat_backup -> {
                 doDriveStuff()
                 createChatBackup = false
+            }
+            R.id.menuOverviewUpdateFCMKey -> {
+                UpdateFCMKeyTask(applicationContext as KentaiClient).execute()
+            }
+            R.id.menuOverviewSettings -> {
+                val openSettingsIntent = Intent(this, SettingsOverviewActivity::class.java)
+                startActivity(openSettingsIntent)
             }
         }
 
@@ -240,6 +253,7 @@ class OverviewActivity : AppCompatActivity(), FragmentContactsOverview.ListEleme
     }
 
     private fun selectedBackup(index: Int) {
+        val kentaiClient = applicationContext as KentaiClient
         val downloadDialog = ProgressDialog.show(this, getString(R.string.overview_activity_chat_backup_use_download_progress_dialog_title),
                 getString(R.string.overview_activity_chat_backup_use_download_progress_dialog_message), true)
         val array = selectedFilesArray ?: return
@@ -264,7 +278,7 @@ class OverviewActivity : AppCompatActivity(), FragmentContactsOverview.ListEleme
                             val progressDialog = ProgressDialog.show(this, getString(R.string.overview_activity_chat_backup_use_install_progress_dialog_title),
                                     getString(R.string.overview_activity_chat_backup_use_install_progress_dialog_message), true)
                             thread {
-                                installChatBackup(KentaiClient.INSTANCE.dataBase, tempFile, this)
+                                installChatBackup(kentaiClient.dataBase, tempFile, this, kentaiClient)
                                 runOnUiThread {
                                     progressDialog.dismiss()
                                     val fragment = supportFragmentManager.findFragmentByTag("android:switcher:" + R.id.container + ":0") as FragmentChatsOverview
@@ -420,6 +434,14 @@ class OverviewActivity : AppCompatActivity(), FragmentContactsOverview.ListEleme
         override fun setArguments(args: Bundle) {
             super.setArguments(args)
             array = args.getStringArray("fileArray")
+        }
+    }
+
+    private class UpdateFCMKeyTask(val kentaiClient: KentaiClient) : AsyncTask<Unit, Unit, Unit>() {
+        override fun doInBackground(vararg p0: Unit?) {
+            val gson = genGson()
+            val s = gson.toJson(UpdateFBCMTokenRequest(kentaiClient.userUUID, FirebaseInstanceId.getInstance().token!!.encryptRSA(kentaiClient.privateAuthKey!!)))
+            httpPost(s, UpdateFBCMTokenRequest.TARGET)
         }
     }
 }

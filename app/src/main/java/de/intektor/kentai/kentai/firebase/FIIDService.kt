@@ -2,6 +2,11 @@ package de.intektor.kentai.kentai.firebase
 
 import com.google.firebase.iid.FirebaseInstanceId
 import com.google.firebase.iid.FirebaseInstanceIdService
+import de.intektor.kentai.KentaiClient
+import de.intektor.kentai.kentai.chat.hasClient
+import de.intektor.kentai.kentai.chat.readClientContact
+import de.intektor.kentai.kentai.httpClient
+import de.intektor.kentai.kentai.httpPost
 import de.intektor.kentai_http_common.client_to_server.RegisterRequestToServer
 import de.intektor.kentai_http_common.client_to_server.UpdateFBCMTokenRequest
 import de.intektor.kentai_http_common.gson.genGson
@@ -22,20 +27,12 @@ class FIIDService : FirebaseInstanceIdService() {
     override fun onTokenRefresh() {
         val refreshedToken = FirebaseInstanceId.getInstance().token
 
-//        val userInput = File(filesDir.path + "/username.info")
-//        if (userInput.exists()) {
-//            val userInfoInput = DataInputStream(userInput.inputStream())
-//            userInfoInput.readUTF()
-//            val userUUID = UUID.fromString(userInfoInput.readUTF())
-//
-//            val authKey = readPrivateKey(DataInputStream(File(filesDir.path + "/keys/authKeyPrivate.key").inputStream()))
-//
-//            val connection: URLConnection = URL("localhost/" + RegisterRequestToServer.TARGET).openConnection()
-//            connection.connectTimeout = 15000
-//            connection.doOutput = true
-//
-//            val gson = genGson()
-//            gson.toJson(UpdateFBCMTokenRequest(userUUID, refreshedToken!!.encryptRSA(authKey)), BufferedWriter(OutputStreamWriter(connection.getOutputStream())))
-//        }
+        if (hasClient(this)) {
+            val kentaiClient = applicationContext as KentaiClient
+
+            val gson = genGson()
+            val s = gson.toJson(UpdateFBCMTokenRequest(kentaiClient.userUUID, refreshedToken!!.encryptRSA(kentaiClient.privateAuthKey!!)))
+            httpPost(s, UpdateFBCMTokenRequest.TARGET)
+        }
     }
 }
