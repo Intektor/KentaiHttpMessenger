@@ -4,4 +4,6 @@
     <color name="colorPrimaryDark">#000000</color>
     <color name="colorAccent">#1e88e5</color>
     <color name="colorImageOverlayTransparent">#cc212121</color>
+    <color name="colorSelectedVideoOverlay">#88000000</color>
+    <color name="colorSelectedItem">#4488ff00</color>
 </resources>

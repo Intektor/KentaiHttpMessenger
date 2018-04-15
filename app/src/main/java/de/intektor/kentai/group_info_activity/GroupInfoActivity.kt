@@ -1,4 +1,4 @@
-package de.intektor.kentai
+package de.intektor.kentai.group_info_activity
 
 import android.content.Intent
 import android.os.Bundle
@@ -11,16 +11,17 @@ import android.view.View
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.TextView
-import de.intektor.kentai.group_info_activity.GroupMemberAdapter
+import de.intektor.kentai.AddGroupMemberActivity
+import de.intektor.kentai.ChatActivity
+import de.intektor.kentai.KentaiClient
+import de.intektor.kentai.R
 import de.intektor.kentai.kentai.KEY_CHAT_INFO
 import de.intektor.kentai.kentai.chat.*
 import de.intektor.kentai.kentai.groups.handleGroupModification
-import de.intektor.kentai_http_common.chat.ChatType
 import de.intektor.kentai_http_common.chat.GroupRole
 import de.intektor.kentai_http_common.chat.MessageStatus
 import de.intektor.kentai_http_common.chat.group_modification.*
 import de.intektor.kentai_http_common.util.toKey
-import de.intektor.kentai_http_common.util.toUUID
 import kotlinx.android.synthetic.main.activity_group_info.*
 import java.security.PublicKey
 import java.util.*

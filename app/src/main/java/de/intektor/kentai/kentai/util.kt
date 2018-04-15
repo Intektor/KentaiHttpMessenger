@@ -1,7 +1,6 @@
 package de.intektor.kentai.kentai
 
 import android.content.Context
-import de.intektor.kentai.KentaiClient
 import de.intektor.kentai.kentai.contacts.Contact
 import okhttp3.MediaType
 import okhttp3.OkHttpClient
@@ -17,7 +16,7 @@ import java.util.concurrent.TimeUnit
 fun internalFile(name: String, context: Context) = File(context.filesDir.path + "/" + name)
 
 //TODO
-val address = "192.168.178.31"
+val address = "192.168.178.46"
 //val address = "intektor.de"
 
 val httpAddress = "http://$address:17349/"

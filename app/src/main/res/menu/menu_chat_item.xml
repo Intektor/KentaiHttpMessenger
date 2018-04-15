@@ -2,7 +2,7 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    tools:context="de.intektor.kentai.OverviewActivity">
+    tools:context="de.intektor.kentai.overview_activity.OverviewActivity">
     <item
         android:id="@+id/menuChatItemDelete"
         android:title="@string/overview_activity_delete_chat" />

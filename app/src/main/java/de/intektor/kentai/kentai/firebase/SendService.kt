@@ -120,6 +120,13 @@ class SendService : Service() {
         }
         registerReceiver(connectionReceiver, IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION))
 
+        val uploadProfilePictureReceiver: BroadcastReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                
+            }
+        }
+        registerReceiver(uploadProfilePictureReceiver, IntentFilter(ACTION_UPLOAD_PROFILE_PICTURE))
+
         thread {
             while (true) {
                 val pendingMessage = chatMessageSendingQueue.take()

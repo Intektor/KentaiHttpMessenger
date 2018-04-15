@@ -7,6 +7,7 @@ import android.support.v7.app.AlertDialog
 import android.support.v7.app.AppCompatActivity
 import de.intektor.kentai.kentai.contacts.addContact
 import de.intektor.kentai.kentai.httpPost
+import de.intektor.kentai.overview_activity.OverviewActivity
 import de.intektor.kentai_http_common.client_to_server.AddContactRequest
 import de.intektor.kentai_http_common.gson.genGson
 import de.intektor.kentai_http_common.server_to_client.AddContactResponse

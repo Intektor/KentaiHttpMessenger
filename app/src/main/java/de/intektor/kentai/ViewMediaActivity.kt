@@ -1,22 +1,27 @@
 package de.intektor.kentai
 
-import android.graphics.LinearGradient
-import android.support.v7.app.AppCompatActivity
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.support.v7.app.AppCompatActivity
 import android.support.v7.widget.LinearLayoutManager
-import android.widget.LinearLayout
 import de.intektor.kentai.kentai.KEY_CHAT_INFO
+import de.intektor.kentai.kentai.KEY_FILE_URI
+import de.intektor.kentai.kentai.KEY_MEDIA_TYPE
+import de.intektor.kentai.kentai.KEY_MESSAGE_UUID
 import de.intektor.kentai.kentai.chat.ChatInfo
+import de.intektor.kentai.kentai.references.getReferenceFile
 import de.intektor.kentai.kentai.view.media.MediaGroupAdapter
 import de.intektor.kentai_http_common.chat.MessageType
 import de.intektor.kentai_http_common.reference.FileType
 import de.intektor.kentai_http_common.util.toUUID
 import kotlinx.android.synthetic.main.activity_view_media.*
+import java.io.File
 import java.util.*
 
 class ViewMediaActivity : AppCompatActivity() {
 
-    lateinit var adapter: MediaGroupAdapter
+    lateinit var adapter: MediaGroupAdapter<ReferenceFile, CombinedReferences>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -36,7 +41,7 @@ class ViewMediaActivity : AppCompatActivity() {
                 val time = cursor.getLong(2)
                 val messageUUID = cursor.getString(3).toUUID()
 
-                list += ReferenceFile(referenceUUID, when (type) {
+                val fileType = when (type) {
                     MessageType.IMAGE_MESSAGE -> {
                         FileType.IMAGE
                     }
@@ -44,7 +49,8 @@ class ViewMediaActivity : AppCompatActivity() {
                         FileType.VIDEO
                     }
                     else -> throw IllegalArgumentException()
-                }, time, messageUUID)
+                }
+                list += ReferenceFile(getReferenceFile(referenceUUID, fileType, filesDir, this), fileType, time, messageUUID)
             }
             list
         }
@@ -52,9 +58,15 @@ class ViewMediaActivity : AppCompatActivity() {
         val grouped = list.groupBy {
             calendar.time = Date(it.time)
             calendar.get(Calendar.MONTH) to calendar.get(Calendar.YEAR)
-        }.map { CombinedReferences(it.value, Date(it.value.first().time)) }
+        }.map { CombinedReferences(Date(it.value.first().time), it.value.toMutableList()) }
 
-        adapter = MediaGroupAdapter(grouped, chatInfo.chatUUID)
+        adapter = MediaGroupAdapter(grouped, { item, _, _ ->
+            val viewMediaIntent = Intent(this, ViewIndividualMediaActivity::class.java)
+            viewMediaIntent.putExtra(KEY_FILE_URI, Uri.fromFile(item.file))
+            viewMediaIntent.putExtra(KEY_MEDIA_TYPE, item.fileType)
+            viewMediaIntent.putExtra(KEY_MESSAGE_UUID, item.messageUUID)
+            startActivity(viewMediaIntent)
+        }, { _, _, _ -> })
         activityViewMediaList.adapter = adapter
         activityViewMediaList.layoutManager = LinearLayoutManager(this)
         activityViewMediaList.isNestedScrollingEnabled = false
@@ -62,9 +74,9 @@ class ViewMediaActivity : AppCompatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
     }
 
-    data class ReferenceFile(val referenceUUID: UUID, val fileType: FileType, val time: Long, val messageUUID: UUID)
+    class ReferenceFile(referenceFile: File, val fileType: FileType, time: Long, val messageUUID: UUID) : MediaGroupAdapter.MediaFile(time, referenceFile)
 
-    data class CombinedReferences(val combined: List<ReferenceFile>, val date: Date)
+    class CombinedReferences(date: Date, combined: MutableList<ReferenceFile>) : MediaGroupAdapter.GroupedMediaFile<ReferenceFile>(date, combined)
 
     override fun onSupportNavigateUp(): Boolean {
         finish()

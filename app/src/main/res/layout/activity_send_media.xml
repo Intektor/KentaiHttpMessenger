@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     tools:context=".SendMediaActivity">
 
-    <ImageView
+    <com.github.chrisbanes.photoview.PhotoView
         android:id="@+id/activitySendMediaImage"
         android:layout_width="0dp"
         android:layout_height="0dp"
@@ -18,16 +18,14 @@
         app:layout_constraintBottom_toTopOf="@+id/activitySendMediaInput"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:srcCompat="@mipmap/ic_launcher" />
+        app:layout_constraintTop_toTopOf="parent" />
 
     <ImageButton
         android:id="@+id/activitySendMediaButton"
         android:layout_width="50dp"
         android:layout_height="50dp"
         android:layout_marginBottom="8dp"
-        android:layout_marginEnd="8dp"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/activitySendMediaOther"
         app:layout_constraintEnd_toEndOf="parent"
         app:srcCompat="@drawable/ic_send_white_24dp" />
 
@@ -40,8 +38,9 @@
         android:layout_marginStart="8dp"
         android:ems="10"
         android:inputType="textMultiLine"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/activitySendMediaOther"
         app:layout_constraintEnd_toStartOf="@+id/activitySendMediaButton"
+        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent" />
 
     <ToggleButton
@@ -102,5 +101,19 @@
             android:src="@android:drawable/ic_media_play" />
 
     </FrameLayout>
+
+    <android.support.v7.widget.RecyclerView
+        android:id="@+id/activitySendMediaOther"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginStart="8dp"
+        android:clipToPadding="false"
+        android:orientation="horizontal"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:listitem="@layout/media_item_small" />
 
 </android.support.constraint.ConstraintLayout>

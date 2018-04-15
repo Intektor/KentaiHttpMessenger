@@ -221,4 +221,12 @@
     <!-- Strings related to settings overview -->
     <string name="settings_overview_label">Settings</string>
     <string name="settings_overview_change_profile_picture">Change profile picture</string>
+
+    <!-- Strings related to pick gallery activity -->
+    <string name="pick_gallery_activity_label">Pick from gallery</string>
+    <string name="pick_gallery_search">Search Gallery folder</string>
+
+    <!-- Strings related to pick gallery folder -->
+    <string name="pick_gallery_folder_action_mode_send">Send</string>
+    <string name="pick_gallery_folder_action_mode_items_selected">%1$d items selected</string>
 </resources>

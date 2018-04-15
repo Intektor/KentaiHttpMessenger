@@ -1,4 +1,4 @@
-package de.intektor.kentai
+package de.intektor.kentai.overview_activity
 
 import android.Manifest
 import android.accounts.AccountManager
@@ -25,6 +25,7 @@ import com.google.api.client.json.jackson2.JacksonFactory
 import com.google.api.client.util.ExponentialBackOff
 import com.google.api.services.drive.Drive
 import com.google.firebase.iid.FirebaseInstanceId
+import de.intektor.kentai.*
 import de.intektor.kentai.fragment.ChatListViewAdapter
 import de.intektor.kentai.fragment.ContactViewAdapter
 import de.intektor.kentai.kentai.Kentai
@@ -34,8 +35,6 @@ import de.intektor.kentai.kentai.android.backup.installChatBackup
 import de.intektor.kentai.kentai.chat.ChatMessageWrapper
 import de.intektor.kentai.kentai.contacts.Contact
 import de.intektor.kentai.kentai.httpPost
-import de.intektor.kentai.overview_activity.FragmentChatsOverview
-import de.intektor.kentai.overview_activity.FragmentContactsOverview
 import de.intektor.kentai_http_common.chat.MessageStatus
 import de.intektor.kentai_http_common.client_to_server.UpdateFBCMTokenRequest
 import de.intektor.kentai_http_common.gson.genGson

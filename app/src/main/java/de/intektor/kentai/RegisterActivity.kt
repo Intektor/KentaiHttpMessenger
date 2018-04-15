@@ -16,6 +16,7 @@ import com.google.firebase.iid.FirebaseInstanceId
 import de.intektor.kentai.kentai.contacts.addContact
 import de.intektor.kentai.kentai.httpPost
 import de.intektor.kentai.kentai.internalFile
+import de.intektor.kentai.overview_activity.OverviewActivity
 import de.intektor.kentai_http_common.client_to_server.CheckUsernameAvailableRequestToServer
 import de.intektor.kentai_http_common.client_to_server.RegisterRequestToServer
 import de.intektor.kentai_http_common.client_to_server.UpdateFBCMTokenRequest

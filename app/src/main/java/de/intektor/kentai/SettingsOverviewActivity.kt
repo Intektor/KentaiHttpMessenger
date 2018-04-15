@@ -7,11 +7,14 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.AsyncTask
-import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.provider.MediaStore
+import android.support.v7.app.AppCompatActivity
 import com.theartofdev.edmodo.cropper.CropImage
 import de.intektor.kentai.kentai.*
+import de.intektor.kentai.kentai.firebase.SendService
+import de.intektor.kentai_http_common.gson.genGson
+import de.intektor.kentai_http_common.server_to_client.UploadProfilePictureResponse
 import de.intektor.kentai_http_common.util.writeUUID
 import kotlinx.android.synthetic.main.activity_settings_overview.*
 import okhttp3.MediaType
@@ -23,7 +26,6 @@ import java.io.DataOutputStream
 import java.security.PrivateKey
 import java.security.Signature
 import kotlin.math.min
-import kotlin.math.sign
 
 class SettingsOverviewActivity : AppCompatActivity() {
 
@@ -75,15 +77,21 @@ class SettingsOverviewActivity : AppCompatActivity() {
             CropImage.CROP_IMAGE_ACTIVITY_REQUEST_CODE -> {
                 if (data != null && resultCode == Activity.RESULT_OK) {
                     val result = CropImage.getActivityResult(data)
-                    UploadProfilePictureTask(kentaiClient, result.uri, contentResolver).execute()
+
+                    val startServiceIntent = Intent(this, SendService::class.java)
+                    startService(startServiceIntent)
+
+                    val sendIntent = Intent(ACTION_UPLOAD_PROFILE_PICTURE)
+                    sendIntent.putExtra(KEY_PICTURE, result.uri)
+                    sendBroadcast(sendIntent)
                 }
             }
         }
     }
 
-    class UploadProfilePictureTask(val kentaiClient: KentaiClient, val data: Uri, val contentResolver: ContentResolver) : AsyncTask<Unit, Unit, Unit>() {
+    class UploadProfilePictureTask(val callback: (UploadProfilePictureResponse.Type?) -> (Unit), val kentaiClient: KentaiClient, val data: Uri, private val contentResolver: ContentResolver) : AsyncTask<Unit, Unit, UploadProfilePictureResponse.Type?>() {
 
-        override fun doInBackground(vararg p0: Unit?) {
+        override fun doInBackground(vararg p0: Unit?): UploadProfilePictureResponse.Type? {
             try {
                 val bitmap = BitmapFactory.decodeStream(contentResolver.openInputStream(data))
                 val scaled = Bitmap.createBitmap(bitmap, 0, 0, min(800, bitmap.width), min(800, bitmap.height))
@@ -118,13 +126,18 @@ class SettingsOverviewActivity : AppCompatActivity() {
                         .build()
 
                 httpClient.newCall(request).execute().use { response ->
-
+                    val gson = genGson()
+                    val res = gson.fromJson(response.body()?.string(), UploadProfilePictureResponse::class.java)
+                    return res.type
                 }
             } catch (t: Throwable) {
-
+                return null
             }
         }
 
+        override fun onPostExecute(result: UploadProfilePictureResponse.Type?) {
+            callback.invoke(result)
+        }
     }
 
     override fun onSupportNavigateUp(): Boolean {

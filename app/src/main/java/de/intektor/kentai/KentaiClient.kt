@@ -20,10 +20,12 @@ import android.text.SpannableString
 import android.text.style.StyleSpan
 import android.util.Log
 import de.intektor.kentai.fragment.ChatListViewAdapter
+import de.intektor.kentai.group_info_activity.GroupInfoActivity
 import de.intektor.kentai.kentai.*
 import de.intektor.kentai.kentai.android.readMessageWrapper
 import de.intektor.kentai.kentai.chat.*
 import de.intektor.kentai.kentai.direct.connection.DirectConnectionManager
+import de.intektor.kentai.overview_activity.OverviewActivity
 import de.intektor.kentai_http_common.chat.ChatMessageText
 import de.intektor.kentai_http_common.chat.ChatType
 import de.intektor.kentai_http_common.chat.MessageStatus

@@ -25,9 +25,15 @@ const val KEY_MESSAGE_UUID = "de.intektor.kentai.message_uuid.key"
 const val KEY_REFERENCE_UUID = "de.intektor.kentai.reference_uuid.key"
 
 const val KEY_IS_GIF = "de.intektor.kentai.is_gif.key"
+const val KEY_MEDIA_DATA = "de.intektor.kentai.media_data.key"
 
 const val ACTION_USER_VIEW_CHAT = "de.intektor.kentai.user_view_chat.action"
 const val KEY_CHAT_UUID = "de.intektor.kentai.chat_uuid.key"
 const val KEY_USER_VIEW = "de.intektor.kentai.user_view_chat.user_view.key"
 
 const val ACTION_DIRECT_CONNECTION_CONNECTED = "de.intektor.kentai.direct_connection_reconnected.action"
+
+const val KEY_FOLDER = "de.intektor.kentai.folder.key"
+
+const val ACTION_UPLOAD_PROFILE_PICTURE = "de.intektor.kentai.upload_profile_picture.action"
+const val KEY_PICTURE = "de.intektor.kentai.picture.key"

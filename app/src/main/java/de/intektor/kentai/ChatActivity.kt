@@ -23,6 +23,7 @@ import android.text.TextWatcher
 import android.text.format.DateUtils
 import android.view.*
 import com.google.common.hash.Hashing
+import de.intektor.kentai.group_info_activity.GroupInfoActivity
 import de.intektor.kentai.kentai.*
 import de.intektor.kentai.kentai.android.saveImageExternalKentai
 import de.intektor.kentai.kentai.chat.*
@@ -110,8 +111,7 @@ class ChatActivity : AppCompatActivity() {
 
         const val PERMISSION_REQUEST_EXTERNAL_STORAGE = 1000
 
-        private const val ACTION_PICK_PHOTO = 1001
-        private const val ACTION_PICK_VIDEO = 1002
+        private const val ACTION_PICK_MEDIA = 1001
         private const val ACTION_SEND_MEDIA = 1003
     }
 
@@ -338,17 +338,11 @@ class ChatActivity : AppCompatActivity() {
 
         scrollToBottom()
 
-        chatActivityButtonPickPicture.setOnClickListener {
+        chatActivityButtonPickMedia.setOnClickListener {
             if (checkStoragePermission(this, PERMISSION_REQUEST_EXTERNAL_STORAGE)) {
-                val pickPhoto = Intent(Intent.ACTION_PICK, android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
-                startActivityForResult(pickPhoto, ACTION_PICK_PHOTO)
-            }
-        }
-
-        chatActivityButtonPickVideo.setOnClickListener {
-            if (checkStoragePermission(this, PERMISSION_REQUEST_EXTERNAL_STORAGE)) {
-                val pickPhoto = Intent(Intent.ACTION_PICK, android.provider.MediaStore.Video.Media.EXTERNAL_CONTENT_URI)
-                startActivityForResult(pickPhoto, ACTION_PICK_VIDEO)
+                val pickMedia = Intent(this, PickGalleryActivity::class.java)
+                pickMedia.putExtra(KEY_CHAT_INFO, chatInfo)
+                startActivityForResult(pickMedia, ACTION_SEND_MEDIA)
             }
         }
 
@@ -538,40 +532,16 @@ class ChatActivity : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         when (requestCode) {
-            ACTION_PICK_PHOTO -> {
-                if (resultCode == Activity.RESULT_OK && data != null) {
-                    val uri = data.data
-                    if (uri != null) {
-                        val startMedia = Intent(this, SendMediaActivity::class.java)
-                        startMedia.putExtra(KEY_CHAT_INFO, chatInfo)
-                        startMedia.putExtra(KEY_MEDIA_TYPE, FileType.IMAGE.ordinal)
-                        startMedia.putExtra(KEY_MEDIA_URL, uri)
-                        startActivityForResult(startMedia, ACTION_SEND_MEDIA)
-                    }
-                }
-            }
-            ACTION_PICK_VIDEO -> {
-                if (resultCode == Activity.RESULT_OK && data != null) {
-                    val uri = data.data
-                    if (uri != null) {
-                        val startMedia = Intent(this, SendMediaActivity::class.java)
-                        startMedia.putExtra(KEY_CHAT_INFO, chatInfo)
-                        startMedia.putExtra(KEY_MEDIA_TYPE, FileType.VIDEO.ordinal)
-                        startMedia.putExtra(KEY_MEDIA_URL, uri)
-                        startActivityForResult(startMedia, ACTION_SEND_MEDIA)
-                    }
-                }
-            }
             ACTION_SEND_MEDIA -> {
                 if (resultCode == Activity.RESULT_OK && data != null) {
-                    val mediaType = FileType.values()[data.getIntExtra(KEY_MEDIA_TYPE, 0)]
-                    val text = data.getStringExtra(KEY_MESSAGE_TEXT)
-                    val isGif = data.getBooleanExtra(KEY_IS_GIF, false)
-                    val uri = data.data
-                    if (mediaType == FileType.IMAGE) {
-                        sendPhoto(uri, text)
-                    } else if (mediaType == FileType.VIDEO) {
-                        sendVideo(uri, text, isGif)
+                    val mediaData = data.getParcelableArrayListExtra<SendMediaActivity.MediaData>(KEY_MEDIA_DATA)
+                    if (mediaData == null || mediaData.isEmpty()) return
+                    for (mediaDatum in mediaData) {
+                        if (isImage(mediaDatum.file)) {
+                            sendPhoto(mediaDatum.uri, mediaDatum.text)
+                        } else if (isVideo(mediaDatum.file) || isGif(mediaDatum.file)) {
+                            sendVideo(mediaDatum.uri, mediaDatum.text, mediaDatum.gif)
+                        }
                     }
                 }
             }

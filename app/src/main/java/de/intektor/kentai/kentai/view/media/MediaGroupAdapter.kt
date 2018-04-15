@@ -1,9 +1,5 @@
 package de.intektor.kentai.kentai.view.media
 
-import android.content.Intent
-import android.media.ThumbnailUtils
-import android.net.Uri
-import android.provider.MediaStore
 import android.support.v7.widget.GridLayoutManager
 import android.support.v7.widget.RecyclerView
 import android.view.LayoutInflater
@@ -11,19 +7,16 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
-import com.squareup.picasso.Picasso
 import de.intektor.kentai.R
-import de.intektor.kentai.ViewIndividualMediaActivity
-import de.intektor.kentai.ViewMediaActivity
-import de.intektor.kentai.kentai.KEY_FILE_URI
-import de.intektor.kentai.kentai.KEY_MEDIA_TYPE
-import de.intektor.kentai.kentai.KEY_MESSAGE_UUID
-import de.intektor.kentai.kentai.references.getReferenceFile
-import de.intektor.kentai_http_common.reference.FileType
+import de.intektor.kentai.kentai.isVideo
+import de.intektor.kentai.kentai.loadThumbnail
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 
-class MediaGroupAdapter(private val componentList: List<ViewMediaActivity.CombinedReferences>, private val chatUUID: UUID) : RecyclerView.Adapter<MediaGroupAdapter.MediaGroupViewHolder>() {
+class MediaGroupAdapter<T : MediaGroupAdapter.MediaFile, K : MediaGroupAdapter.GroupedMediaFile<T>>(
+        private val componentList: List<K>, private val clickCallback: (T, K, MediaViewHolder) -> Unit,
+        private val longClickCallback: (T, K, MediaViewHolder) -> Unit) : RecyclerView.Adapter<MediaGroupAdapter.MediaGroupViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MediaGroupViewHolder {
         val view = LayoutInflater.from(parent.context).inflate(R.layout.media_item, parent, false)
@@ -35,11 +28,11 @@ class MediaGroupAdapter(private val componentList: List<ViewMediaActivity.Combin
     override fun onBindViewHolder(holder: MediaGroupViewHolder, position: Int) {
         val mediaGroup = componentList[position]
 
-        val dataFormat = SimpleDateFormat("MMMM yyyy", Locale.US)
+        val dataFormat = SimpleDateFormat("MMM yyyy", Locale.US)
 
         holder.timeView.text = dataFormat.format(mediaGroup.date)
 
-        val subAdapter = MediaAdapter(mediaGroup.combined.sortedByDescending { it.time }, chatUUID)
+        val subAdapter = MediaAdapter(mediaGroup.combined.sortedByDescending { it.time }, mediaGroup, clickCallback, longClickCallback)
         holder.gridView.layoutManager = GridLayoutManager(holder.gridView.context, 3)
         holder.gridView.adapter = subAdapter
     }
@@ -49,7 +42,9 @@ class MediaGroupAdapter(private val componentList: List<ViewMediaActivity.Combin
         val gridView: RecyclerView = itemView.findViewById(R.id.mediaItemGridView)
     }
 
-    class MediaAdapter(val list: List<ViewMediaActivity.ReferenceFile>, private val chatUUID: UUID) : RecyclerView.Adapter<MediaViewHolder>() {
+    class MediaAdapter<out T : MediaFile, K : GroupedMediaFile<T>>(private val list: List<T>, private val parentItem: K,
+                                                                   private val clickCallback: (T, K, MediaViewHolder) -> Unit,
+                                                                   private val longClickCallback: (T, K, MediaViewHolder) -> Unit) : RecyclerView.Adapter<MediaViewHolder>() {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MediaViewHolder {
             val view = LayoutInflater.from(parent.context).inflate(R.layout.image_item, parent, false)
@@ -60,23 +55,19 @@ class MediaGroupAdapter(private val componentList: List<ViewMediaActivity.Combin
 
         override fun onBindViewHolder(holder: MediaViewHolder, position: Int) {
             val item = list[position]
-            val referenceFile = getReferenceFile(item.referenceUUID, item.fileType, holder.image.context.filesDir, holder.image.context)
-            if (item.fileType == FileType.IMAGE) {
-                Picasso.with(holder.image.context)
-                        .load(referenceFile)
-                        .resize(400, 0)
-                        .into(holder.image)
-            } else if (item.fileType == FileType.VIDEO) {
-                holder.videoOverlay.visibility = View.VISIBLE
-                val thumbnail = ThumbnailUtils.createVideoThumbnail(referenceFile.absolutePath, MediaStore.Images.Thumbnails.MINI_KIND)
-                holder.image.setImageBitmap(thumbnail)
-            }
+            loadThumbnail(item.file, holder.itemView.context, holder.image)
+
+            holder.videoOverlay.visibility = if (isVideo(item.file)) View.VISIBLE else View.GONE
+
+            holder.setSelected(item.selected)
+
             holder.image.setOnClickListener {
-                val viewMediaIntent = Intent(holder.image.context, ViewIndividualMediaActivity::class.java)
-                viewMediaIntent.putExtra(KEY_FILE_URI, Uri.fromFile(referenceFile))
-                viewMediaIntent.putExtra(KEY_MEDIA_TYPE, item.fileType)
-                viewMediaIntent.putExtra(KEY_MESSAGE_UUID, item.messageUUID)
-                holder.image.context.startActivity(viewMediaIntent)
+                clickCallback.invoke(item, parentItem, holder)
+            }
+
+            holder.image.setOnLongClickListener {
+                longClickCallback.invoke(item, parentItem, holder)
+                return@setOnLongClickListener true
             }
         }
     }
@@ -84,5 +75,16 @@ class MediaGroupAdapter(private val componentList: List<ViewMediaActivity.Combin
     class MediaViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val image: ImageView = view.findViewById(R.id.imageItemView)
         val videoOverlay: ImageView = view.findViewById(R.id.imageItemVideoOverlay)
+        val checked: ImageView = view.findViewById(R.id.imageItemChecked)
+        val checkedOverlay: ImageView = view.findViewById(R.id.imageItemDarker)
+
+        fun setSelected(selected: Boolean) {
+            checked.visibility = if (selected) View.VISIBLE else View.GONE
+            checkedOverlay.visibility = if (selected) View.VISIBLE else View.GONE
+        }
     }
+
+    open class MediaFile(val time: Long, val file: File, var selected: Boolean = false)
+
+    open class GroupedMediaFile<out T : MediaFile>(val date: Date, val combined: List<T>)
 }

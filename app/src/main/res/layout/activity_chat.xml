@@ -40,23 +40,14 @@
         app:layout_constraintBottom_toTopOf="@+id/chatActivityTextInput"
         app:layout_constraintStart_toStartOf="parent" />
 
-    <Button
-        android:id="@+id/chatActivityButtonPickPicture"
+    <ImageButton
+        android:id="@+id/chatActivityButtonPickMedia"
         android:layout_width="40dp"
         android:layout_height="40dp"
         android:layout_marginStart="8dp"
-        android:text="🖼️"
+        android:src="@drawable/ic_perm_media_white_24dp"
         app:layout_constraintBottom_toTopOf="@+id/chatActivityTextInput"
         app:layout_constraintStart_toEndOf="@+id/chatActivityButtonTakePicture" />
-
-    <Button
-        android:id="@+id/chatActivityButtonPickVideo"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:layout_marginStart="8dp"
-        android:text="📼"
-        app:layout_constraintBottom_toTopOf="@+id/chatActivityTextInput"
-        app:layout_constraintStart_toEndOf="@+id/chatActivityButtonPickPicture" />
 
     <Button
         android:id="@+id/chatActivityButtonRecordVoice"
