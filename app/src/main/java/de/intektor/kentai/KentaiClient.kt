@@ -1,6 +1,10 @@
 package de.intektor.kentai
 
-import android.app.*
+import android.annotation.TargetApi
+import android.app.Activity
+import android.app.Application
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -14,6 +18,7 @@ import android.os.AsyncTask
 import android.os.Build
 import android.os.Bundle
 import android.os.Parcelable
+import android.support.v4.app.NotificationManagerCompat
 import android.support.v7.app.AlertDialog
 import android.text.Spannable
 import android.text.SpannableString
@@ -93,13 +98,13 @@ class KentaiClient : Application() {
         directConnectionManager = DirectConnectionManager(this)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = getString(R.string.notification_channel_new_messages_name)
-            val description = getString(R.string.notification_channel_new_messages_description)
-            val importance = NotificationManager.IMPORTANCE_HIGH
-            val channel = NotificationChannel("new_messages", name, importance)
-            channel.description = description
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
+
+            createNotificationChannel(R.string.notification_channel_new_messages_name, R.string.notification_channel_new_messages_description, NotificationManagerCompat.IMPORTANCE_MAX,
+                    NOTIFICATION_CHANNEL_NEW_MESSAGES, notificationManager)
+
+            createNotificationChannel(R.string.notification_channel_upload_profile_picture_name, R.string.notification_channel_upload_profile_picture_description,
+                    NotificationManagerCompat.IMPORTANCE_LOW, NOTIFICATION_CHANNEL_UPLOAD_PROFILE_PICTURE, notificationManager)
         }
 
         val chatNotificationBroadcastReceiver: BroadcastReceiver = object : BroadcastReceiver() {
@@ -112,7 +117,7 @@ class KentaiClient : Application() {
                 val senderName = intent.getStringExtra("senderName")
                 val chatName = intent.getStringExtra("chatName")
                 val senderUUID = UUID.fromString(intent.getStringExtra("senderUUID"))
-                val message_messageID = intent.getIntExtra("message.messageID", 0)
+                val messageMessageID = intent.getIntExtra("message.messageID", 0)
                 val additionalInfoID = intent.getIntExtra("additionalInfoID", 0)
                 val additionalInfoContent = intent.getByteArrayExtra("additionalInfoContent")
 
@@ -124,7 +129,7 @@ class KentaiClient : Application() {
                         activity.scrollToBottom()
                     }
                 } else if (activity is OverviewActivity) {
-                    handleNotification(context, chatUUID, chatType, senderName, chatName, senderUUID, message_messageID, additionalInfoID, additionalInfoContent, wrapper)
+                    handleNotification(context, chatUUID, chatType, senderName, chatName, senderUUID, messageMessageID, additionalInfoID, additionalInfoContent, wrapper)
 
                     val currentChats = activity.getCurrentChats()
                     if (!currentChats.any { it.chatInfo.chatUUID == chatUUID }) {
@@ -138,7 +143,7 @@ class KentaiClient : Application() {
                         activity.updateLatestChatMessage(chatUUID, wrapper, unreadMessages)
                     }
                 } else {
-                    handleNotification(context, chatUUID, chatType, senderName, chatName, senderUUID, message_messageID, additionalInfoID, additionalInfoContent, wrapper)
+                    handleNotification(context, chatUUID, chatType, senderName, chatName, senderUUID, messageMessageID, additionalInfoID, additionalInfoContent, wrapper)
                 }
             }
         }
@@ -430,5 +435,14 @@ class KentaiClient : Application() {
                 }
             }
         }
+    }
+
+    @TargetApi(Build.VERSION_CODES.O)
+    private fun createNotificationChannel(name: Int, description: Int, importance: Int, id: String, notificationManagerCompat: NotificationManager) {
+        val nameAct = getString(name)
+        val descriptionAct = getString(description)
+        val channel = NotificationChannel(id, nameAct, importance)
+        channel.description = descriptionAct
+        notificationManagerCompat.createNotificationChannel(channel)
     }
 }

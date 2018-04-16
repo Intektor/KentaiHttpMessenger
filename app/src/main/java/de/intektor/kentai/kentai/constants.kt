@@ -36,4 +36,10 @@ const val ACTION_DIRECT_CONNECTION_CONNECTED = "de.intektor.kentai.direct_connec
 const val KEY_FOLDER = "de.intektor.kentai.folder.key"
 
 const val ACTION_UPLOAD_PROFILE_PICTURE = "de.intektor.kentai.upload_profile_picture.action"
+const val ACTION_CANCEL_UPLOAD_PROFILE_PICTURE = "de.intektor.kentai.upload_profile_picture.cancel.action"
 const val KEY_PICTURE = "de.intektor.kentai.picture.key"
+
+const val NOTIFICATION_CHANNEL_NEW_MESSAGES = "de.intektor.kentai.notifications.new_messages.channel"
+const val NOTIFICATION_CHANNEL_UPLOAD_PROFILE_PICTURE = "de.intektor.kentai.notifications.upload_profile_picture.channel"
+
+const val NOTIFICATION_ID_UPLOAD_PROFILE_PICTURE = 1

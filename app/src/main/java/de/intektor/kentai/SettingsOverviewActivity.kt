@@ -1,31 +1,15 @@
 package de.intektor.kentai
 
 import android.app.Activity
-import android.content.ContentResolver
 import android.content.Intent
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.net.Uri
-import android.os.AsyncTask
 import android.os.Bundle
 import android.provider.MediaStore
 import android.support.v7.app.AppCompatActivity
 import com.theartofdev.edmodo.cropper.CropImage
 import de.intektor.kentai.kentai.*
 import de.intektor.kentai.kentai.firebase.SendService
-import de.intektor.kentai_http_common.gson.genGson
-import de.intektor.kentai_http_common.server_to_client.UploadProfilePictureResponse
-import de.intektor.kentai_http_common.util.writeUUID
 import kotlinx.android.synthetic.main.activity_settings_overview.*
-import okhttp3.MediaType
-import okhttp3.Request
-import okhttp3.RequestBody
-import okio.BufferedSink
-import java.io.ByteArrayOutputStream
-import java.io.DataOutputStream
-import java.security.PrivateKey
-import java.security.Signature
-import kotlin.math.min
 
 class SettingsOverviewActivity : AppCompatActivity() {
 
@@ -79,64 +63,11 @@ class SettingsOverviewActivity : AppCompatActivity() {
                     val result = CropImage.getActivityResult(data)
 
                     val startServiceIntent = Intent(this, SendService::class.java)
+                    startServiceIntent.action = ACTION_UPLOAD_PROFILE_PICTURE
+                    startServiceIntent.putExtra(KEY_PICTURE, result.uri)
                     startService(startServiceIntent)
-
-                    val sendIntent = Intent(ACTION_UPLOAD_PROFILE_PICTURE)
-                    sendIntent.putExtra(KEY_PICTURE, result.uri)
-                    sendBroadcast(sendIntent)
                 }
             }
-        }
-    }
-
-    class UploadProfilePictureTask(val callback: (UploadProfilePictureResponse.Type?) -> (Unit), val kentaiClient: KentaiClient, val data: Uri, private val contentResolver: ContentResolver) : AsyncTask<Unit, Unit, UploadProfilePictureResponse.Type?>() {
-
-        override fun doInBackground(vararg p0: Unit?): UploadProfilePictureResponse.Type? {
-            try {
-                val bitmap = BitmapFactory.decodeStream(contentResolver.openInputStream(data))
-                val scaled = Bitmap.createBitmap(bitmap, 0, 0, min(800, bitmap.width), min(800, bitmap.height))
-                val requestBody = object : RequestBody() {
-                    override fun contentType(): MediaType? = MediaType.parse("application/octet-stream")
-
-                    override fun writeTo(sink: BufferedSink) {
-                        val dataOut = DataOutputStream(sink.outputStream())
-                        val byteOut = ByteArrayOutputStream()
-                        scaled.compress(Bitmap.CompressFormat.PNG, 100, byteOut)
-
-                        dataOut.writeUUID(kentaiClient.userUUID)
-
-                        val byteArray = byteOut.toByteArray()
-
-                        val signer = Signature.getInstance("SHA1WithRSA")
-                        signer.initSign(kentaiClient.privateAuthKey!! as PrivateKey)
-                        signer.update(byteArray)
-                        val signed = signer.sign()
-
-                        dataOut.writeInt(signed.size)
-                        dataOut.write(signed)
-
-                        dataOut.writeInt(byteArray.size)
-                        dataOut.write(byteArray)
-                    }
-                }
-
-                val request = Request.Builder()
-                        .url(httpAddress + "uploadProfilePicture")
-                        .post(requestBody)
-                        .build()
-
-                httpClient.newCall(request).execute().use { response ->
-                    val gson = genGson()
-                    val res = gson.fromJson(response.body()?.string(), UploadProfilePictureResponse::class.java)
-                    return res.type
-                }
-            } catch (t: Throwable) {
-                return null
-            }
-        }
-
-        override fun onPostExecute(result: UploadProfilePictureResponse.Type?) {
-            callback.invoke(result)
         }
     }
 

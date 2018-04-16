@@ -75,7 +75,7 @@ fun handleNotificationUnderSDK24(context: Context, chatUUID: UUID, chatType: Cha
 }
 
 fun popNotificationSDKUnderNougat(context: Context, list: List<NotificationHolder>, notificationManager: NotificationManager, additionalInfo: IAdditionalInfo) {
-    val builder = NotificationCompat.Builder(context, "new_messages")
+    val builder = NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_NEW_MESSAGES)
     builder.setSmallIcon(R.drawable.message_icon)
     builder.setContentTitle("You have ${list.size} new messages!")
     builder.setContentText(format(list.last(), true, true, context, additionalInfo))
@@ -136,7 +136,7 @@ fun handleNotificationSDK24(context: Context, chatUUID: UUID, chatType: ChatType
 
         val sharedPreferences = context.getSharedPreferences(DisplayNotificationReceiver.NOTIFICATION_FILE, Context.MODE_PRIVATE)
 
-        var builder = NotificationCompat.Builder(context, "new_messages")
+        var builder = NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_NEW_MESSAGES)
         builder.setContentTitle("You have $count new messages!")
         builder.setContentText(format(newMessage, true, true, context, additionalInfo))
         builder.color = Color.WHITE

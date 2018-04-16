@@ -64,9 +64,19 @@
     <string name="notification_video_message_name">%1$s: ▶ ️Voice message: (%2$ds)</string>
     <string name="notification_video_message">▶ ️Voice message: (%1$ds)</string>
 
+    <string name="notification_upload_profile_picture_title">Uploading profile picture</string>
+    <string name="notification_upload_profile_picture_text">Your profile picture is being uploaded</string>
+    <string name="notification_upload_profile_picture_text_success">Your profile picture has been uploaded successfully.</string>
+    <string name="notification_upload_profile_picture_text_failed">Your profile picture has not been uploaded.</string>
+    <string name="notification_upload_profile_picture_cancel_upload">Cancel upload</string>
+
+
     <string name="notification_channel_new_messages_name">New messages</string>
     <string name="notification_channel_new_messages_description">This is the notification channel where you receive notifications about messages
     that have been sent to you.</string>
+
+    <string name="notification_channel_upload_profile_picture_name">Upload Profile Picture</string>
+    <string name="notification_channel_upload_profile_picture_description">This is the notification channel where you get the notification upload a profile picture upload.</string>
 
     <string name="chat_info">Chat Info</string>
 

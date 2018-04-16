@@ -1,18 +1,23 @@
 package de.intektor.kentai.kentai.firebase
 
+import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
+import android.content.*
 import android.database.sqlite.SQLiteDatabase
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.ConnectivityManager
 import android.net.NetworkInfo
+import android.net.Uri
+import android.os.AsyncTask
 import android.os.IBinder
 import android.os.Parcelable
+import android.support.v4.app.NotificationCompat
 import android.util.Log
 import com.google.common.io.BaseEncoding
 import de.intektor.kentai.KentaiClient
+import de.intektor.kentai.R
 import de.intektor.kentai.kentai.*
 import de.intektor.kentai.kentai.android.readMessageWrapper
 import de.intektor.kentai.kentai.chat.*
@@ -26,6 +31,7 @@ import de.intektor.kentai_http_common.gson.genGson
 import de.intektor.kentai_http_common.reference.FileType
 import de.intektor.kentai_http_common.reference.UploadResponse
 import de.intektor.kentai_http_common.server_to_client.SendChatMessageResponse
+import de.intektor.kentai_http_common.server_to_client.UploadProfilePictureResponse
 import de.intektor.kentai_http_common.util.*
 import okhttp3.MediaType
 import okhttp3.Request
@@ -33,6 +39,8 @@ import okhttp3.RequestBody
 import okio.BufferedSink
 import java.io.*
 import java.security.Key
+import java.security.PrivateKey
+import java.security.Signature
 import java.security.interfaces.RSAPrivateKey
 import java.security.interfaces.RSAPublicKey
 import java.util.*
@@ -41,6 +49,7 @@ import javax.crypto.Cipher
 import javax.crypto.CipherOutputStream
 import javax.crypto.spec.IvParameterSpec
 import kotlin.concurrent.thread
+import kotlin.math.min
 
 /**
  * @author Intektor
@@ -62,6 +71,9 @@ class SendService : Service() {
 
     @Volatile
     private lateinit var dataBase: SQLiteDatabase
+
+    @Volatile
+    private var profilePictureUploadStream: OutputStream? = null
 
     companion object {
         val MEDIA_TYPE_OCTET_STREAM = MediaType.parse("application/octet-stream")
@@ -120,12 +132,12 @@ class SendService : Service() {
         }
         registerReceiver(connectionReceiver, IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION))
 
-        val uploadProfilePictureReceiver: BroadcastReceiver = object : BroadcastReceiver() {
+        val abortUploadProfilePicture: BroadcastReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
-                
+                profilePictureUploadStream?.close()
             }
         }
-        registerReceiver(uploadProfilePictureReceiver, IntentFilter(ACTION_UPLOAD_PROFILE_PICTURE))
+        registerReceiver(abortUploadProfilePicture, IntentFilter(ACTION_CANCEL_UPLOAD_PROFILE_PICTURE))
 
         thread {
             while (true) {
@@ -152,6 +164,17 @@ class SendService : Service() {
                 sendReferenceToServer(toUpload)
             }
         }
+    }
+
+    override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
+        when (intent.action) {
+            ACTION_UPLOAD_PROFILE_PICTURE -> {
+                uploadProfilePicture(intent.getParcelableExtra(KEY_PICTURE), applicationContext as KentaiClient)
+            }
+        }
+
+
+        return super.onStartCommand(intent, flags, startId)
     }
 
     fun buildPendingMessages(userUUID: UUID): List<PendingMessage> {
@@ -306,8 +329,14 @@ class SendService : Service() {
                     cipher.init(Cipher.ENCRYPT_MODE, key, IvParameterSpec(iV))
 
                     BufferedInputStream(referenceInfo.toUpload.inputStream()).use { input ->
-                        val responseStream = ResponseOutputStream(BufferedOutputStream(CipherOutputStream(dataOut, cipher)), referenceInfo.toUpload.length(), referenceInfo, kentaiClient)
-//                        val responseStream = ResponseOutputStream(dataOut, referenceInfo.toUpload.length(), referenceInfo, kentaiClient)
+                        val responseStream = ResponseOutputStream(BufferedOutputStream(CipherOutputStream(dataOut, cipher)), referenceInfo.toUpload.length(), { current ->
+                            val i = Intent(ACTION_UPLOAD_REFERENCE_PROGRESS)
+                            i.putExtra(KEY_REFERENCE_UUID, referenceInfo.referenceUUID.toString())
+                            i.putExtra("progress", current)
+                            sendBroadcast(i)
+
+                            kentaiClient.currentLoadingTable[referenceInfo.referenceUUID] = current
+                        })
                         responseStream.use { output ->
                             input.copyTo(output, 1024 * 1024)
                         }
@@ -352,7 +381,7 @@ class SendService : Service() {
 
     data class ReferenceInfo(val chatUUID: UUID, val referenceUUID: UUID, val encryptionKey: Key, val toUpload: File, val fileType: FileType, val chatType: ChatType, val sendTo: List<ChatReceiver>)
 
-    inner class ResponseOutputStream(outputStream: OutputStream, private val totalToSend: Long, val info: ReferenceInfo, val kentaiClient: KentaiClient) : FilterOutputStream(outputStream) {
+    private class ResponseOutputStream(outputStream: OutputStream, private val totalToSend: Long, private val onUpdateProgress: (Double) -> Unit) : FilterOutputStream(outputStream) {
 
         var bytesWritten = 0L
         var prefSent = 0.0
@@ -371,15 +400,116 @@ class SendService : Service() {
 
         private fun update() {
             val currentPercent = bytesWritten.toDouble() / totalToSend.toDouble()
-            if (prefSent + 0.1 < currentPercent) {
+            if (prefSent + 0.01 < currentPercent) {
                 prefSent = currentPercent
-                val i = Intent(ACTION_UPLOAD_REFERENCE_PROGRESS)
-                i.putExtra(KEY_REFERENCE_UUID, info.referenceUUID.toString())
-                i.putExtra("progress", currentPercent)
-                sendBroadcast(i)
-
-                kentaiClient.currentLoadingTable[info.referenceUUID] = prefSent
+                onUpdateProgress.invoke(currentPercent)
             }
+        }
+    }
+
+    private fun uploadProfilePicture(data: Uri, kentaiClient: KentaiClient) {
+        profilePictureUploadStream?.close()
+        profilePictureUploadStream = null
+
+        UploadProfilePictureTask(data, kentaiClient, getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager, contentResolver, { profilePictureUploadStream = it }).execute()
+    }
+
+    private class UploadProfilePictureTask(private val data: Uri, private val kentaiClient: KentaiClient,
+                                           private val notManager: NotificationManager, private val contentResolver: ContentResolver,
+                                           private val setUploading: (OutputStream?) -> Unit) : AsyncTask<Unit, Unit, Int>() {
+
+        lateinit var notification: NotificationCompat.Builder
+
+        override fun onPreExecute() {
+            val cancelAction = PendingIntent.getBroadcast(kentaiClient, 0, Intent(ACTION_CANCEL_UPLOAD_PROFILE_PICTURE), 0)
+            notification = NotificationCompat.Builder(kentaiClient, NOTIFICATION_CHANNEL_UPLOAD_PROFILE_PICTURE)
+                    .setContentTitle(kentaiClient.getString(R.string.notification_upload_profile_picture_title))
+                    .setContentText(kentaiClient.getString(R.string.notification_upload_profile_picture_text))
+                    .setOngoing(true)
+                    .setOnlyAlertOnce(true)
+                    .setSmallIcon(android.R.drawable.stat_sys_upload)
+                    .setProgress(100, 0, false)
+                    .addAction(R.drawable.ic_cancel_white_24dp, kentaiClient.getString(R.string.notification_upload_profile_picture_cancel_upload), cancelAction)
+
+            notManager.notify(NOTIFICATION_ID_UPLOAD_PROFILE_PICTURE, notification.build())
+        }
+
+        override fun doInBackground(vararg params: Unit?): Int {
+            return try {
+                val bitmap = BitmapFactory.decodeStream(contentResolver.openInputStream(data))
+                val scaled = Bitmap.createBitmap(bitmap, 0, 0, min(800, bitmap.width), min(800, bitmap.height))
+                val requestBody = object : RequestBody() {
+                    override fun contentType(): MediaType? = MediaType.parse("application/octet-stream")
+
+                    override fun writeTo(sink: BufferedSink) {
+                        val outputStream = sink.outputStream()
+                        setUploading.invoke(outputStream)
+
+                        val dataOut = DataOutputStream(outputStream)
+                        val byteOut = ByteArrayOutputStream()
+                        scaled.compress(Bitmap.CompressFormat.PNG, 100, byteOut)
+
+                        dataOut.writeUUID(kentaiClient.userUUID)
+
+                        val picture = byteOut.toByteArray()
+
+                        val signer = Signature.getInstance("SHA1WithRSA")
+                        signer.initSign(kentaiClient.privateAuthKey!! as PrivateKey)
+                        signer.update(picture)
+                        val signed = signer.sign()
+
+                        dataOut.writeInt(signed.size)
+                        dataOut.write(signed)
+
+                        dataOut.writeInt(picture.size)
+
+                        val response = DataOutputStream(ResponseOutputStream(outputStream, picture.size.toLong(), { progress ->
+                            notification.setProgress(100, (progress * 100).toInt(), false)
+                            notManager.notify(NOTIFICATION_ID_UPLOAD_PROFILE_PICTURE, notification.build())
+                        }))
+                        response.write(picture)
+                    }
+                }
+
+                val request = Request.Builder()
+                        .url(httpAddress + "uploadProfilePicture")
+                        .post(requestBody)
+                        .build()
+
+                val res = httpClient.newCall(request).execute().use { response ->
+                    val gson = genGson()
+                    gson.fromJson(response.body()?.string(), UploadProfilePictureResponse::class.java).type
+                }
+
+                val newText = when (res) {
+                    UploadProfilePictureResponse.Type.SUCCESS -> R.string.notification_upload_profile_picture_text_success
+                    UploadProfilePictureResponse.Type.FAILED_UNKNOWN_USER -> R.string.notification_upload_profile_picture_text_failed
+                    UploadProfilePictureResponse.Type.FAILED_VERIFY_SIGNATURE -> R.string.notification_upload_profile_picture_text_failed
+                }
+
+                if (res == UploadProfilePictureResponse.Type.SUCCESS) {
+                    setProfilePicture(bitmap, kentaiClient.userUUID, kentaiClient)
+                }
+
+                newText
+            } catch (t: Throwable) {
+                R.string.notification_upload_profile_picture_text_failed
+            }
+        }
+
+        override fun onPostExecute(result: Int) {
+            setUploading.invoke(null)
+
+            Thread.sleep(500)
+
+            notification.setProgress(0, 0, false)
+            notification.setContentText(kentaiClient.getString(result))
+            notification.setOngoing(false)
+            notification.setSmallIcon(R.drawable.ic_file_upload_white_24dp)
+
+            notification.mActions.clear()
+
+            notManager.notify(NOTIFICATION_ID_UPLOAD_PROFILE_PICTURE, notification.build())
         }
     }
 }
