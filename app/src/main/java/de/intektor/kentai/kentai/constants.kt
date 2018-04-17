@@ -8,7 +8,6 @@ const val ACTION_UPLOAD_REFERENCE_STARTED = "de.intektor.kentai.uploadReferenceS
 
 const val ACTION_NOTIFICATION_REPLY = "de.intektor.kentai.notification.reply"
 
-
 const val KEY_NOTIFICATION_ID = "de.intektor.kentai.notification.id"
 const val KEY_NOTIFICATION_REPLY = "de.intektor.kentai.notification.reply.key"
 
@@ -24,7 +23,6 @@ const val KEY_FILE_URI = "de.intektor.kentai.file_uri.key"
 const val KEY_MESSAGE_UUID = "de.intektor.kentai.message_uuid.key"
 const val KEY_REFERENCE_UUID = "de.intektor.kentai.reference_uuid.key"
 
-const val KEY_IS_GIF = "de.intektor.kentai.is_gif.key"
 const val KEY_MEDIA_DATA = "de.intektor.kentai.media_data.key"
 
 const val ACTION_USER_VIEW_CHAT = "de.intektor.kentai.user_view_chat.action"
@@ -43,3 +41,8 @@ const val NOTIFICATION_CHANNEL_NEW_MESSAGES = "de.intektor.kentai.notifications.
 const val NOTIFICATION_CHANNEL_UPLOAD_PROFILE_PICTURE = "de.intektor.kentai.notifications.upload_profile_picture.channel"
 
 const val NOTIFICATION_ID_UPLOAD_PROFILE_PICTURE = 1
+
+const val ACTION_DOWNLOAD_PROFILE_PICTURE = "de.intektor.kentai.download_profile_picture.action"
+const val KEY_PROFILE_PICTURE_TYPE = "de.intektor.kentai.download_profile_picture.type.key"
+
+const val ACTION_PROFILE_PICTURE_UPDATED = "de.intektor.kentai.profile_picture_updated.action"

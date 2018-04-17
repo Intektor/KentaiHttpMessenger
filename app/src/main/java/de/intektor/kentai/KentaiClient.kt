@@ -39,6 +39,8 @@ import de.intektor.kentai_http_common.chat.group_modification.GroupModificationR
 import de.intektor.kentai_http_common.client_to_server.CurrentVersionRequest
 import de.intektor.kentai_http_common.gson.genGson
 import de.intektor.kentai_http_common.server_to_client.CurrentVersionResponse
+import de.intektor.kentai_http_common.tcp.client_to_server.InterestedUser
+import de.intektor.kentai_http_common.tcp.client_to_server.InterestedUserPacketToServer
 import de.intektor.kentai_http_common.tcp.server_to_client.Status
 import de.intektor.kentai_http_common.tcp.server_to_client.UserChange
 import de.intektor.kentai_http_common.util.readKey
@@ -79,6 +81,8 @@ class KentaiClient : Application() {
     lateinit var directConnectionManager: DirectConnectionManager
 
     val currentLoadingTable = mutableMapOf<UUID, Double>()
+
+    private val interestedUsers = mutableListOf<UUID>()
 
     override fun onCreate() {
         super.onCreate()
@@ -145,6 +149,7 @@ class KentaiClient : Application() {
                 } else {
                     handleNotification(context, chatUUID, chatType, senderName, chatName, senderUUID, messageMessageID, additionalInfoID, additionalInfoContent, wrapper)
                 }
+                abortBroadcast()
             }
         }
 
@@ -445,4 +450,22 @@ class KentaiClient : Application() {
         channel.description = descriptionAct
         notificationManagerCompat.createNotificationChannel(channel)
     }
+
+    fun addInterestedUser(userUUID: UUID) {
+        interestedUsers += userUUID
+        if (directConnectionManager.isConnected) {
+            val time = getProfilePicture(userUUID, this).lastModified()
+            directConnectionManager.sendPacket(InterestedUserPacketToServer(InterestedUser(userUUID, time), true))
+        }
+    }
+
+    fun removeInterestedUser(userUUID: UUID) {
+        interestedUsers -= userUUID
+        if (directConnectionManager.isConnected) {
+            val time = getProfilePicture(userUUID, this).lastModified()
+            directConnectionManager.sendPacket(InterestedUserPacketToServer(InterestedUser(userUUID, time), false))
+        }
+    }
+
+    fun getCurrentInterestedUsers(): List<UUID> = interestedUsers
 }

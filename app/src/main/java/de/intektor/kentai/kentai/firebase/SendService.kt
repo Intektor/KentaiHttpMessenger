@@ -26,12 +26,14 @@ import de.intektor.kentai.kentai.references.getReferenceFile
 import de.intektor.kentai_http_common.chat.ChatMessageRegistry
 import de.intektor.kentai_http_common.chat.ChatType
 import de.intektor.kentai_http_common.chat.MessageStatus
+import de.intektor.kentai_http_common.client_to_server.DownloadProfilePictureRequest
 import de.intektor.kentai_http_common.client_to_server.SendChatMessageRequest
 import de.intektor.kentai_http_common.gson.genGson
 import de.intektor.kentai_http_common.reference.FileType
 import de.intektor.kentai_http_common.reference.UploadResponse
 import de.intektor.kentai_http_common.server_to_client.SendChatMessageResponse
 import de.intektor.kentai_http_common.server_to_client.UploadProfilePictureResponse
+import de.intektor.kentai_http_common.users.ProfilePictureType
 import de.intektor.kentai_http_common.util.*
 import okhttp3.MediaType
 import okhttp3.Request
@@ -171,8 +173,12 @@ class SendService : Service() {
             ACTION_UPLOAD_PROFILE_PICTURE -> {
                 uploadProfilePicture(intent.getParcelableExtra(KEY_PICTURE), applicationContext as KentaiClient)
             }
+            ACTION_DOWNLOAD_PROFILE_PICTURE -> {
+                val type = intent.getSerializableExtra(KEY_PROFILE_PICTURE_TYPE) as ProfilePictureType
+                val userUUID = intent.getSerializableExtra(KEY_USER_UUID) as UUID
+                downloadProfilePicture(userUUID, type)
+            }
         }
-
 
         return super.onStartCommand(intent, flags, startId)
     }
@@ -488,7 +494,7 @@ class SendService : Service() {
                 }
 
                 if (res == UploadProfilePictureResponse.Type.SUCCESS) {
-                    setProfilePicture(bitmap, kentaiClient.userUUID, kentaiClient)
+                    setProfilePicture(bitmap, kentaiClient.userUUID, kentaiClient, ProfilePictureType.NORMAL)
                 }
 
                 newText
@@ -510,6 +516,40 @@ class SendService : Service() {
             notification.mActions.clear()
 
             notManager.notify(NOTIFICATION_ID_UPLOAD_PROFILE_PICTURE, notification.build())
+        }
+    }
+
+    private fun downloadProfilePicture(userUUID: UUID, type: ProfilePictureType) {
+        DownloadProfilePictureTask({ uU ->
+            val broadcast = Intent(ACTION_PROFILE_PICTURE_UPDATED)
+            broadcast.putExtra(KEY_USER_UUID, uU)
+            sendBroadcast(broadcast)
+        }, userUUID, type, applicationContext as KentaiClient).execute()
+    }
+
+    private class DownloadProfilePictureTask(val callback: (UUID) -> Unit, val userUUID: UUID, val type: ProfilePictureType, val kentaiClient: KentaiClient) : AsyncTask<Unit, Unit, Boolean>() {
+
+        override fun doInBackground(vararg params: Unit): Boolean {
+            return try {
+                val gson = genGson()
+                val requestBody = RequestBody.create(MediaType.parse("JSON"), gson.toJson(DownloadProfilePictureRequest(userUUID, type)))
+                val request = Request.Builder()
+                        .url(httpAddress + DownloadProfilePictureRequest.TARGET)
+                        .post(requestBody)
+                        .build()
+
+                httpClient.newCall(request).execute().use { response ->
+                    val inputStream = response.body()?.byteStream() ?: return false
+                    inputStream.copyTo(getProfilePicture(userUUID, kentaiClient, type).outputStream())
+                }
+                true
+            } catch (t: Throwable) {
+                false
+            }
+        }
+
+        override fun onPostExecute(result: Boolean) {
+            if (result) callback.invoke(userUUID)
         }
     }
 }

@@ -7,25 +7,25 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import de.intektor.kentai.KentaiClient
 import de.intektor.kentai.R
 import de.intektor.kentai.kentai.chat.ChatInfo
 import de.intektor.kentai.kentai.chat.ChatMessageWrapper
-import de.intektor.kentai.overview_activity.FragmentChatsOverview.ClickListener
+import de.intektor.kentai_http_common.chat.ChatType
 import de.intektor.kentai_http_common.chat.MessageStatus
-import de.intektor.kentai_http_common.util.minString
 import java.text.SimpleDateFormat
 
-class ChatListViewAdapter(private val mValues: List<ChatItem>, private val clickResponse: (ChatItem) -> (Unit), val fragment: Fragment? = null) : RecyclerView.Adapter<ChatListViewAdapter.ViewHolder>() {
+class ChatListViewAdapter(private val chats: List<ChatItem>, private val clickResponse: (ChatItem) -> (Unit), val fragment: Fragment? = null) : RecyclerView.Adapter<ChatListViewAdapter.ChatItemViewHolder>() {
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ChatItemViewHolder {
         val view = LayoutInflater.from(parent.context)
                 .inflate(R.layout.chat_item, parent, false)
-        return ViewHolder(view)
+        return ChatItemViewHolder(view)
     }
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+    override fun onBindViewHolder(holder: ChatItemViewHolder, position: Int) {
         val timeInstance = SimpleDateFormat.getTimeInstance()
-        val chatItem = mValues[position]
+        val chatItem = chats[position]
         holder.item = chatItem
         holder.nameView.text = chatItem.chatInfo.chatName
         holder.hintView.text = chatItem.lastChatMessage.message.text
@@ -37,6 +37,8 @@ class ChatListViewAdapter(private val mValues: List<ChatItem>, private val click
         } else {
             holder.unreadMessages.visibility = View.VISIBLE
         }
+
+        holder.messageStatusView.visibility = if (chatItem.lastChatMessage.client) View.VISIBLE else View.GONE
 
         holder.messageStatusView.setImageResource(when (chatItem.lastChatMessage.status) {
             MessageStatus.WAITING -> R.drawable.waiting
@@ -54,13 +56,27 @@ class ChatListViewAdapter(private val mValues: List<ChatItem>, private val click
         holder.view.tag = position
 
         fragment?.registerForContextMenu(holder.view)
+
+        if (chatItem.chatInfo.chatType == ChatType.TWO_PEOPLE) {
+            val kentaiClient = holder.itemView.context.applicationContext as KentaiClient
+            kentaiClient.addInterestedUser(chatItem.chatInfo.participants.first { it.receiverUUID != kentaiClient.userUUID }.receiverUUID)
+        }
     }
 
-    override fun getItemCount(): Int = mValues.size
+    override fun onViewRecycled(holder: ChatItemViewHolder) {
+        val position = holder.view.tag as Int
+        val chatItem = chats[position]
+        if (chatItem.chatInfo.chatType == ChatType.TWO_PEOPLE) {
+            val kentaiClient = holder.itemView.context.applicationContext as KentaiClient
+            kentaiClient.removeInterestedUser(chatItem.chatInfo.participants.first { it.receiverUUID != kentaiClient.userUUID }.receiverUUID)
+        }
+    }
+
+    override fun getItemCount(): Int = chats.size
 
     class ChatItem(var chatInfo: ChatInfo, var lastChatMessage: ChatMessageWrapper, var unreadMessages: Int, val chatPicturePath: String = "", var selected: Boolean = false)
 
-    inner class ViewHolder(val view: View) : RecyclerView.ViewHolder(view) {
+    inner class ChatItemViewHolder(val view: View) : RecyclerView.ViewHolder(view) {
         val nameView: TextView = view.findViewById(R.id.chatItemName)
         val hintView: TextView = view.findViewById(R.id.chatItemLastMessage)
         val timeView: TextView = view.findViewById(R.id.chatItemTime)

@@ -7,10 +7,12 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import com.squareup.picasso.Picasso
 import de.intektor.kentai.ContactInfoActivity
 import de.intektor.kentai.R
 import de.intektor.kentai.kentai.KEY_USER_UUID
 import de.intektor.kentai.kentai.contacts.Contact
+import de.intektor.kentai.kentai.getProfilePicture
 
 class ViewingAdapter(private val viewingUsers: List<ViewingUser>) : RecyclerView.Adapter<ViewingViewHolder>() {
 
@@ -24,12 +26,17 @@ class ViewingAdapter(private val viewingUsers: List<ViewingUser>) : RecyclerView
     override fun onBindViewHolder(holder: ViewingViewHolder, position: Int) {
         val item = viewingUsers[position]
 
-        holder.username.text = when(item.userState) {
+        holder.username.text = when (item.userState) {
             UserState.VIEWING -> ""
             UserState.TYPING -> holder.username.context.getString(R.string.chat_user_typing)
         }
 
         holder.username.visibility = View.VISIBLE
+
+        Picasso.with(holder.itemView.context)
+                .load(getProfilePicture(item.contact.userUUID, holder.itemView.context))
+                .placeholder(R.drawable.ic_account_circle_white_24dp)
+                .into(holder.profilePicture)
 
         holder.profilePicture.setOnClickListener {
             val openUser = Intent(holder.username.context, ContactInfoActivity::class.java)

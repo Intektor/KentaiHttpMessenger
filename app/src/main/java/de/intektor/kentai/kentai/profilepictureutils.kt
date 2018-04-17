@@ -2,29 +2,27 @@ package de.intektor.kentai.kentai
 
 import android.content.Context
 import android.graphics.Bitmap
-import okhttp3.MediaType
-import okhttp3.RequestBody
-import okio.BufferedSink
+import de.intektor.kentai_http_common.users.ProfilePictureType
 import java.io.File
 import java.util.*
 
-fun getProfilePicture(userUUID: UUID, context: Context): File =
-        File(context.filesDir, "profile_pictures/$userUUID")
+private const val PROFILE_PICTURE_FOLDER = "profile_pictures"
+
+fun getProfilePicture(userUUID: UUID, context: Context, type: ProfilePictureType? = null): File {
+    File(context.filesDir, PROFILE_PICTURE_FOLDER).mkdirs()
+    return when (type) {
+        ProfilePictureType.SMALL -> File(File(context.filesDir, PROFILE_PICTURE_FOLDER), "${userUUID}_small")
+        ProfilePictureType.NORMAL -> File(File(context.filesDir, PROFILE_PICTURE_FOLDER), "$userUUID")
+        null -> {
+            val normal = getProfilePicture(userUUID, context, ProfilePictureType.NORMAL)
+            if (!normal.exists()) getProfilePicture(userUUID, context, ProfilePictureType.SMALL) else normal
+        }
+    }
+}
 
 fun hasProfilePicture(userUUID: UUID, context: Context): Boolean = getProfilePicture(userUUID, context).exists()
 
-fun setProfilePicture(bitmap: Bitmap, userUUID: UUID, context: Context) {
+fun setProfilePicture(bitmap: Bitmap, userUUID: UUID, context: Context, type: ProfilePictureType) {
     File(context.filesDir, "profile_pictures").mkdirs()
-    bitmap.compress(Bitmap.CompressFormat.PNG, 100, File(context.filesDir, "profile_pictures/$userUUID").outputStream())
-}
-
-fun requestProfilePicture(userUUID: UUID, context: Context) {
-    val requestBody = object : RequestBody() {
-        override fun contentType(): MediaType? = MediaType.parse("application/octet-stream")
-
-        override fun writeTo(sink: BufferedSink) {
-
-        }
-
-    }
+    bitmap.compress(Bitmap.CompressFormat.PNG, 100, getProfilePicture(userUUID, context, type).outputStream())
 }

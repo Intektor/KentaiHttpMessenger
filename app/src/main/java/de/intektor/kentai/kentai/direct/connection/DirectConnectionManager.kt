@@ -7,18 +7,14 @@ import de.intektor.kentai.KentaiClient
 import de.intektor.kentai.kentai.ACTION_DIRECT_CONNECTION_CONNECTED
 import de.intektor.kentai.kentai.address
 import de.intektor.kentai.kentai.chat.readContacts
-import de.intektor.kentai.kentai.direct.connection.handler.HeartbeatPacketToClientHandler
-import de.intektor.kentai.kentai.direct.connection.handler.TypingPacketToClientHandler
-import de.intektor.kentai.kentai.direct.connection.handler.UserStatusChangePacketToClientHandler
-import de.intektor.kentai.kentai.direct.connection.handler.UserViewChatPacketToClientHandler
+import de.intektor.kentai.kentai.direct.connection.handler.*
+import de.intektor.kentai.kentai.getProfilePicture
 import de.intektor.kentai_http_common.tcp.*
 import de.intektor.kentai_http_common.tcp.client_to_server.HeartbeatPacketToServer
 import de.intektor.kentai_http_common.tcp.client_to_server.IdentificationPacketToServer
+import de.intektor.kentai_http_common.tcp.client_to_server.InterestedUser
 import de.intektor.kentai_http_common.tcp.client_to_server.UserPreferencePacketToServer
-import de.intektor.kentai_http_common.tcp.server_to_client.HeartbeatPacketToClient
-import de.intektor.kentai_http_common.tcp.server_to_client.TypingPacketToClient
-import de.intektor.kentai_http_common.tcp.server_to_client.UserStatusChangePacketToClient
-import de.intektor.kentai_http_common.tcp.server_to_client.UserViewChatPacketToClient
+import de.intektor.kentai_http_common.tcp.server_to_client.*
 import de.intektor.kentai_http_common.util.encryptRSA
 import java.io.DataInputStream
 import java.io.DataOutputStream
@@ -51,6 +47,7 @@ class DirectConnectionManager(val kentaiClient: KentaiClient) {
             registerHandler(HeartbeatPacketToClient::class.java, HeartbeatPacketToClientHandler())
             registerHandler(TypingPacketToClient::class.java, TypingPacketToClientHandler())
             registerHandler(UserViewChatPacketToClient::class.java, UserViewChatPacketToClientHandler())
+            registerHandler(ProfilePictureUpdatedPacketToClient::class.java, ProfilePictureUpdatedPacketToClientHandler())
         }
 
         CheckThread().start()
@@ -101,7 +98,10 @@ class DirectConnectionManager(val kentaiClient: KentaiClient) {
                 val encryptedUserUUID = kentaiClient.userUUID.toString().encryptRSA(kentaiClient.privateAuthKey!!)
 
                 sendPacket(IdentificationPacketToServer(encryptedUserUUID, kentaiClient.userUUID), DataOutputStream(socket?.getOutputStream()))
-                sendPacket(UserPreferencePacketToServer(contactList.map { it.userUUID }.toMutableList()), DataOutputStream(socket?.getOutputStream()))
+                sendPacket(UserPreferencePacketToServer(kentaiClient.getCurrentInterestedUsers().map { userUUID ->
+                    val time = getProfilePicture(userUUID, kentaiClient).lastModified()
+                    InterestedUser(userUUID, time)
+                }), DataOutputStream(socket?.getOutputStream()))
 
                 kentaiClient.sendBroadcast(Intent(ACTION_DIRECT_CONNECTION_CONNECTED))
 
@@ -131,7 +131,7 @@ class DirectConnectionManager(val kentaiClient: KentaiClient) {
                     while (isConnected) {
                         val packet = sendPacketQueue.take()
                         if (isConnected) {
-                            de.intektor.kentai_http_common.tcp.sendPacket(packet, DataOutputStream(socket!!.getOutputStream()))
+                            sendPacket(packet, DataOutputStream(socket!!.getOutputStream()))
                         }
                     }
                 }
@@ -146,7 +146,7 @@ class DirectConnectionManager(val kentaiClient: KentaiClient) {
                     }
                 }
             } catch (t: Throwable) {
-                Log.e("ERROR", "Network", t)
+                Log.e("ERROR", "Networking", t)
             }
         }
     }

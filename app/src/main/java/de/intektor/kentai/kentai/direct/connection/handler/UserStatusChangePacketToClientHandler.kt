@@ -1,7 +1,6 @@
 package de.intektor.kentai.kentai.direct.connection.handler
 
 import android.content.Intent
-import de.intektor.kentai.KentaiClient
 import de.intektor.kentai.kentai.direct.connection.DirectConnectionManager
 import de.intektor.kentai_http_common.tcp.IPacketHandler
 import de.intektor.kentai_http_common.tcp.server_to_client.UserStatusChangePacketToClient
@@ -24,6 +23,6 @@ class UserStatusChangePacketToClientHandler : IPacketHandler<UserStatusChangePac
             i.putExtra("time$index", userChange.time)
         }
 
-        thread.kentaiClient.applicationContext.sendBroadcast(i)
+        thread.kentaiClient.sendBroadcast(i)
     }
 }

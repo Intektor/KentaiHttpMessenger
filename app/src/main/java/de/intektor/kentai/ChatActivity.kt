@@ -63,15 +63,13 @@ class ChatActivity : AppCompatActivity() {
 
     private lateinit var uploadReferenceFinishedReceiver: BroadcastReceiver
     private lateinit var uploadProgressReceiver: BroadcastReceiver
-
     private lateinit var downloadReferenceFinishedReceiver: BroadcastReceiver
     private lateinit var downloadProgressReceiver: BroadcastReceiver
-
     private lateinit var uploadReferenceStartedReceiver: BroadcastReceiver
-
     private lateinit var userViewChatReceiver: BroadcastReceiver
-
     private lateinit var directConnectedReceiver: BroadcastReceiver
+    private lateinit var updateProfilePictureReceiver: BroadcastReceiver
+
 
     private var lastTimeSentTypingMessage = 0L
 
@@ -319,6 +317,16 @@ class ChatActivity : AppCompatActivity() {
             }
         }
 
+        updateProfilePictureReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                val updatedUserUUID = intent.getSerializableExtra(KEY_USER_UUID) as UUID
+                val indexOf = viewingUsersList.indexOfFirst { it.contact.userUUID == updatedUserUUID }
+                if (indexOf != -1) {
+                    viewingUsersAdapter.notifyItemChanged(indexOf)
+                }
+            }
+        }
+
         setUnreadMessages(kentaiClient.dataBase, chatInfo.chatUUID, 0)
 
         //Remove notifications related to this chat
@@ -356,6 +364,8 @@ class ChatActivity : AppCompatActivity() {
         }
 
         kentaiClient.directConnectionManager.sendPacket(ViewChatPacketToServer(chatInfo.chatUUID, true))
+
+        addInterestedChatUsers(true)
     }
 
 
@@ -625,6 +635,7 @@ class ChatActivity : AppCompatActivity() {
     override fun onStop() {
         super.onStop()
         stopRecording(false)
+        addInterestedChatUsers(false)
     }
 
     override fun onResume() {
@@ -654,6 +665,7 @@ class ChatActivity : AppCompatActivity() {
         registerReceiver(directConnectedReceiver, IntentFilter(ACTION_DIRECT_CONNECTION_CONNECTED))
 
         kentaiClient.directConnectionManager.sendPacket(ViewChatPacketToServer(chatInfo.chatUUID, true))
+        addInterestedChatUsers(true)
     }
 
     override fun onPause() {
@@ -669,6 +681,7 @@ class ChatActivity : AppCompatActivity() {
         unregisterReceiver(directConnectedReceiver)
 
         kentaiClient.directConnectionManager.sendPacket(ViewChatPacketToServer(chatInfo.chatUUID, false))
+        addInterestedChatUsers(false)
     }
 
     private var currentContextSelectedIndex = -1
@@ -952,4 +965,14 @@ class ChatActivity : AppCompatActivity() {
         chatAdapter.notifyItemChanged(adapterPosition)
     }
 
+    private fun addInterestedChatUsers(add: Boolean) {
+        val kentaiClient = applicationContext as KentaiClient
+        chatInfo.participants.filter { it.type == ChatReceiver.ReceiverType.USER }.forEach {
+            if (add) {
+                kentaiClient.addInterestedUser(it.receiverUUID)
+            } else {
+                kentaiClient.removeInterestedUser(it.receiverUUID)
+            }
+        }
+    }
 }

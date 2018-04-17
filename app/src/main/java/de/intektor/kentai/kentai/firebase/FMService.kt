@@ -281,7 +281,7 @@ class FMService : FirebaseMessagingService() {
             intent.putExtra("additionalInfoID", AdditionalInfoRegistry.getID(additionalInformation.javaClass))
             intent.putExtra("additionalInfoContent", byteOut.toByteArray())
             intent.writeMessageWrapper(ChatMessageWrapper(message, MessageStatus.RECEIVED, false, System.currentTimeMillis()), 0)
-            sendBroadcast(intent, null)
+            sendOrderedBroadcast(intent, null)
         } else {
             Log.w("WARNING", "NO CHAT FOUND, THIS SHOULD NEVER HAPPEN")
         }
