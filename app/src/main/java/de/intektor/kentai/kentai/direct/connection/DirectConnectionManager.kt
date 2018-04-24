@@ -6,7 +6,6 @@ import android.util.Log
 import de.intektor.kentai.KentaiClient
 import de.intektor.kentai.kentai.ACTION_DIRECT_CONNECTION_CONNECTED
 import de.intektor.kentai.kentai.address
-import de.intektor.kentai.kentai.chat.readContacts
 import de.intektor.kentai.kentai.direct.connection.handler.*
 import de.intektor.kentai.kentai.getProfilePicture
 import de.intektor.kentai_http_common.tcp.*
@@ -41,6 +40,9 @@ class DirectConnectionManager(val kentaiClient: KentaiClient) {
 
     private val sendPacketQueue = LinkedBlockingQueue<IPacket>()
 
+    @Volatile
+    var wantConnection = false
+
     init {
         KentaiTCPOperator.packetRegistry.apply {
             registerHandler(UserStatusChangePacketToClient::class.java, UserStatusChangePacketToClientHandler())
@@ -49,24 +51,23 @@ class DirectConnectionManager(val kentaiClient: KentaiClient) {
             registerHandler(UserViewChatPacketToClient::class.java, UserViewChatPacketToClientHandler())
             registerHandler(ProfilePictureUpdatedPacketToClient::class.java, ProfilePictureUpdatedPacketToClientHandler())
         }
-
-        CheckThread().start()
     }
 
-    inner class CheckThread : Thread() {
-        override fun run() {
-            while (true) {
+    fun launchConnection(database: SQLiteDatabase) {
+        if (isConnected) return
+        keepConnection = true
+
+        lastHeartbeatTime = System.currentTimeMillis()
+
+        thread {
+            while (wantConnection) {
                 Thread.sleep(5000L)
-                if (!isConnected) {
+                if (!isConnected && wantConnection) {
                     launchConnection(kentaiClient.dataBase)
                 }
             }
         }
-    }
 
-    fun launchConnection(database: SQLiteDatabase) {
-        if (keepConnection) return
-        keepConnection = true
         LaunchThread(kentaiClient).start()
     }
 
@@ -75,6 +76,7 @@ class DirectConnectionManager(val kentaiClient: KentaiClient) {
     }
 
     fun exitConnection() {
+        if (!isConnected) return
         keepConnection = false
         if (socket?.isBound == true) {
             socket?.close()
@@ -89,28 +91,29 @@ class DirectConnectionManager(val kentaiClient: KentaiClient) {
 
         override fun run() {
             try {
-                val contactList = readContacts(kentaiClient.dataBase)
+                val connectedSocket = Socket(address, 17348)
 
-                socket = Socket(address, 17348)
+                socket = connectedSocket
 
-                val dataIn = DataInputStream(socket?.getInputStream())
+                val dataIn = DataInputStream(connectedSocket.getInputStream())
 
                 val encryptedUserUUID = kentaiClient.userUUID.toString().encryptRSA(kentaiClient.privateAuthKey!!)
 
-                sendPacket(IdentificationPacketToServer(encryptedUserUUID, kentaiClient.userUUID), DataOutputStream(socket?.getOutputStream()))
+                val dataOut = DataOutputStream(connectedSocket.getOutputStream())
+                sendPacket(IdentificationPacketToServer(encryptedUserUUID, kentaiClient.userUUID), dataOut)
                 sendPacket(UserPreferencePacketToServer(kentaiClient.getCurrentInterestedUsers().map { userUUID ->
                     val time = getProfilePicture(userUUID, kentaiClient).lastModified()
                     InterestedUser(userUUID, time)
-                }), DataOutputStream(socket?.getOutputStream()))
+                }.toSet()), dataOut)
 
                 kentaiClient.sendBroadcast(Intent(ACTION_DIRECT_CONNECTION_CONNECTED))
 
                 thread {
-                    while (keepConnection && socket?.isBound == true) {
+                    while (keepConnection && connectedSocket.isBound) {
                         try {
-                            sendPacket(HeartbeatPacketToServer(), DataOutputStream(socket?.getOutputStream()))
+                            sendPacket(HeartbeatPacketToServer(), dataOut)
                         } catch (t: Throwable) {
-                            if (keepConnection) {
+                            if (keepConnection && connectedSocket == socket && isConnected) {
                                 exitConnection()
                             }
                         }
@@ -128,10 +131,16 @@ class DirectConnectionManager(val kentaiClient: KentaiClient) {
                 }
 
                 thread {
-                    while (isConnected) {
-                        val packet = sendPacketQueue.take()
-                        if (isConnected) {
-                            sendPacket(packet, DataOutputStream(socket!!.getOutputStream()))
+                    try {
+                        while (isConnected) {
+                            val packet = sendPacketQueue.take()
+                            if (isConnected) {
+                                sendPacket(packet, DataOutputStream(connectedSocket.getOutputStream()))
+                            }
+                        }
+                    } catch (t: Throwable) {
+                        if (keepConnection && connectedSocket == socket && isConnected) {
+                            exitConnection()
                         }
                     }
                 }
@@ -142,7 +151,9 @@ class DirectConnectionManager(val kentaiClient: KentaiClient) {
                         handlePacket(packet, socket!!)
                     } catch (t: Throwable) {
                         Log.e("ERROR", "Networking", t)
-                        exitConnection()
+                        if (keepConnection && connectedSocket == socket && isConnected) {
+                            exitConnection()
+                        }
                     }
                 }
             } catch (t: Throwable) {

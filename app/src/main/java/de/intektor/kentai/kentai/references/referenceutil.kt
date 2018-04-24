@@ -12,17 +12,15 @@ import android.widget.Toast
 import com.google.common.hash.Hashing
 import com.google.common.io.BaseEncoding
 import de.intektor.kentai.KentaiClient
+import de.intektor.kentai.kentai.*
 import de.intektor.kentai.kentai.chat.setReferenceState
 import de.intektor.kentai.kentai.firebase.SendService
-import de.intektor.kentai.kentai.getRealImagePath
-import de.intektor.kentai.kentai.getRealVideoPath
-import de.intektor.kentai.kentai.httpAddress
-import de.intektor.kentai.kentai.httpClient
 import de.intektor.kentai_http_common.chat.ChatType
 import de.intektor.kentai_http_common.client_to_server.DownloadReferenceRequest
 import de.intektor.kentai_http_common.client_to_server.DownloadReferenceRequest.Response
 import de.intektor.kentai_http_common.gson.genGson
 import de.intektor.kentai_http_common.reference.FileType
+import de.intektor.kentai_http_common.util.copyFully
 import de.intektor.kentai_http_common.util.decryptRSA
 import de.intektor.kentai_http_common.util.toAESKey
 import okhttp3.MediaType
@@ -132,7 +130,7 @@ fun downloadReference(context: Context, database: SQLiteDatabase, chatUUID: UUID
                                     val referenceFile = getReferenceFile(referenceUUID, fileType, context.filesDir, context)
 
                                     BufferedInputStream(CipherInputStream(ResponseInputStream(response.body()!!.byteStream(), totalToReceive, referenceUUID, context, kentaiClient), cipher)).use { cipherIn ->
-                                        cipherIn.copyTo(referenceFile.outputStream(), 1024 * 1024)
+                                        cipherIn.copyFully(referenceFile.outputStream(), 1024 * 1024)
                                     }
 
                                     if (fileType == FileType.IMAGE) {
@@ -175,9 +173,9 @@ fun downloadReference(context: Context, database: SQLiteDatabase, chatUUID: UUID
                     }
                 }
             }
-            val i = Intent("de.intektor.kentai.downloadReferenceFinished")
-            i.putExtra("successful", successful)
-            i.putExtra("referenceUUID", referenceUUID.toString())
+            val i = Intent(ACTION_DOWNLOAD_REFERENCE_FINISHED)
+            i.putExtra(KEY_SUCCESSFUL, successful)
+            i.putExtra(KEY_REFERENCE_UUID, referenceUUID)
             context.sendBroadcast(i)
         }
     }.execute()
@@ -188,25 +186,17 @@ fun uploadReference(context: Context, database: SQLiteDatabase, chatUUID: UUID, 
         query.moveToNext()
         query.getInt(0) == 1
     }
-    if (!alreadyContained) {
-        database.compileStatement("INSERT INTO reference_upload_table (chat_uuid, reference_uuid, file_type, state) VALUES(?, ?, ?, ?)").use { statement ->
-            statement.bindString(1, chatUUID.toString())
-            statement.bindString(2, referenceUUID.toString())
-            statement.bindLong(3, fileType.ordinal.toLong())
-            statement.bindLong(4, UploadState.IN_PROGRESS.ordinal.toLong())
-            statement.execute()
-        }
-    }
 
     val startService = Intent(context, SendService::class.java)
     context.startService(startService)
 
-    val i = Intent("de.intektor.kentai.referenceUpload")
-    i.putExtra("chatUUID", chatUUID)
-    i.putExtra("referenceFile", referenceFile.absolutePath)
-    i.putExtra("fileType", fileType.ordinal)
-    i.putExtra("referenceUUID", referenceUUID.toString())
-    context.sendBroadcast(i)
+    val i = Intent(context, SendService::class.java)
+    i.putExtra(KEY_CHAT_UUID, chatUUID)
+    i.putExtra(KEY_MEDIA_URL, referenceFile.absolutePath)
+    i.putExtra(KEY_MEDIA_TYPE, fileType)
+    i.putExtra(KEY_REFERENCE_UUID, referenceUUID)
+    i.action = ACTION_UPLOAD_REFERENCE
+    context.startService(i)
 }
 
 fun getReferenceFile(referenceUUID: UUID, fileType: FileType, filesDir: File, context: Context): File {
@@ -284,4 +274,8 @@ fun saveMediaFileInAppStorage(referenceUUID: UUID, uri: Uri, context: Context, f
     }
 
     return referenceFile
+}
+
+fun cancelReferenceDownload(referenceUUID: UUID, context: Context) {
+
 }

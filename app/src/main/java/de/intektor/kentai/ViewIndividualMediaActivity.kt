@@ -3,9 +3,9 @@ package de.intektor.kentai
 import android.content.Intent
 import android.media.ThumbnailUtils
 import android.net.Uri
-import android.support.v7.app.AppCompatActivity
 import android.os.Bundle
 import android.provider.MediaStore
+import android.support.v7.app.AppCompatActivity
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -14,7 +14,6 @@ import com.squareup.picasso.Picasso
 import de.intektor.kentai.kentai.*
 import de.intektor.kentai.kentai.chat.readChatMessageWrappers
 import de.intektor.kentai.kentai.chat.readContact
-import de.intektor.kentai.kentai.references.getReferenceFile
 import de.intektor.kentai_http_common.reference.FileType
 import kotlinx.android.synthetic.main.activity_view_individual_media.*
 import java.io.File
@@ -28,6 +27,8 @@ class ViewIndividualMediaActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_view_individual_media)
+
+        setSupportActionBar(activityViewIndividualMediaToolbar)
 
         val kentaiClient = applicationContext as KentaiClient
 
@@ -44,7 +45,7 @@ class ViewIndividualMediaActivity : AppCompatActivity() {
         activityViewIndividualMediaWhoWhen.text = getString(R.string.view_individual_media_who_when, getName(contact), dateFormat.format(chatMessage.message.timeSent))
 
         activityViewIndividualMediaMessage.text = chatMessage.message.text
-        activityViewIndividualMediaMessage.visibility = if(chatMessage.message.text.isBlank()) View.GONE else View.VISIBLE
+        activityViewIndividualMediaMessage.visibility = if (chatMessage.message.text.isBlank()) View.GONE else View.VISIBLE
 
         if (fileType == FileType.IMAGE) {
             activityViewIndividualMediaImage.visibility = View.VISIBLE
@@ -86,8 +87,12 @@ class ViewIndividualMediaActivity : AppCompatActivity() {
         activityViewIndividualMediaImage.setOnClickListener {
             if (supportActionBar?.isShowing == true) {
                 supportActionBar?.hide()
+                activityViewIndividualMediaMessage.visibility = View.GONE
+                activityViewIndividualMediaWhoWhen.visibility = View.GONE
             } else {
                 supportActionBar?.show()
+                activityViewIndividualMediaMessage.visibility = View.VISIBLE
+                activityViewIndividualMediaWhoWhen.visibility = View.VISIBLE
             }
         }
 

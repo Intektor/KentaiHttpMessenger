@@ -7,10 +7,12 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import com.squareup.picasso.Picasso
 import de.intektor.kentai.KentaiClient
 import de.intektor.kentai.R
 import de.intektor.kentai.kentai.chat.ChatInfo
 import de.intektor.kentai.kentai.chat.ChatMessageWrapper
+import de.intektor.kentai.kentai.getProfilePicture
 import de.intektor.kentai_http_common.chat.ChatType
 import de.intektor.kentai_http_common.chat.MessageStatus
 import java.text.SimpleDateFormat
@@ -49,22 +51,30 @@ class ChatListViewAdapter(private val chats: List<ChatItem>, private val clickRe
 
         holder.selectedView.visibility = if (chatItem.selected) View.VISIBLE else View.GONE
 
-        holder.view.setOnClickListener {
+        holder.itemView.setOnClickListener {
             clickResponse.invoke(holder.item)
         }
 
-        holder.view.tag = position
+        holder.itemView.tag = position
 
-        fragment?.registerForContextMenu(holder.view)
+        fragment?.registerForContextMenu(holder.itemView)
 
         if (chatItem.chatInfo.chatType == ChatType.TWO_PEOPLE) {
             val kentaiClient = holder.itemView.context.applicationContext as KentaiClient
-            kentaiClient.addInterestedUser(chatItem.chatInfo.participants.first { it.receiverUUID != kentaiClient.userUUID }.receiverUUID)
+            val other = chatItem.chatInfo.participants.firstOrNull { it.receiverUUID != kentaiClient.userUUID }
+            if (other != null) {
+                kentaiClient.addInterestedUser(other.receiverUUID)
+
+                Picasso.with(holder.itemView.context)
+                        .load(getProfilePicture(other.receiverUUID, holder.itemView.context))
+                        .placeholder(R.drawable.ic_account_circle_white_24dp)
+                        .into(holder.picture)
+            }
         }
     }
 
     override fun onViewRecycled(holder: ChatItemViewHolder) {
-        val position = holder.view.tag as Int
+        val position = holder.itemView.tag as Int
         val chatItem = chats[position]
         if (chatItem.chatInfo.chatType == ChatType.TWO_PEOPLE) {
             val kentaiClient = holder.itemView.context.applicationContext as KentaiClient
@@ -74,17 +84,17 @@ class ChatListViewAdapter(private val chats: List<ChatItem>, private val clickRe
 
     override fun getItemCount(): Int = chats.size
 
-    class ChatItem(var chatInfo: ChatInfo, var lastChatMessage: ChatMessageWrapper, var unreadMessages: Int, val chatPicturePath: String = "", var selected: Boolean = false)
+    class ChatItem(var chatInfo: ChatInfo, var lastChatMessage: ChatMessageWrapper, var unreadMessages: Int, var selected: Boolean = false)
 
-    inner class ChatItemViewHolder(val view: View) : RecyclerView.ViewHolder(view) {
+    inner class ChatItemViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val nameView: TextView = view.findViewById(R.id.chatItemName)
         val hintView: TextView = view.findViewById(R.id.chatItemLastMessage)
         val timeView: TextView = view.findViewById(R.id.chatItemTime)
         val messageStatusView: ImageView = view.findViewById(R.id.chatItemMessageStatus)
         val unreadMessages: TextView = view.findViewById(R.id.chatItemUnreadMessages)
         val selectedView: ImageView = view.findViewById(R.id.chatItemCheck)
+        val picture: ImageView = view.findViewById(R.id.chatItemChatPicture)
 
         lateinit var item: ChatItem
-
     }
 }

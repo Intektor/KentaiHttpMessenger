@@ -57,21 +57,20 @@ class GroupInfoActivity : AppCompatActivity(), GroupMemberAdapter.ClickListener 
         memberList.clear()
 
         if (groupedRoles.containsKey(GroupRole.ADMIN)) {
-            memberList.addAll(groupedRoles[GroupRole.ADMIN]!!)
+            memberList += groupedRoles[GroupRole.ADMIN]!!
         }
 
         if (groupedRoles.containsKey(GroupRole.MODERATOR)) {
-            memberList.addAll(groupedRoles[GroupRole.MODERATOR]!!)
+            memberList += groupedRoles[GroupRole.MODERATOR]!!
         }
 
         if (groupedRoles.containsKey(GroupRole.DEFAULT)) {
-            memberList.addAll(groupedRoles[GroupRole.DEFAULT]!!)
+            memberList += groupedRoles[GroupRole.DEFAULT]!!
         }
 
         val adapter = GroupMemberAdapter(memberList, this, this, kentaiClient)
         groupInfoMemberList.adapter = adapter
         groupInfoMemberList.layoutManager = LinearLayoutManager(this)
-        groupInfoMemberList.adapter.notifyDataSetChanged()
 
         groupInfoEditGroup.setOnClickListener {
             val dialogBuilder = AlertDialog.Builder(this@GroupInfoActivity)
@@ -246,6 +245,9 @@ class GroupInfoActivity : AppCompatActivity(), GroupMemberAdapter.ClickListener 
     private fun loadRoles() {
         val kentaiClient = applicationContext as KentaiClient
         val groupRoles = readGroupRoles(kentaiClient.dataBase, chatInfo.chatUUID)
+
+        memberList += groupRoles
+
         for (groupRole in groupRoles) {
             roleMap[groupRole.contact.userUUID] = groupRole.role
         }

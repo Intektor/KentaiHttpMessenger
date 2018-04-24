@@ -56,24 +56,15 @@
             android:name=".RegisterActivity"
             android:label="@string/title_activity_register"
             android:theme="@style/AppTheme" />
-        <activity
-            android:name=".AddContactActivity"
-            android:parentActivityName=".overview_activity.OverviewActivity" />
-        <activity
-            android:name=".NewChatUserActivity"
-            android:parentActivityName=".overview_activity.OverviewActivity" />
-        <activity
-            android:name=".ChatActivity"
-            android:launchMode="singleTop"
-            android:parentActivityName=".overview_activity.OverviewActivity" />
+        <activity android:name=".AddContactActivity" />
+        <activity android:name=".NewChatUserActivity" />
+        <activity android:name=".ChatActivity" />
         <activity
             android:name=".ContactInfoActivity"
-            android:label="@string/contact_info_label"
-            android:parentActivityName=".ChatActivity" />
+            android:label="@string/contact_info_label" />
         <activity
             android:name=".NewChatGroupActivity"
-            android:label="@string/new_chat_group_activity_label"
-            android:parentActivityName=".overview_activity.OverviewActivity" />
+            android:label="@string/new_chat_group_activity_label" />
 
         <receiver
             android:name=".kentai.firebase.DisplayNotificationReceiver"
@@ -110,19 +101,35 @@
             android:parentActivityName=".ChatActivity" />
         <activity
             android:name=".AddGroupMemberActivity"
-            android:label="@string/add_group_member_activity_label"
-            android:launchMode="singleTop"
-            android:parentActivityName=".group_info_activity.GroupInfoActivity" />
+            android:label="@string/add_group_member_activity_label" />
         <activity android:name=".ChatMessageInfoTwoPeopleActivity" />
         <activity
             android:name=".ShareReceiveActivity"
             android:label="@string/share_receive_label">
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
-
                 <category android:name="android.intent.category.DEFAULT" />
-
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="video/*" />
             </intent-filter>
         </activity>
 
@@ -137,14 +144,14 @@
         </provider>
 
         <activity android:name=".TransferScannerActivity" />
-        <activity
-            android:name=".SendMediaActivity" />
+        <activity android:name=".SendMediaActivity" />
         <activity
             android:name=".ViewMediaActivity"
             android:label="@string/view_media_label" />
         <activity
             android:name=".ViewIndividualMediaActivity"
-            android:label="@string/view_individual_media_label" />
+            android:label="@string/view_individual_media_label"
+            android:theme="@style/AppTheme.NoActionBar" />
         <activity
             android:name=".SettingsOverviewActivity"
             android:label="@string/settings_overview_label" />
@@ -152,7 +159,7 @@
         <activity
             android:name=".PickGalleryActivity"
             android:label="@string/pick_gallery_activity_label" />
-        <activity android:name=".PickGalleryFolderActivity"></activity>
+        <activity android:name=".PickGalleryFolderActivity" />
     </application>
 
 </manifest>

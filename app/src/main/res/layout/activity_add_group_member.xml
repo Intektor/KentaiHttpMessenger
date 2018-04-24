@@ -10,7 +10,7 @@
         android:id="@+id/addGroupMemberContactList"
         android:layout_width="368dp"
         android:layout_height="495dp"
-        tools:listitem="@layout/fragment_contact"
+        tools:listitem="@layout/contact_item"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 </android.support.constraint.ConstraintLayout>

@@ -24,6 +24,8 @@ class AddContactActivity : AppCompatActivity() {
         add_contact_add_button.setOnClickListener({
             attemptAddContact()
         })
+
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
     }
 
     private fun attemptAddContact() {
@@ -39,7 +41,11 @@ class AddContactActivity : AppCompatActivity() {
             return
         }
 
-        AddContactTask({ response -> attemptAddContactCallback(response.isValid, response.messageKey, response.userUUID) }, username.toString()).execute()
+        AddContactTask({ response ->
+            if (response != null) {
+                attemptAddContactCallback(response.isValid, response.messageKey, response.userUUID)
+            }
+        }, username.toString()).execute()
     }
 
     private fun attemptAddContactCallback(isValid: Boolean, messageKey: RSAPublicKey?, userUUID: UUID) {
@@ -63,17 +69,26 @@ class AddContactActivity : AppCompatActivity() {
         addContact(userUUID, add_contact_username_field.text.toString(), kentaiClient.dataBase, key)
     }
 
-    private class AddContactTask(val callback: (AddContactResponse) -> (Unit), val username: String) : AsyncTask<Unit, Unit, AddContactResponse>() {
-        override fun doInBackground(vararg p0: Unit?): AddContactResponse {
-            val gson = genGson()
+    private class AddContactTask(val callback: (AddContactResponse?) -> (Unit), val username: String) : AsyncTask<Unit, Unit, AddContactResponse?>() {
+        override fun doInBackground(vararg p0: Unit?): AddContactResponse? {
+            return try {
+                val gson = genGson()
 
-            val res = httpPost(gson.toJson(AddContactRequest(username)), AddContactRequest.TARGET)
+                val res = httpPost(gson.toJson(AddContactRequest(username)), AddContactRequest.TARGET)
 
-            return gson.fromJson(res, AddContactResponse::class.java)
+                gson.fromJson(res, AddContactResponse::class.java)
+            } catch (t: Throwable) {
+                null
+            }
         }
 
-        override fun onPostExecute(result: AddContactResponse) {
+        override fun onPostExecute(result: AddContactResponse?) {
             callback.invoke(result)
         }
+    }
+
+    override fun onSupportNavigateUp(): Boolean {
+        finish()
+        return true
     }
 }

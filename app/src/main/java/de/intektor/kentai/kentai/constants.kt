@@ -11,6 +11,8 @@ const val ACTION_NOTIFICATION_REPLY = "de.intektor.kentai.notification.reply"
 const val KEY_NOTIFICATION_ID = "de.intektor.kentai.notification.id"
 const val KEY_NOTIFICATION_REPLY = "de.intektor.kentai.notification.reply.key"
 
+const val KEY_NOTIFICATION_GROUP_ID = 0
+
 //Constants related to SendMediaActivity
 const val KEY_CONTACT = "de.intektor.kentai.contact.key"
 const val KEY_MEDIA_TYPE = "de.intektor.kentai.media_type.key"
@@ -27,6 +29,9 @@ const val KEY_MEDIA_DATA = "de.intektor.kentai.media_data.key"
 
 const val ACTION_USER_VIEW_CHAT = "de.intektor.kentai.user_view_chat.action"
 const val KEY_CHAT_UUID = "de.intektor.kentai.chat_uuid.key"
+const val KEY_CHAT_NAME = "de.intektor.kentai.chat_name.key"
+const val KEY_CHAT_PARTICIPANTS = "de.intektor.kentai.chat_participants.key"
+const val KEY_CHAT_TYPE = "de.intektor.kentai.chat_type.key"
 const val KEY_USER_VIEW = "de.intektor.kentai.user_view_chat.user_view.key"
 
 const val ACTION_DIRECT_CONNECTION_CONNECTED = "de.intektor.kentai.direct_connection_reconnected.action"
@@ -39,6 +44,8 @@ const val KEY_PICTURE = "de.intektor.kentai.picture.key"
 
 const val NOTIFICATION_CHANNEL_NEW_MESSAGES = "de.intektor.kentai.notifications.new_messages.channel"
 const val NOTIFICATION_CHANNEL_UPLOAD_PROFILE_PICTURE = "de.intektor.kentai.notifications.upload_profile_picture.channel"
+const val NOTIFICATION_CHANNEL_UPLOAD_MEDIA = "de.intektor.kentai.notifications.upload_media.channel"
+const val NOTIFICATION_CHANNEL_DOWNLOAD_MEDIA = "de.intektor.kentai.notification.download_media.channel"
 
 const val NOTIFICATION_ID_UPLOAD_PROFILE_PICTURE = 1
 
@@ -46,3 +53,15 @@ const val ACTION_DOWNLOAD_PROFILE_PICTURE = "de.intektor.kentai.download_profile
 const val KEY_PROFILE_PICTURE_TYPE = "de.intektor.kentai.download_profile_picture.type.key"
 
 const val ACTION_PROFILE_PICTURE_UPDATED = "de.intektor.kentai.profile_picture_updated.action"
+const val ACTION_PROFILE_PICTURE_UPLOADED = "de.intektor.kentai.profile_picture_uploaded.action"
+
+const val ACTION_DOWNLOAD_NINE_GAG = "de.intektor.kentai.download_nine_gag.action"
+const val KEY_NINE_GAG_ID = "de.intektor.kentai.download_nine_gag.gag_id.key"
+const val KEY_NINE_GAG_UUID = "de.intektor.kentai.download_nine_gag.gag_uuid.key"
+
+const val ACTION_CANCEL_DOWNLOAD_MEDIA = "de.intektor.kentai.cancel_download_media.action"
+
+const val KEY_PROGRESS = "de.intektor.kentai.progress.key"
+const val KEY_SUCCESSFUL = "de.intektor.kentai.successful.key"
+
+const val ACTION_UPLOAD_REFERENCE = "de.intektor.kentai.upload_reference.action"

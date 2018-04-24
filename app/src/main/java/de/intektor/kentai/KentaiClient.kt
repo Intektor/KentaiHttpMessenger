@@ -14,10 +14,7 @@ import android.graphics.Typeface
 import android.net.ConnectivityManager
 import android.net.NetworkInfo
 import android.net.Uri
-import android.os.AsyncTask
-import android.os.Build
-import android.os.Bundle
-import android.os.Parcelable
+import android.os.*
 import android.support.v4.app.NotificationManagerCompat
 import android.support.v7.app.AlertDialog
 import android.text.Spannable
@@ -82,7 +79,7 @@ class KentaiClient : Application() {
 
     val currentLoadingTable = mutableMapOf<UUID, Double>()
 
-    private val interestedUsers = mutableListOf<UUID>()
+    private val interestedUsers = mutableSetOf<UUID>()
 
     override fun onCreate() {
         super.onCreate()
@@ -109,6 +106,12 @@ class KentaiClient : Application() {
 
             createNotificationChannel(R.string.notification_channel_upload_profile_picture_name, R.string.notification_channel_upload_profile_picture_description,
                     NotificationManagerCompat.IMPORTANCE_LOW, NOTIFICATION_CHANNEL_UPLOAD_PROFILE_PICTURE, notificationManager)
+
+            createNotificationChannel(R.string.notification_channel_upload_media_name, R.string.notification_channel_upload_media_description,
+                    NotificationManagerCompat.IMPORTANCE_LOW, NOTIFICATION_CHANNEL_UPLOAD_MEDIA, notificationManager)
+
+            createNotificationChannel(R.string.notification_channel_download_media_name, R.string.notification_channel_download_media_description,
+                    NotificationManagerCompat.IMPORTANCE_LOW, NOTIFICATION_CHANNEL_DOWNLOAD_MEDIA, notificationManager)
         }
 
         val chatNotificationBroadcastReceiver: BroadcastReceiver = object : BroadcastReceiver() {
@@ -269,10 +272,13 @@ class KentaiClient : Application() {
                     filter = IntentFilter("de.intektor.kentai.typing")
                     this@KentaiClient.registerReceiver(typingBroadcastReceiver, filter)
 
-                    //Establish a TCP connection to the kentai server
-                    launchTCPConnection()
+                    if (isScreenOn()) {
+                        //Establish a TCP connection to the kentai server
+                        directConnectionManager.wantConnection = true
+                        launchTCPConnection()
 
-                    CheckForNewVersionTask().execute(this@KentaiClient)
+                        CheckForNewVersionTask().execute(this@KentaiClient)
+                    }
                 }
                 activitiesStarted++
             }
@@ -286,13 +292,13 @@ class KentaiClient : Application() {
             override fun onActivityStopped(activity: Activity?) {
                 activitiesStarted--
                 if (activitiesStarted == 0) {
-//                    this@KentaiClient.unregisterReceiver(chatNotificationBroadcastReceiver)
                     this@KentaiClient.unregisterReceiver(updateMessageStatusBroadcastReceiver)
                     this@KentaiClient.unregisterReceiver(groupInviteBroadcastReceiver)
                     this@KentaiClient.unregisterReceiver(groupModificationBroadcastReceiver)
                     this@KentaiClient.unregisterReceiver(typingBroadcastReceiver)
 
                     //Exit the TCP connection to the kentai server
+                    directConnectionManager.wantConnection = false
                     exitTCPConnection()
                     currentActivity = null
                 }
@@ -331,7 +337,7 @@ class KentaiClient : Application() {
 
                     val userChange = UserChange(userUUID, status, time)
 
-                    userStatusMap.put(userUUID, userChange)
+                    userStatusMap[userUUID] = userChange
 
                     if (currentActivity is ChatActivity) {
                         currentActivity.userStatusChange(userChange)
@@ -348,7 +354,7 @@ class KentaiClient : Application() {
                 val info = extras.getParcelable<Parcelable>("networkInfo") as NetworkInfo
                 val state = info.state
 
-                if (state == NetworkInfo.State.CONNECTED) {
+                if (state == NetworkInfo.State.CONNECTED && !directConnectionManager.isConnected && isScreenOn() && activitiesStarted > 0) {
                     launchTCPConnection()
                 }
             }
@@ -367,11 +373,15 @@ class KentaiClient : Application() {
     }
 
     fun launchTCPConnection() {
-        directConnectionManager.launchConnection(dataBase)
+        if (internalFile("username.info", this).exists()) {
+            directConnectionManager.launchConnection(dataBase)
+        }
     }
 
     fun exitTCPConnection() {
-        directConnectionManager.exitConnection()
+        if (internalFile("username.info", this).exists()) {
+            directConnectionManager.exitConnection()
+        }
     }
 
     class CheckForNewVersionTask : AsyncTask<KentaiClient, Unit, Pair<CurrentVersionResponse?, KentaiClient>>() {
@@ -467,5 +477,10 @@ class KentaiClient : Application() {
         }
     }
 
-    fun getCurrentInterestedUsers(): List<UUID> = interestedUsers
+    fun getCurrentInterestedUsers(): Set<UUID> = interestedUsers
+
+    fun isScreenOn(): Boolean {
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        return powerManager.isScreenOn
+    }
 }

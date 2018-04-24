@@ -7,7 +7,7 @@ import java.io.DataOutputStream
  * @author Intektor
  */
 interface IAdditionalInfo {
-    abstract fun writeToStream(output: DataOutputStream)
+    fun writeToStream(output: DataOutputStream)
 
-    abstract fun readFromStream(input: DataInputStream)
+    fun readFromStream(input: DataInputStream)
 }

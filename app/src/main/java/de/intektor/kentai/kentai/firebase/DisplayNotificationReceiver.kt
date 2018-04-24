@@ -17,10 +17,9 @@ import java.util.*
 class DisplayNotificationReceiver : BroadcastReceiver() {
 
     companion object {
-        val NOTIFICATION_FILE: String = "de.intektor.kentai.messenger.NOTIFICATION_FILE_KEY"
-        val GROUP_KEY = "Kentai"
-        val NOTIFICATION_ID = "de.intektor.kentai.NOTIFICATION_ID"
-        val SUMMARY_ID = 0
+        const val NOTIFICATION_FILE: String = "de.intektor.kentai.messenger.NOTIFICATION_FILE_KEY"
+        const val GROUP_KEY = "Kentai"
+        const val NOTIFICATION_ID = "de.intektor.kentai.NOTIFICATION_ID"
     }
 
     @RequiresApi(Build.VERSION_CODES.N)

@@ -4,12 +4,14 @@ import android.support.v7.widget.RecyclerView
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.ViewGroup
+import android.widget.Toast
 import de.intektor.kentai.ChatActivity
 import de.intektor.kentai.R
 import de.intektor.kentai.kentai.chat.ChatInfo
 import de.intektor.kentai.kentai.chat.ChatMessageWrapper
 import de.intektor.kentai.kentai.chat.ReferenceHolder
 import de.intektor.kentai.kentai.contacts.Contact
+import de.intektor.kentai.kentai.nine_gag.isNineGagMessage
 import de.intektor.kentai_http_common.chat.ChatMessageRegistry
 import de.intektor.kentai_http_common.chat.ChatMessageVideo
 import de.intektor.kentai_http_common.chat.MessageType
@@ -45,12 +47,7 @@ class ChatAdapter(val componentList: MutableList<Any>, val chatInfo: ChatInfo, v
         val component = componentList[position]
         return when (component) {
             is ChatMessageWrapper -> when (MessageType.values()[ChatMessageRegistry.getID(component.message.javaClass)]) {
-                MessageType.TEXT_MESSAGE -> {
-                    if (component.message.text.contains("https://9gag.com/gag/")) {
-                        return NINE_GAG_VIEW_ID
-                    }
-                    TEXT_MESSAGE_ID
-                }
+                MessageType.TEXT_MESSAGE -> TEXT_MESSAGE_ID
                 MessageType.GROUP_INVITE -> GROUP_INVITE_ID
                 MessageType.GROUP_MODIFICATION -> {
                     val message = component.message
@@ -82,6 +79,11 @@ class ChatAdapter(val componentList: MutableList<Any>, val chatInfo: ChatInfo, v
                             VIDEO_MESSAGE
                         }
                     }
+                    MessageType.TEXT_MESSAGE -> {
+                        if (isNineGagMessage(component.chatMessageWrapper.message.text)) {
+                            return NINE_GAG_VIEW_ID
+                        } else TODO()
+                    }
                     else -> TODO()
                 }
             }
@@ -91,26 +93,30 @@ class ChatAdapter(val componentList: MutableList<Any>, val chatInfo: ChatInfo, v
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AbstractViewHolder =
             when (viewType) {
-                TEXT_MESSAGE_ID -> TextMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chatbubble, parent, false), this)
-                GROUP_INVITE_ID -> GroupInviteViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_message_group_invite, parent, false), this)
+                TEXT_MESSAGE_ID -> TextMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_message_text, parent, false), this)
+                GROUP_INVITE_ID -> TextMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_message_text, parent, false), this)
                 USERNAME_CHAT_INFO -> UsernameChatInfoViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_sender_info, parent, false), this)
                 TIME_STATUS_INFO -> TimeStatusViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_time_info, parent, false), this)
-                GROUP_MODIFICATION_CHANGE_NAME -> TextMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chatbubble, parent, false), this)
-                GROUP_MODIFICATION_CHANGE_ROLE -> TextMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chatbubble, parent, false), this)
-                GROUP_MODIFICATION_CHANGE_KICK_USER -> TextMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chatbubble, parent, false), this)
-                GROUP_MODIFICATION_CHANGE_ADD_USER -> TextMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chatbubble, parent, false), this)
+                GROUP_MODIFICATION_CHANGE_NAME -> TextMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_message_text, parent, false), this)
+                GROUP_MODIFICATION_CHANGE_ROLE -> TextMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_message_text, parent, false), this)
+                GROUP_MODIFICATION_CHANGE_KICK_USER -> TextMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_message_text, parent, false), this)
+                GROUP_MODIFICATION_CHANGE_ADD_USER -> TextMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_message_text, parent, false), this)
                 VOICE_MESSAGE -> VoiceMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_message_voice_message, parent, false), this)
                 IMAGE_MESSAGE -> ImageMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_message_image, parent, false), this)
                 VIDEO_MESSAGE -> VideoMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_message_video, parent, false), this)
-                NINE_GAG_VIEW_ID -> NineGagViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.nine_gag_bubble, parent, false), this)
                 GIF_MESSAGE -> GifMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_message_gif, parent, false), this)
+                NINE_GAG_VIEW_ID -> NineGagViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.nine_gag_bubble, parent, false), this)
                 else -> throw RuntimeException()
             }
 
     override fun onBindViewHolder(holder: AbstractViewHolder, position: Int) {
-        val wrapper: Any = componentList[position]
-        holder.itemView.tag = position
-        holder.bind(wrapper)
+        try {
+            val wrapper: Any = componentList[position]
+            holder.itemView.tag = position
+            holder.bind(wrapper)
+        } catch (t: Throwable) {
+            Toast.makeText(activity, t.localizedMessage, Toast.LENGTH_SHORT).show()
+        }
     }
 
     override fun getItemCount(): Int = componentList.size

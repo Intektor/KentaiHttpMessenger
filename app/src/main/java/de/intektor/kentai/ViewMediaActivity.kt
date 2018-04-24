@@ -25,6 +25,7 @@ class ViewMediaActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         setContentView(R.layout.activity_view_media)
 
         val chatInfo = intent.getParcelableExtra<ChatInfo>(KEY_CHAT_INFO)

@@ -13,17 +13,16 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import com.google.common.hash.Hashing
+import com.squareup.picasso.MemoryPolicy
+import com.squareup.picasso.Picasso
 import de.intektor.kentai.fragment.ChatListViewAdapter
-import de.intektor.kentai.kentai.KEY_CHAT_INFO
-import de.intektor.kentai.kentai.chat.*
-import de.intektor.kentai.kentai.createSmallPreviewImage
-import de.intektor.kentai.kentai.getRealImagePath
-import de.intektor.kentai.kentai.getRealVideoPath
+import de.intektor.kentai.kentai.*
+import de.intektor.kentai.kentai.chat.ChatMessageWrapper
+import de.intektor.kentai.kentai.chat.PendingMessage
+import de.intektor.kentai.kentai.chat.readChats
+import de.intektor.kentai.kentai.chat.sendMessageToServer
 import de.intektor.kentai.kentai.references.*
-import de.intektor.kentai_http_common.chat.ChatMessageImage
-import de.intektor.kentai_http_common.chat.ChatMessageText
-import de.intektor.kentai_http_common.chat.ChatMessageVideo
-import de.intektor.kentai_http_common.chat.MessageStatus
+import de.intektor.kentai_http_common.chat.*
 import de.intektor.kentai_http_common.reference.FileType
 import kotlinx.android.synthetic.main.activity_share_receive.*
 import java.io.File
@@ -268,8 +267,17 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
 
         override fun onBindViewHolder(holder: SelectedViewHolder, position: Int) {
             val item = selectedList[position]
-            //TODO
-//            Picasso.with(holder.image.context).load(item.chatPicturePath).placeholder(R.drawable.ic_account_circle_white_24dp).into(holder.image)
+
+            val kentaiClient = holder.itemView.context.applicationContext as KentaiClient
+
+            if (item.chatInfo.chatType == ChatType.TWO_PEOPLE) {
+                val userUUID = item.chatInfo.participants.first { it.receiverUUID != kentaiClient.userUUID }.receiverUUID
+                Picasso.with(holder.itemView.context)
+                        .load(getProfilePicture(userUUID, holder.itemView.context))
+                        .memoryPolicy(MemoryPolicy.NO_CACHE)
+                        .placeholder(R.drawable.ic_account_circle_white_24dp)
+                        .into(holder.image)
+            }
 
             holder.itemView.setOnClickListener {
                 onClick.invoke(item)

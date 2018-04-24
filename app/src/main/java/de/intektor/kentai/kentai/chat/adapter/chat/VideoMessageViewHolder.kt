@@ -6,7 +6,10 @@ import android.net.Uri
 import android.provider.MediaStore
 import android.view.Gravity
 import android.view.View
-import android.widget.*
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.ProgressBar
+import android.widget.TextView
 import com.squareup.picasso.Picasso
 import de.intektor.kentai.KentaiClient
 import de.intektor.kentai.R
@@ -15,7 +18,7 @@ import de.intektor.kentai.kentai.KEY_FILE_URI
 import de.intektor.kentai.kentai.KEY_MEDIA_TYPE
 import de.intektor.kentai.kentai.KEY_MESSAGE_UUID
 import de.intektor.kentai.kentai.chat.ReferenceHolder
-import de.intektor.kentai.kentai.references.*
+import de.intektor.kentai.kentai.references.getReferenceFile
 import de.intektor.kentai_http_common.chat.ChatMessageVideo
 import de.intektor.kentai_http_common.reference.FileType
 
@@ -23,7 +26,7 @@ class VideoMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessage
 
     private val imageView = itemView.findViewById<ImageView>(R.id.chatMessageVideoView)
     private val loadBar = itemView.findViewById<ProgressBar>(R.id.chatMessageVideoViewLoadBar)
-    private val loadButton = itemView.findViewById<ImageButton>(R.id.chatMessageVideoViewLoadButton)
+    private val loadButton: ImageView = itemView.findViewById(R.id.chatMessageVideoPlayButton)
     private val text = itemView.findViewById<TextView>(R.id.chatMessageVideoViewText)
 
     override fun setComponent(component: Any) {
@@ -64,7 +67,7 @@ class VideoMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessage
         }
 
         if (!component.isFinished) {
-            loadButton.setImageResource(android.R.drawable.ic_menu_upload)
+            loadButton.setImageResource(if (wrapper.client) R.drawable.ic_file_upload_white_24dp else R.drawable.ic_file_download_white_24dp)
         } else {
             val imageFileUri = if (component.isFinished) Uri.fromFile(referenceFile) else null
             Picasso.with(itemView.context).load(imageFileUri).into(imageView)
@@ -81,9 +84,6 @@ class VideoMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessage
             if (component.isFinished) {
                 val b = ThumbnailUtils.createVideoThumbnail(referenceFile.path, MediaStore.Images.Thumbnails.MINI_KIND)
                 imageView.setImageBitmap(b)
-            } else {
-                imageView.setImageResource(android.R.drawable.ic_menu_upload)
-
             }
         }
 

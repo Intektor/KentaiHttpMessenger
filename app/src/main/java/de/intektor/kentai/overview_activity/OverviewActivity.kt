@@ -27,13 +27,11 @@ import com.google.api.services.drive.Drive
 import com.google.firebase.iid.FirebaseInstanceId
 import de.intektor.kentai.*
 import de.intektor.kentai.fragment.ChatListViewAdapter
-import de.intektor.kentai.fragment.ContactViewAdapter
 import de.intektor.kentai.kentai.Kentai
 import de.intektor.kentai.kentai.android.backup.BackupService
 import de.intektor.kentai.kentai.android.backup.BackupService.Companion.PREF_ACCOUNT_NAME
 import de.intektor.kentai.kentai.android.backup.installChatBackup
 import de.intektor.kentai.kentai.chat.ChatMessageWrapper
-import de.intektor.kentai.kentai.contacts.Contact
 import de.intektor.kentai.kentai.httpPost
 import de.intektor.kentai_http_common.chat.MessageStatus
 import de.intektor.kentai_http_common.client_to_server.UpdateFBCMTokenRequest
@@ -48,7 +46,7 @@ import java.io.FileOutputStream
 import java.util.*
 import kotlin.concurrent.thread
 
-class OverviewActivity : AppCompatActivity(), FragmentContactsOverview.ListElementClickListener {
+class OverviewActivity : AppCompatActivity() {
 
     private var mSectionsPagerAdapter: SectionsPagerAdapter? = null
 
@@ -195,9 +193,6 @@ class OverviewActivity : AppCompatActivity(), FragmentContactsOverview.ListEleme
             }
             return null
         }
-    }
-
-    override fun click(item: Contact, view: ContactViewAdapter.ViewHolder) {
     }
 
     private fun createAndUploadBackup() {

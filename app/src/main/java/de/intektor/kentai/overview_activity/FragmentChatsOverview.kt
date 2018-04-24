@@ -36,7 +36,6 @@ class FragmentChatsOverview : Fragment() {
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         chatList = inflater.inflate(R.layout.fragment_chat_list, container, false) as RecyclerView
 
-
         val context = chatList.context
         chatList.layoutManager = LinearLayoutManager(context)
 
@@ -56,10 +55,6 @@ class FragmentChatsOverview : Fragment() {
     fun addChat(chatItem: ChatItem) {
         shownChatList.add(chatItem)
         chatMap[chatItem.chatInfo.chatUUID] = chatItem
-    }
-
-    interface ClickListener {
-        fun onClickItem(item: ChatItem)
     }
 
     fun updateList() {

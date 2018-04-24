@@ -1,11 +1,16 @@
 package de.intektor.kentai
 
 import android.app.Activity
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.provider.MediaStore
 import android.support.v7.app.AppCompatActivity
+import com.squareup.picasso.MemoryPolicy
+import com.squareup.picasso.Picasso
 import com.theartofdev.edmodo.cropper.CropImage
 import de.intektor.kentai.kentai.*
 import de.intektor.kentai.kentai.firebase.SendService
@@ -15,8 +20,9 @@ class SettingsOverviewActivity : AppCompatActivity() {
 
     companion object {
         private const val ACTION_PICK_PROFILE_PICTURE = 0
-        private const val ACTION_CROP_PROFILE_PICTURE = 1
     }
+
+    lateinit var receiverUploadedProfilePicture: BroadcastReceiver
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,6 +44,15 @@ class SettingsOverviewActivity : AppCompatActivity() {
         }
 
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
+
+        receiverUploadedProfilePicture = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent?) {
+                Picasso.with(context)
+                        .load(getProfilePicture(kentaiClient.userUUID, context))
+                        .memoryPolicy(MemoryPolicy.NO_CACHE)
+                        .into(settingsOverviewActivityProfilePicture)
+            }
+        }
     }
 
     private fun changeProfilePicture() {
@@ -69,6 +84,17 @@ class SettingsOverviewActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        registerReceiver(receiverUploadedProfilePicture, IntentFilter(ACTION_PROFILE_PICTURE_UPLOADED))
+    }
+
+    override fun onPause() {
+        super.onPause()
+
+        unregisterReceiver(receiverUploadedProfilePicture)
     }
 
     override fun onSupportNavigateUp(): Boolean {

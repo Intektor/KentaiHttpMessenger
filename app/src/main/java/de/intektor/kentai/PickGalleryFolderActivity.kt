@@ -48,7 +48,7 @@ class PickGalleryFolderActivity : AppCompatActivity() {
         val grouped = folder.listFiles().asSequence().map { GalleryMediaFile(it.lastModified(), it) }.groupBy {
             calendar.timeInMillis = it.time
             calendar.get(Calendar.MONTH) to calendar.get(Calendar.YEAR)
-        }.map { GalleryMediaFileGroup(Date(it.value.first().time), it.value) }
+        }.map { GalleryMediaFileGroup(Date(it.value.first().time), it.value) }.reversed()
 
         val clickCallback: (GalleryMediaFile, MediaGroupAdapter.GroupedMediaFile<GalleryMediaFile>, MediaGroupAdapter.MediaViewHolder) -> Unit = { item, parent, holder ->
             if (!selectingMore) {

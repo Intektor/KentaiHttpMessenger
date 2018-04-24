@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 import de.intektor.kentai.R
 import de.intektor.kentai.kentai.isVideo
 import de.intektor.kentai.kentai.loadThumbnail
@@ -55,19 +56,23 @@ class MediaGroupAdapter<T : MediaGroupAdapter.MediaFile, K : MediaGroupAdapter.G
 
         override fun onBindViewHolder(holder: MediaViewHolder, position: Int) {
             val item = list[position]
-            loadThumbnail(item.file, holder.itemView.context, holder.image)
+            try {
+                loadThumbnail(item.file, holder.itemView.context, holder.image)
 
-            holder.videoOverlay.visibility = if (isVideo(item.file)) View.VISIBLE else View.GONE
+                holder.videoOverlay.visibility = if (isVideo(item.file)) View.VISIBLE else View.GONE
 
-            holder.setSelected(item.selected)
+                holder.setSelected(item.selected)
 
-            holder.image.setOnClickListener {
-                clickCallback.invoke(item, parentItem, holder)
-            }
+                holder.image.setOnClickListener {
+                    clickCallback.invoke(item, parentItem, holder)
+                }
 
-            holder.image.setOnLongClickListener {
-                longClickCallback.invoke(item, parentItem, holder)
-                return@setOnLongClickListener true
+                holder.image.setOnLongClickListener {
+                    longClickCallback.invoke(item, parentItem, holder)
+                    return@setOnLongClickListener true
+                }
+            } catch (t: Throwable) {
+                Toast.makeText(holder.itemView.context, t.localizedMessage, Toast.LENGTH_SHORT).show()
             }
         }
     }

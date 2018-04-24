@@ -14,10 +14,15 @@ fun getProfilePicture(userUUID: UUID, context: Context, type: ProfilePictureType
         ProfilePictureType.SMALL -> File(File(context.filesDir, PROFILE_PICTURE_FOLDER), "${userUUID}_small")
         ProfilePictureType.NORMAL -> File(File(context.filesDir, PROFILE_PICTURE_FOLDER), "$userUUID")
         null -> {
-            val normal = getProfilePicture(userUUID, context, ProfilePictureType.NORMAL)
-            if (!normal.exists()) getProfilePicture(userUUID, context, ProfilePictureType.SMALL) else normal
+            val searchedType = getProfilePictureType(userUUID, context) ?: ProfilePictureType.SMALL
+            getProfilePicture(userUUID, context, searchedType)
         }
     }
+}
+
+fun getProfilePictureType(userUUID: UUID, context: Context): ProfilePictureType? {
+    val normal = getProfilePicture(userUUID, context, ProfilePictureType.NORMAL)
+    return if (!normal.exists()) (if (getProfilePicture(userUUID, context, ProfilePictureType.SMALL).exists()) ProfilePictureType.SMALL else null) else ProfilePictureType.NORMAL
 }
 
 fun hasProfilePicture(userUUID: UUID, context: Context): Boolean = getProfilePicture(userUUID, context).exists()

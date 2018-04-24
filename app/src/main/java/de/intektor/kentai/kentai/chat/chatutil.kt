@@ -26,7 +26,6 @@ import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.security.Key
 import java.security.interfaces.RSAPublicKey
-import java.sql.SQLInvalidAuthorizationSpecException
 import java.util.*
 import kotlin.collections.ArrayList
 

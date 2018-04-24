@@ -87,7 +87,7 @@ class VoiceMessageViewHolder(itemView: View, chatAdapter: ChatAdapter) : ChatMes
             }
         }
 
-        timeDisplay.text = "${convertSeconds(0)}-${convertSeconds(message.durationSeconds.toInt())}"
+        timeDisplay.text = "${convertSeconds(component.playProgress / 1000)}-${convertSeconds(message.durationSeconds.toInt())}"
 
         playButton.setOnClickListener {
             if (!component.isInternetInProgress && !component.isFinished) {

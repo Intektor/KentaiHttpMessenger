@@ -67,10 +67,12 @@ class GifMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessageVi
 
             if (isWebView) {
                 val movie = Movie.decodeFile(referenceFile.path)
-                val bitmap = Bitmap.createBitmap(movie.width(), movie.height(), Bitmap.Config.RGB_565)
-                val canvas = Canvas(bitmap)
-                movie.draw(canvas, 0f, 0f)
-                thumbnail.setImageBitmap(bitmap)
+                if (movie != null) {
+                    val bitmap = Bitmap.createBitmap(movie.width(), movie.height(), Bitmap.Config.RGB_565)
+                    val canvas = Canvas(bitmap)
+                    movie.draw(canvas, 0f, 0f)
+                    thumbnail.setImageBitmap(bitmap)
+                }
             } else {
                 thumbnail.setImageBitmap(ThumbnailUtils.createVideoThumbnail(referenceFile.path, MediaStore.Images.Thumbnails.MINI_KIND))
             }

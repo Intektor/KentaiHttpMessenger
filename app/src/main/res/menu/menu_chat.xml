@@ -8,5 +8,10 @@
         android:id="@+id/chatActivityMenuAccount"
         android:icon="@drawable/account"
         android:title="@string/chat_activity_menu_profile"
-        app:showAsAction="always" />
+        app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/chatActivityNativeGallery"
+        android:title="@string/chat_activity_menu_native_gallery"
+        app:showAsAction="never"/>
 </menu>

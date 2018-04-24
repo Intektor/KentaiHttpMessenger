@@ -39,8 +39,8 @@ class PickGalleryActivity : AppCompatActivity(), SearchView.OnQueryTextListener 
                 Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES))
 
         totalList += folders.flatMap { it.listFiles().toList() }.filter { it.isDirectory }.filter { it.listFiles().any { isImage(it) || isVideo(it) || isGif(it) } && it.name != ".thumbnails" }.map { folder ->
-            val file = folder.listFiles().first { it.isFile }
-            GalleryFolder(file.path, folder.name, folder)
+            val file = folder.listFiles().lastOrNull { it.isFile }
+            GalleryFolder(file?.path ?: "", folder.name, folder)
         }
 
         currentList += totalList
@@ -103,8 +103,9 @@ class PickGalleryActivity : AppCompatActivity(), SearchView.OnQueryTextListener 
             val item = folders[position]
 
             holder.label.text = item.label
-            loadThumbnail(File(item.previewPath), activity, holder.image)
-
+            if (item.previewPath.isNotEmpty()) {
+                loadThumbnail(File(item.previewPath), activity, holder.image)
+            }
             val clickListener = View.OnClickListener {
                 val viewMediaFolderActivity = Intent(activity, PickGalleryFolderActivity::class.java)
                 viewMediaFolderActivity.putExtra(KEY_FOLDER, item.folder)

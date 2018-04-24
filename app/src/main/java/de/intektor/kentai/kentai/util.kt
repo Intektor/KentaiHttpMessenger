@@ -16,8 +16,8 @@ import java.util.concurrent.TimeUnit
 fun internalFile(name: String, context: Context) = File(context.filesDir.path + "/" + name)
 
 //TODO
-val address = "192.168.178.46"
-//val address = "intektor.de"
+//val address = "192.168.178.46"
+val address = "intektor.de"
 
 val httpAddress = "http://$address:17349/"
 

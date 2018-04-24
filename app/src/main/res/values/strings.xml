@@ -51,6 +51,8 @@
     <string name="notification_reply_label">REPLY</string>
     <string name="notification_group_invite">%1$s has added you to group %2$s</string>
     <string name="notification_group_modification_change_name">%1$s has changed the group name from %2$s to %3$s</string>
+    <string name="notification_amount_messages">%1$s: %2$d message(s)</string>
+    <string name="notification_amount_you_have_new_messages">"You have %1$d new messages!</string>
 
     <string name="notification_voice_message_group_name">%1$s-%2$s: 🎤 Voice message: (%3$ds)</string>
     <string name="notification_voice_message_name">%1$s: 🎤 Voice message: (%2$ds)</string>
@@ -70,6 +72,14 @@
     <string name="notification_upload_profile_picture_text_failed">Your profile picture has not been uploaded.</string>
     <string name="notification_upload_profile_picture_cancel_upload">Cancel upload</string>
 
+    <string name="notification_upload_media_title">Uploading Media</string>
+    <string name="notification_upload_media_description">Uploading…</string>
+    <string name="notification_upload_media_description_failed">Uploading failed.</string>
+
+    <string name="notification_download_media_title">Downloading Media</string>
+    <string name="notification_download_media_description">Downloading…</string>
+    <string name="notification_download_media_description_failed">Downloading failed.</string>
+    <string name="notification_download_media_description_cancel">Cancel download</string>
 
     <string name="notification_channel_new_messages_name">New messages</string>
     <string name="notification_channel_new_messages_description">This is the notification channel where you receive notifications about messages
@@ -77,6 +87,12 @@
 
     <string name="notification_channel_upload_profile_picture_name">Upload Profile Picture</string>
     <string name="notification_channel_upload_profile_picture_description">This is the notification channel where you get the notification upload a profile picture upload.</string>
+
+    <string name="notification_channel_upload_media_name">Upload media</string>
+    <string name="notification_channel_upload_media_description">This is the notification channel where you get a notification when media is being uploaded.</string>
+
+    <string name="notification_channel_download_media_name">Download media</string>
+    <string name="notification_channel_download_media_description">This is the notification channel where you get a notification when media is being downloaded.</string>
 
     <string name="chat_info">Chat Info</string>
 
@@ -94,7 +110,7 @@
 
     <!-- Strings related to chat -->
 
-    <string name="chat_group_invite_message">You were added to:</string>
+    <string name="chat_group_invite_message">You have been added to %1$s</string>
     <string name="title_activity_group_info">GroupInfoActivity</string>
     <string name="chat_group_change_name">%1$s changed the group name from %2$s to %3$s</string>
     <string name="chat_group_change_role">%1$s set %2$s\'s role from %3$s to %4$s</string>
@@ -120,8 +136,9 @@
     <string name="chat_user_typing_group">%1$s typing…</string>
     <string name="chat_activity_write_message">Enter message</string>
     <string name="chat_activity_nine_gag_video_title">%1$s (Video)</string>
-    <string name="chat_activity_voice_record">%1$d:%2$d</string>
+    <string name="chat_activity_voice_record">%1$02d:%2$02d</string>
     <string name="chat_activity_menu_profile">Chat Profile</string>
+    <string name="chat_activity_menu_native_gallery">Pick from native gallery</string>
 
     <!-- Strings related to group info -->
 

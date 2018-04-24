@@ -17,6 +17,7 @@ import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.StyleSpan
 import de.intektor.kentai.ChatActivity
+import de.intektor.kentai.KentaiClient
 import de.intektor.kentai.R
 import de.intektor.kentai.kentai.chat.ChatInfo
 import de.intektor.kentai.kentai.chat.ChatMessageWrapper
@@ -50,35 +51,39 @@ fun handleNotification(context: Context, chatUUID: UUID, chatType: ChatType, sen
     if (wrapper.message is ChatMessageStatusChange) return
     if (wrapper.message is ChatMessageTyping) return
 
-    if (Build.VERSION.SDK_INT < 24) {
-        handleNotificationUnderSDK24(context, chatUUID, chatType, senderName, chatName, senderUUID, messageMessageId, wrapper.message, additionalInfo)
+    handleNotification(context, chatUUID, chatType, senderName, chatName, senderUUID, messageMessageId, wrapper.message, additionalInfo)
+}
+
+fun handleNotification(context: Context, chatUUID: UUID, chatType: ChatType, senderName: String, chatName: String, senderUUID: UUID, messageType: Int, chatMessage: ChatMessage, additionalInfo: IAdditionalInfo) {
+    val kentaiClient = context.applicationContext as KentaiClient
+    val dataBase = kentaiClient.dataBase
+    //Receive all the previously saved notifications
+    val previousNotifications = readPreviousNotificationsFromDataBase(null, dataBase)
+
+    previousNotifications.add(NotificationHolder(chatUUID, senderUUID, senderName,
+            chatMessage.text.minString(0..59), messageType, chatType, chatName, System.currentTimeMillis(), additionalInfo))
+
+    //Save the current message to the database, because we might need it next time
+    writeNotificationToDatabase(chatUUID, senderUUID, chatMessage, additionalInfo, dataBase)
+
+    popNotifications(context, previousNotifications, context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+}
+
+fun popNotifications(context: Context, previousNotifications: List<NotificationHolder>, notificationManager: NotificationManager) {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+        popNotificationSDKUnderNougat(context, previousNotifications, notificationManager)
     } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-        handleNotificationSDK24(context, chatUUID, chatType, senderName, chatName, senderUUID, messageMessageId, wrapper.message, additionalInfo)
+        popNotificationSDK24(context, previousNotifications, notificationManager)
     }
 }
 
+fun popNotificationSDKUnderNougat(context: Context, list: List<NotificationHolder>, notificationManager: NotificationManager) {
+    val newMessage = list.lastOrNull() ?: return
 
-fun handleNotificationUnderSDK24(context: Context, chatUUID: UUID, chatType: ChatType, senderName: String, chatName: String, senderUUID: UUID, messageType: Int, chatMessage: ChatMessage, additionalInfo: IAdditionalInfo) {
-    val dBHelper = DbHelper(context)
-    dBHelper.readableDatabase.use { dataBase ->
-        //Receive all the previously saved notifications
-        val previousNotifications = readPreviousNotificationsFromDataBase(null, dataBase)
-
-        previousNotifications.add(NotificationHolder(chatUUID, senderUUID, senderName,
-                chatMessage.text.minString(0..59), messageType, chatType, chatName, System.currentTimeMillis(), additionalInfo))
-
-        //Save the current message to the database, because we might need it next time
-        writeNotificationToDatabase(chatUUID, senderUUID, chatMessage, additionalInfo, dataBase)
-
-        popNotificationSDKUnderNougat(context, previousNotifications, context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager, additionalInfo)
-    }
-}
-
-fun popNotificationSDKUnderNougat(context: Context, list: List<NotificationHolder>, notificationManager: NotificationManager, additionalInfo: IAdditionalInfo) {
     val builder = NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_NEW_MESSAGES)
     builder.setSmallIcon(R.drawable.message_icon)
-    builder.setContentTitle("You have ${list.size} new messages!")
-    builder.setContentText(format(list.last(), true, true, context, additionalInfo))
+    builder.setContentTitle(context.getString(R.string.notification_amount_you_have_new_messages, list.size))
+    builder.setContentText(format(newMessage, true, true, context, newMessage.additionalInfo))
 
     val split = list.groupBy { it.chatName }
 
@@ -88,11 +93,11 @@ fun popNotificationSDKUnderNougat(context: Context, list: List<NotificationHolde
         header.setSpan(StyleSpan(Typeface.BOLD), 0, "-$key-".length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
         inboxStyle.addLine(header)
         for (notification in value) {
-            inboxStyle.addLine(format(notification, false, notification.chatType == ChatType.GROUP, context, additionalInfo))
+            inboxStyle.addLine(format(notification, false, notification.chatType == ChatType.GROUP, context, notification.additionalInfo))
         }
     }
-    inboxStyle.setBigContentTitle(format(list.last(), true, list.last().chatType == ChatType.GROUP, context, additionalInfo))
-    inboxStyle.setSummaryText(format(list.last(), true, list.last().chatType == ChatType.GROUP, context, additionalInfo))
+    inboxStyle.setBigContentTitle(format(newMessage, true, newMessage.chatType == ChatType.GROUP, context, newMessage.additionalInfo))
+    inboxStyle.setSummaryText(format(newMessage, true, newMessage.chatType == ChatType.GROUP, context, newMessage.additionalInfo))
     builder.setStyle(inboxStyle)
     builder.setLights(Color.BLUE, 1, 1)
     builder.color = Color.BLUE
@@ -114,51 +119,47 @@ fun popNotificationSDKUnderNougat(context: Context, list: List<NotificationHolde
 }
 
 @RequiresApi(Build.VERSION_CODES.N)
-fun handleNotificationSDK24(context: Context, chatUUID: UUID, chatType: ChatType, senderName: String, chatName: String, senderUUID: UUID, messageType: Int, chatMessage: ChatMessage, additionalInfo: IAdditionalInfo) {
-    val newMessage = NotificationHolder(chatUUID, senderUUID, senderName, chatMessage.text.minString(0..59), messageType, chatType, chatName, System.currentTimeMillis(), additionalInfo)
-    val dBHelper = DbHelper(context)
-    dBHelper.writableDatabase.use { dataBase ->
+fun popNotificationSDK24(context: Context, list: List<NotificationHolder>, notificationManager: NotificationManager) {
+    val kentaiClient = context.applicationContext as KentaiClient
+    val dataBase = kentaiClient.dataBase
 
-        val previousNotifications = readPreviousNotificationsFromDataBase(chatUUID, dataBase)
+    val count = dataBase.rawQuery("SELECT COUNT(message_uuid) FROM notification_messages", null).use { query2 ->
+        if (query2.moveToNext()) {
+            query2.getInt(0)
+        } else 0
+    }
 
-        previousNotifications.add(newMessage)
+    val newMessage = list.lastOrNull() ?: return
 
-        //Save the current message to the database, because we might need it next time
-        writeNotificationToDatabase(chatUUID, senderUUID, chatMessage, additionalInfo, dataBase)
+    val sharedPreferences = context.getSharedPreferences(DisplayNotificationReceiver.NOTIFICATION_FILE, Context.MODE_PRIVATE)
 
-        var count = 0
+    var builder = NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_NEW_MESSAGES)
+    builder.setContentTitle(context.getString(R.string.notification_amount_you_have_new_messages, count))
+    builder.setContentText(format(newMessage, true, true, context, newMessage.additionalInfo))
+    builder.color = Color.WHITE
+    builder.setSmallIcon(R.drawable.message_icon)
+    builder.setAutoCancel(true)
+    builder.setGroupSummary(true)
+    builder.setGroup(DisplayNotificationReceiver.GROUP_KEY)
+    builder.setShowWhen(true)
+    builder.setWhen(newMessage.time)
 
-        dataBase.rawQuery("SELECT COUNT(message_uuid) FROM notification_messages WHERE chat_uuid = '$chatUUID'", null).use { query2 ->
-            if (query2.moveToNext()) {
-                count = query2.getInt(0)
-            }
-        }
+    notificationManager.notify(KEY_NOTIFICATION_GROUP_ID, builder.build())
 
-        val sharedPreferences = context.getSharedPreferences(DisplayNotificationReceiver.NOTIFICATION_FILE, Context.MODE_PRIVATE)
+    val groupedByChat = list.groupBy { it.chatUUID }
 
-        var builder = NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_NEW_MESSAGES)
-        builder.setContentTitle("You have $count new messages!")
-        builder.setContentText(format(newMessage, true, true, context, additionalInfo))
-        builder.color = Color.WHITE
-        builder.setSmallIcon(R.drawable.message_icon)
-        builder.setAutoCancel(true)
-        builder.setGroupSummary(true)
-        builder.setGroup(DisplayNotificationReceiver.GROUP_KEY)
-        builder.setShowWhen(true)
-        builder.setWhen(newMessage.time)
+    for ((chatUUID, notifications) in groupedByChat) {
+        val first = notifications.lastOrNull() ?: continue
 
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        notificationManager.notify(DisplayNotificationReceiver.SUMMARY_ID, builder.build())
-
-        builder = NotificationCompat.Builder(context, "new_messages")
+        builder = NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_NEW_MESSAGES)
         builder.setWhen(newMessage.time)
         builder.setShowWhen(true)
         builder.setGroup(DisplayNotificationReceiver.GROUP_KEY)
         builder.setSmallIcon(R.drawable.message_icon)
         builder.setAutoCancel(true)
-        builder.setContentTitle(chatName)
-        builder.setContentText(format(newMessage, false, chatType == ChatType.GROUP, context, additionalInfo))
-        builder.setSubText(chatName)
+        builder.setContentTitle(first.chatName)
+        builder.setContentText(format(newMessage, false, first.chatType == ChatType.GROUP, context, first.additionalInfo))
+        builder.setSubText(first.chatName)
         builder.priority = 1
         builder.setVibrate(longArrayOf(0L, 200L, 100L, 200L, 1000L))
 
@@ -166,10 +167,10 @@ fun handleNotificationSDK24(context: Context, chatUUID: UUID, chatType: ChatType
         builder.setSound(alarmSound)
 
         val inboxStyle = NotificationCompat.InboxStyle()
-        inboxStyle.setBigContentTitle("$chatName: $count messages")
-        inboxStyle.setSummaryText(format(newMessage, false, newMessage.chatType == ChatType.GROUP, context, additionalInfo))
-        for (notification in previousNotifications) {
-            inboxStyle.addLine(format(notification, false, notification.chatType == ChatType.GROUP, context, additionalInfo))
+        inboxStyle.setBigContentTitle(context.getString(R.string.notification_amount_messages, first.chatName, notifications.size))
+        inboxStyle.setSummaryText(format(newMessage, false, newMessage.chatType == ChatType.GROUP, context, first.additionalInfo))
+        for (notification in notifications) {
+            inboxStyle.addLine(format(notification, false, notification.chatType == ChatType.GROUP, context, notification.additionalInfo))
         }
         builder.setStyle(inboxStyle)
         builder.color = Color.WHITE
@@ -188,10 +189,8 @@ fun handleNotificationSDK24(context: Context, chatUUID: UUID, chatType: ChatType
 
         val intent = Intent(context, NotificationBroadcastReceiver::class.java)
         intent.action = ACTION_NOTIFICATION_REPLY
-        intent.putExtra("chatName", chatName)
-        intent.putExtra("chatType", chatType.ordinal)
-        intent.putExtra("chatUUID", chatUUID.toString())
-        intent.putExtra("participants", ArrayList(chatParticipants))
+        intent.putExtra(KEY_CHAT_UUID, chatUUID)
+        intent.putExtra(KEY_CHAT_PARTICIPANTS, ArrayList(chatParticipants))
         intent.putExtra(KEY_NOTIFICATION_ID, id)
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         val replyPendingIntent = PendingIntent.getBroadcast(context, 100, intent, PendingIntent.FLAG_UPDATE_CURRENT)
@@ -209,7 +208,7 @@ fun handleNotificationSDK24(context: Context, chatUUID: UUID, chatType: ChatType
 
         val resultIntent = Intent(context, ChatActivity::class.java)
 
-        resultIntent.putExtra(KEY_CHAT_INFO, ChatInfo(chatUUID, chatName, chatType, chatParticipants))
+        resultIntent.putExtra(KEY_CHAT_INFO, ChatInfo(chatUUID, first.chatName, first.chatType, chatParticipants))
 
         val stackBuilder = TaskStackBuilder.create(context)
         stackBuilder.addParentStack(ChatActivity::class.java)
@@ -225,15 +224,14 @@ fun handleNotificationSDK24(context: Context, chatUUID: UUID, chatType: ChatType
 }
 
 fun nextNotificationID(sharedPreferences: SharedPreferences): Int {
-    var id = sharedPreferences.getInt(DisplayNotificationReceiver.NOTIFICATION_ID, DisplayNotificationReceiver.SUMMARY_ID) + 1
-    while (id == DisplayNotificationReceiver.SUMMARY_ID) {
+    var id = sharedPreferences.getInt(DisplayNotificationReceiver.NOTIFICATION_ID, KEY_NOTIFICATION_GROUP_ID) + 1
+    while (id == KEY_NOTIFICATION_GROUP_ID) {
         id++
     }
     val editor = sharedPreferences.edit()
     editor.putInt(DisplayNotificationReceiver.NOTIFICATION_ID, id)
     editor.apply()
     return id
-
 }
 
 /**
@@ -361,4 +359,9 @@ fun readPreviousNotificationsFromDataBase(chatUUID: UUID?, dataBase: SQLiteDatab
     return previousNotifications
 }
 
-data class NotificationMessage(val message: ChatMessage, val senderName: String, val chatName: String, val chatType: ChatType, val previewText: String)
+fun clearPreviousNotificationOfChat(dataBase: SQLiteDatabase, chatUUID: UUID) {
+    dataBase.compileStatement("DELETE FROM notification_messages WHERE chat_uuid = ?").use { statement ->
+        statement.bindString(1, chatUUID.toString())
+        statement.execute()
+    }
+}

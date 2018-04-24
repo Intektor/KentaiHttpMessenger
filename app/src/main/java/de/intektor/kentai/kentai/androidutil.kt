@@ -12,6 +12,7 @@ import android.net.Uri
 import android.os.AsyncTask
 import android.provider.MediaStore
 import android.widget.ImageView
+import de.intektor.kentai.KentaiClient
 import de.intektor.kentai_http_common.reference.FileType
 import pub.devrel.easypermissions.EasyPermissions
 import java.io.ByteArrayOutputStream
@@ -21,6 +22,14 @@ import java.io.File
 fun checkStoragePermission(activity: Activity, actionKey: Int): Boolean {
     if (!EasyPermissions.hasPermissions(activity, Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE)) {
         EasyPermissions.requestPermissions(activity, "", actionKey, Manifest.permission.WRITE_EXTERNAL_STORAGE, Manifest.permission.READ_EXTERNAL_STORAGE)
+        return false
+    }
+    return true
+}
+
+fun checkCameraPermission(activity: Activity, actionKey: Int): Boolean {
+    if (!EasyPermissions.hasPermissions(activity, Manifest.permission.CAMERA)) {
+        EasyPermissions.requestPermissions(activity, "", actionKey, Manifest.permission.CAMERA)
         return false
     }
     return true
@@ -93,10 +102,10 @@ fun loadThumbnail(file: File, context: Context, imageView: ImageView) {
         } else {
 
         }
-    }, file, context.contentResolver)
+    }, file, context.contentResolver, context.applicationContext as KentaiClient).execute()
 }
 
-private class LoadThumbnail(private val callback: (Bitmap?) -> (Unit), val file: File, val contentResolver: ContentResolver) : AsyncTask<Unit, Unit, Bitmap?>() {
+private class LoadThumbnail(private val callback: (Bitmap?) -> (Unit), val file: File, val contentResolver: ContentResolver, val kentaiClient: KentaiClient) : AsyncTask<Unit, Unit, Bitmap?>() {
     override fun doInBackground(vararg args: Unit?): Bitmap? {
         val isImage = isImage(file)
 
@@ -104,22 +113,39 @@ private class LoadThumbnail(private val callback: (Bitmap?) -> (Unit), val file:
 
         val isVideo = isVideo(file)
 
-        if (isImage) {
-            MediaStore.Images.Thumbnails.queryMiniThumbnails(contentResolver, Uri.fromFile(file), MediaStore.Images.Thumbnails.MINI_KIND, null).use { cursor ->
-                if (cursor != null && cursor.count > 0) {
-                    val uri = cursor.getColumnIndex(MediaStore.Images.Thumbnails.DATA)
-                    return BitmapFactory.decodeFile(cursor.getString(uri))
-                }
-                return null
-            }
+        return if (isImage) {
+            val decoded = BitmapFactory.decodeFile(file.path) ?: return null
+            resize(decoded, 200, 200)
         } else if (isGif || isVideo) {
-            return ThumbnailUtils.createVideoThumbnail(file.path, MediaStore.Images.Thumbnails.MINI_KIND)
+            val image = ThumbnailUtils.createVideoThumbnail(file.path, MediaStore.Images.Thumbnails.MINI_KIND)
+                    ?: return null
+            resize(image, 200, 200)
         } else {
-            return null
+            null
         }
     }
 
     override fun onPostExecute(result: Bitmap?) {
         callback.invoke(result)
+    }
+}
+
+private fun resize(image: Bitmap, maxWidth: Int, maxHeight: Int): Bitmap {
+    if (maxHeight > 0 && maxWidth > 0) {
+        val width = image.width
+        val height = image.height
+        val ratioBitmap = width.toFloat() / height.toFloat()
+        val ratioMax = maxWidth.toFloat() / maxHeight.toFloat()
+
+        var finalWidth = maxWidth
+        var finalHeight = maxHeight
+        if (ratioMax > ratioBitmap) {
+            finalWidth = (maxHeight.toFloat() * ratioBitmap).toInt()
+        } else {
+            finalHeight = (maxWidth.toFloat() / ratioBitmap).toInt()
+        }
+        return Bitmap.createScaledBitmap(image, finalWidth, finalHeight, true)
+    } else {
+        return image
     }
 }

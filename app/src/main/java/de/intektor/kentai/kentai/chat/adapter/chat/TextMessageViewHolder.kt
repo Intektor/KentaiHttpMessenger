@@ -1,15 +1,31 @@
 package de.intektor.kentai.kentai.chat.adapter.chat
 
+import android.content.Intent
+import android.graphics.Color
+import android.graphics.Paint
+import android.os.Build
 import android.text.method.LinkMovementMethod
+import android.text.util.Linkify
 import android.view.Gravity
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
+import de.intektor.kentai.ChatActivity
 import de.intektor.kentai.R
+import de.intektor.kentai.kentai.KEY_CHAT_INFO
+import de.intektor.kentai.kentai.chat.ChatInfo
 import de.intektor.kentai.kentai.chat.ChatMessageWrapper
+import de.intektor.kentai.kentai.chat.ChatReceiver
+import de.intektor.kentai_http_common.chat.ChatMessageGroupInvite
+import de.intektor.kentai_http_common.chat.ChatType
 import de.intektor.kentai_http_common.chat.GroupRole
 import de.intektor.kentai_http_common.chat.group_modification.*
 import de.intektor.kentai_http_common.util.toUUID
+import android.graphics.Paint.UNDERLINE_TEXT_FLAG
+import android.text.SpannableString
+import android.text.style.ForegroundColorSpan
+import android.text.style.UnderlineSpan
+
 
 class TextMessageViewHolder(itemView: View, chatAdapter: ChatAdapter) : ChatMessageViewHolder(itemView, chatAdapter) {
 
@@ -34,6 +50,9 @@ class TextMessageViewHolder(itemView: View, chatAdapter: ChatAdapter) : ChatMess
             val paddingEnd = msg.paddingEnd
             msg.setPadding(paddingEnd, msg.paddingTop, paddingStart, msg.paddingBottom)
         }
+
+        msg.isClickable = false
+        msg.setOnClickListener {}
 
         if (message is ChatMessageGroupModification) {
             layout.setBackgroundResource(R.drawable.bubble_advanced)
@@ -71,6 +90,20 @@ class TextMessageViewHolder(itemView: View, chatAdapter: ChatAdapter) : ChatMess
                 is GroupModificationAddUser -> {
                     msg.text = itemView.context.getString(R.string.chat_group_change_add_user, chatAdapter.contactMap[modification.userUUID.toUUID()]!!.name, chatAdapter.contactMap[message.senderUUID]!!.name)
                 }
+            }
+        } else if (message is ChatMessageGroupInvite) {
+            msg.isClickable = true
+
+            val sS = SpannableString(itemView.context.getString(R.string.chat_group_invite_message, message.groupName))
+
+            sS.setSpan(UnderlineSpan(), 0, sS.length, 0)
+            sS.setSpan(ForegroundColorSpan(Color.CYAN), 0, sS.length, 0)
+
+            msg.text = sS
+            msg.setOnClickListener {
+                val i = Intent(itemView.context, ChatActivity::class.java)
+                i.putExtra(KEY_CHAT_INFO, ChatInfo(message.chatUUID.toUUID(), message.groupName, ChatType.GROUP, message.roleMap.keys.map { ChatReceiver(it, null, ChatReceiver.ReceiverType.USER) }))
+                itemView.context.startActivity(i)
             }
         }
     }
