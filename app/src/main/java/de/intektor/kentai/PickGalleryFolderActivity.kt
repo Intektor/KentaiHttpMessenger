@@ -6,14 +6,17 @@ import android.net.Uri
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import android.support.v7.view.ActionMode
-import android.support.v7.widget.LinearLayoutManager
+import android.support.v7.widget.GridLayoutManager
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
 import de.intektor.kentai.kentai.KEY_CHAT_INFO
 import de.intektor.kentai.kentai.KEY_FOLDER
 import de.intektor.kentai.kentai.KEY_MEDIA_URL
 import de.intektor.kentai.kentai.chat.ChatInfo
-import de.intektor.kentai.kentai.view.media.MediaGroupAdapter
+import de.intektor.kentai.kentai.chat.adapter.chat.HeaderItemDecoration
+import de.intektor.kentai.kentai.getSelectedTheme
+import de.intektor.kentai.kentai.view.media.MediaAdapter
 import kotlinx.android.synthetic.main.activity_pick_gallery_folder.*
 import java.io.File
 import java.util.*
@@ -21,7 +24,7 @@ import kotlin.collections.ArrayList
 
 class PickGalleryFolderActivity : AppCompatActivity() {
 
-    private lateinit var adapter: MediaGroupAdapter<GalleryMediaFile, MediaGroupAdapter.GroupedMediaFile<GalleryMediaFile>>
+    private lateinit var adapter: MediaAdapter<GalleryMediaFile>
 
     private var selectingMore = false
 
@@ -37,6 +40,9 @@ class PickGalleryFolderActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        setTheme(getSelectedTheme(this))
+
         setContentView(R.layout.activity_pick_gallery_folder)
 
         val chatInfo: ChatInfo = intent.getParcelableExtra(KEY_CHAT_INFO)
@@ -50,7 +56,7 @@ class PickGalleryFolderActivity : AppCompatActivity() {
             calendar.get(Calendar.MONTH) to calendar.get(Calendar.YEAR)
         }.map { GalleryMediaFileGroup(Date(it.value.first().time), it.value) }.reversed()
 
-        val clickCallback: (GalleryMediaFile, MediaGroupAdapter.GroupedMediaFile<GalleryMediaFile>, MediaGroupAdapter.MediaViewHolder) -> Unit = { item, parent, holder ->
+        val clickCallback: (GalleryMediaFile, MediaAdapter.MediaViewHolder<GalleryMediaFile>) -> Unit = { item, holder ->
             if (!selectingMore) {
                 val startMedia = Intent(this, SendMediaActivity::class.java)
                 startMedia.putExtra(KEY_CHAT_INFO, chatInfo)
@@ -63,13 +69,13 @@ class PickGalleryFolderActivity : AppCompatActivity() {
 
                 if (item.selected) selectedFiles += item else selectedFiles -= item
 
-                if(selectedFiles.isEmpty()) actionMode?.finish()
+                if (selectedFiles.isEmpty()) actionMode?.finish()
 
                 actionMode?.title = getString(R.string.pick_gallery_folder_action_mode_items_selected, selectedFiles.size)
             }
         }
 
-        val longClickCallback: (GalleryMediaFile, MediaGroupAdapter.GroupedMediaFile<GalleryMediaFile>, MediaGroupAdapter.MediaViewHolder) -> Unit = { item, parent, holder ->
+        val longClickCallback: (GalleryMediaFile, MediaAdapter.MediaViewHolder<GalleryMediaFile>) -> Unit = { item, holder ->
             selectingMore = true
 
             if (actionMode == null) {
@@ -85,10 +91,46 @@ class PickGalleryFolderActivity : AppCompatActivity() {
             actionMode?.title = getString(R.string.pick_gallery_folder_action_mode_items_selected, selectedFiles.size)
         }
 
-        adapter = MediaGroupAdapter(grouped, clickCallback, longClickCallback)
+        val actList = mutableListOf<Any>()
+        grouped.forEach {
+            actList += MediaAdapter.MediaFileHeader(it.date.time)
+            actList.addAll(it.combined.reversed())
+        }
+
+        adapter = MediaAdapter(actList, clickCallback, longClickCallback)
 
         pickGalleryFolderList.adapter = adapter
-        pickGalleryFolderList.layoutManager = LinearLayoutManager(this)
+
+        val layoutManager = GridLayoutManager(this, 3)
+        layoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+            override fun getSpanSize(position: Int): Int {
+                return when (actList[position]) {
+                    is MediaAdapter.MediaFileHeader -> 3
+                    is GalleryMediaFile -> 1
+                    else -> throw IllegalArgumentException()
+                }
+            }
+        }
+
+        pickGalleryFolderList.layoutManager = layoutManager
+
+        pickGalleryFolderList.addItemDecoration(HeaderItemDecoration(pickGalleryFolderList, object : HeaderItemDecoration.StickyHeaderInterface {
+            override fun getHeaderPositionForItem(itemPosition: Int): Int {
+                var i = itemPosition
+                while (true) {
+                    if (isHeader(i)) return i
+                    i--
+                }
+            }
+
+            override fun getHeaderLayout(headerPosition: Int): Int = R.layout.media_group_header
+
+            override fun bindHeaderData(header: View, headerPosition: Int) {
+                MediaAdapter.MediaHeaderViewHolder(header).bind(actList[headerPosition] as MediaAdapter.MediaFileHeader)
+            }
+
+            override fun isHeader(itemPosition: Int): Boolean = actList[itemPosition] is MediaAdapter.MediaFileHeader
+        }))
 
         actionCallback = object : ActionMode.Callback {
             override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
@@ -124,6 +166,8 @@ class PickGalleryFolderActivity : AppCompatActivity() {
         }
 
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
+
+        supportActionBar?.title = folder.name
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -142,7 +186,7 @@ class PickGalleryFolderActivity : AppCompatActivity() {
         return true
     }
 
-    private class GalleryMediaFile(time: Long, file: File) : MediaGroupAdapter.MediaFile(time, file)
+    private class GalleryMediaFile(time: Long, file: File) : MediaAdapter.MediaFile(time, file)
 
-    private class GalleryMediaFileGroup(date: Date, combined: List<GalleryMediaFile>) : MediaGroupAdapter.GroupedMediaFile<GalleryMediaFile>(date, combined)
+    private class GalleryMediaFileGroup(val date: Date, val combined: List<GalleryMediaFile>)
 }

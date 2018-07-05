@@ -48,36 +48,44 @@
             android:id="@+id/groupInfoMemberListLabel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginLeft="26dp"
             android:layout_marginTop="38dp"
             android:text="@string/group_info_member_list_label"
             android:textAppearance="@android:style/TextAppearance.Material.Medium"
-            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/groupInfoEditGroup" />
 
         <Button
             android:id="@+id/groupInfoAddMemberButton"
             android:layout_width="300dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="38dp"
+            android:layout_marginTop="16dp"
             android:elevation="2dp"
             android:text="@string/group_info_add_member_button_text"
-            app:layout_constraintTop_toBottomOf="@+id/groupInfoMemberList"
+            app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintRight_toRightOf="parent"
-            app:layout_constraintLeft_toLeftOf="parent" />
+            app:layout_constraintTop_toBottomOf="@+id/groupInfoMemberList" />
 
         <android.support.v7.widget.RecyclerView
             android:id="@+id/groupInfoMemberList"
-            android:layout_width="326dp"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginLeft="26dp"
-            android:layout_marginRight="26dp"
             android:layout_marginTop="-1dp"
-            android:background="@layout/border"
             app:layout_constraintLeft_toLeftOf="parent"
             app:layout_constraintRight_toRightOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/groupInfoMemberListLabel"
-            tools:listitem="@layout/group_member_layout" />
+            tools:listitem="@layout/contact_item" />
+
+        <Button
+            android:id="@+id/groupInfoLeaveButton"
+            android:layout_width="300dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="8dp"
+            android:text="@string/group_info_leave_button_text"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/groupInfoAddMemberButton" />
 
     </android.support.constraint.ConstraintLayout>
 </android.support.v4.widget.NestedScrollView>

@@ -1,36 +1,30 @@
 package de.intektor.kentai.kentai.chat.adapter.chat
 
 import android.content.Intent
-import android.media.ThumbnailUtils
 import android.net.Uri
-import android.provider.MediaStore
 import android.view.View
-import android.widget.ImageView
-import android.widget.ProgressBar
-import android.widget.TextView
-import android.widget.VideoView
+import android.widget.*
 import com.squareup.picasso.Picasso
 import de.intektor.kentai.R
 import de.intektor.kentai.ViewIndividualMediaActivity
-import de.intektor.kentai.kentai.KEY_FILE_URI
-import de.intektor.kentai.kentai.KEY_MEDIA_TYPE
-import de.intektor.kentai.kentai.KEY_MESSAGE_UUID
+import de.intektor.kentai.kentai.*
 import de.intektor.kentai.kentai.chat.ReferenceHolder
 import de.intektor.kentai.kentai.nine_gag.*
 import de.intektor.kentai.kentai.references.cancelReferenceDownload
 import de.intektor.kentai_http_common.reference.FileType
+import de.intektor.kentai_http_common.util.toUUID
 
 /**
  * @author Intektor
  */
 class NineGagViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessageViewHolder(view, chatAdapter) {
 
-    val title: TextView = view.findViewById(R.id.nineGagTitle)
-    val video: VideoView = view.findViewById(R.id.nineGagVideoView)
-    val thumbnail: ImageView = view.findViewById(R.id.nineGagThumbnail)
-    val playButton: ImageView = view.findViewById(R.id.nineGagPlayButton)
-    val gifButton: TextView = view.findViewById(R.id.nineGagGifPlay)
-    val load: ProgressBar = view.findViewById(R.id.nineGagDownloadBar)
+    private val title: TextView = view.findViewById(R.id.nineGagTitle)
+    private val video: VideoView = view.findViewById(R.id.nineGagVideoView)
+    private val thumbnail: ImageView = view.findViewById(R.id.nineGagThumbnail)
+    private val playButton: ImageView = view.findViewById(R.id.nineGagPlayButton)
+    private val gifButton: TextView = view.findViewById(R.id.nineGagGifPlay)
+    private val load: ProgressBar = view.findViewById(R.id.nineGagDownloadBar)
 
     override fun setComponent(component: Any) {
         component as ReferenceHolder
@@ -91,23 +85,32 @@ class NineGagViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessageViewH
                     val i = Intent(itemView.context, ViewIndividualMediaActivity::class.java)
                     i.putExtra(KEY_FILE_URI, Uri.fromFile(imageFile))
                     i.putExtra(KEY_MEDIA_TYPE, FileType.IMAGE)
-                    i.putExtra(KEY_MESSAGE_UUID, component.chatMessageWrapper.message.id)
+                    i.putExtra(KEY_MESSAGE_UUID, component.chatMessageWrapper.message.id.toUUID())
                     itemView.context.startActivity(i)
                 }
             } else if (videoFile.exists()) {
-                thumbnail.setImageBitmap(ThumbnailUtils.createVideoThumbnail(videoFile.path, MediaStore.Images.Thumbnails.FULL_SCREEN_KIND))
+                videoPicasso(itemView.context).loadVideoThumbnailFull(videoFile.path).into(thumbnail)
 
                 video.visibility = View.GONE
                 playButton.visibility = View.VISIBLE
                 playButton.setImageResource(R.drawable.ic_play_arrow_white_24dp)
                 playButton.setOnClickListener {
                     playButton.visibility = View.GONE
-                    video.visibility = View.VISIBLE
                     thumbnail.visibility = View.GONE
 
                     video.setVideoURI(Uri.fromFile(videoFile))
 
                     video.start()
+
+                    video.visibility = View.VISIBLE
+                }
+
+                thumbnail.setOnClickListener {
+                    val i = Intent(itemView.context, ViewIndividualMediaActivity::class.java)
+                    i.putExtra(KEY_FILE_URI, Uri.fromFile(videoFile))
+                    i.putExtra(KEY_MEDIA_TYPE, FileType.VIDEO)
+                    i.putExtra(KEY_MESSAGE_UUID, component.chatMessageWrapper.message.id.toUUID())
+                    itemView.context.startActivity(i)
                 }
 
                 video.setOnCompletionListener {
@@ -124,6 +127,13 @@ class NineGagViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessageViewH
                     playButton.visibility = View.VISIBLE
                 }
             }
+        }
+
+        val layout = itemView.findViewById(R.id.bubble_layout) as LinearLayout
+        if (component.chatMessageWrapper.client) {
+            layout.background = getAttrDrawable(itemView.context, R.attr.bubble_right)
+        } else {
+            layout.background = getAttrDrawable(itemView.context, R.attr.bubble_left)
         }
     }
 }

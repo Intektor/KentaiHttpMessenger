@@ -30,4 +30,6 @@ data class ChatInfo(val chatUUID: UUID, val chatName: String, val chatType: Chat
     fun isUserParticipant(userUUID: UUID): Boolean = participants.any { it.receiverUUID == userUUID }
 
     fun userProfile(userUUID: UUID): ChatReceiver = participants.first { it.receiverUUID == userUUID }
+
+    fun hasUnitializedUser(): Boolean = participants.any { it.publicKey == null }
 }

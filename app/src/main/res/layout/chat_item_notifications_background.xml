@@ -6,7 +6,7 @@
     android:layout_width="20dp">
 
     <solid
-        android:color="@color/colorAccent"/>
+        android:color="?colorPrimary"/>
 
     <size
         android:width="20dp"

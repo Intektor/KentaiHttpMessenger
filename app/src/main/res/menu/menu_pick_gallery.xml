@@ -4,7 +4,7 @@
 
     <item
         android:id="@+id/menuPickGallerySearch"
-        android:icon="@drawable/ic_search_black_24dp"
+        android:icon="?attr/ic_search"
         android:title="@string/pick_gallery_search"
         app:actionViewClass="android.support.v7.widget.SearchView" />
 </menu>

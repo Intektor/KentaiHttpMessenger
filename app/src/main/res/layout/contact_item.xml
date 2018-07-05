@@ -8,47 +8,51 @@
     android:orientation="horizontal">
 
     <TextView
-        android:id="@+id/text"
-        android:layout_width="wrap_content"
+        android:id="@+id/contactName"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginBottom="8dp"
+        android:layout_marginEnd="8dp"
         android:layout_marginStart="8dp"
         android:singleLine="true"
         android:text="TextView"
-        android:textSize="30sp"
+        android:textSize="24sp"
         android:textStyle="bold"
-        app:layout_constraintBottom_toTopOf="@+id/seperator"
-        app:layout_constraintStart_toEndOf="@+id/cardView"
+        app:layout_constraintBottom_toTopOf="@+id/contactSubtext"
+        app:layout_constraintEnd_toStartOf="@+id/contact_selected"
+        app:layout_constraintStart_toEndOf="@+id/contactPictureCardView"
         app:layout_constraintTop_toTopOf="parent" />
 
     <ImageView
-        android:id="@+id/seperator"
+        android:id="@+id/separator"
         android:layout_width="0dp"
         android:layout_height="2dp"
         android:layout_marginTop="8dp"
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/cardView"
-        app:srcCompat="@color/colorPrimary" />
+        app:layout_constraintTop_toBottomOf="@+id/contactPictureCardView"
+        app:srcCompat="@color/colorPrimaryDarkTheme" />
 
     <CheckBox
         android:id="@+id/contact_selected"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
         android:layout_marginRight="16dp"
         android:layout_marginTop="12dp"
         android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintRight_toRightOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
     <android.support.v7.widget.CardView
-        android:id="@+id/cardView"
-        android:layout_width="70dp"
-        android:layout_height="70dp"
+        android:id="@+id/contactPictureCardView"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
         android:layout_marginStart="8dp"
         android:layout_marginTop="8dp"
         android:shape="ring"
-        app:cardCornerRadius="35dp"
+        app:cardCornerRadius="25dp"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
@@ -56,6 +60,20 @@
             android:id="@+id/profilePicture"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            app:srcCompat="@drawable/ic_account_circle_white_24dp" />
+            app:srcCompat="?attr/ic_account" />
     </android.support.v7.widget.CardView>
+
+    <TextView
+        android:id="@+id/contactSubtext"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginStart="8dp"
+        android:text="TextView"
+        android:textSize="18sp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toStartOf="@+id/contact_selected"
+        app:layout_constraintStart_toEndOf="@+id/contactPictureCardView" />
 </android.support.constraint.ConstraintLayout>

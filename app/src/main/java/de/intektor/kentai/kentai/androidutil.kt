@@ -7,12 +7,18 @@ import android.content.Context
 import android.database.Cursor
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.drawable.Drawable
 import android.media.ThumbnailUtils
 import android.net.Uri
 import android.os.AsyncTask
 import android.provider.MediaStore
 import android.widget.ImageView
+import com.squareup.picasso.Picasso
+import com.squareup.picasso.Request
+import com.squareup.picasso.RequestCreator
+import com.squareup.picasso.RequestHandler
 import de.intektor.kentai.KentaiClient
+import de.intektor.kentai.R
 import de.intektor.kentai_http_common.reference.FileType
 import pub.devrel.easypermissions.EasyPermissions
 import java.io.ByteArrayOutputStream
@@ -30,6 +36,14 @@ fun checkStoragePermission(activity: Activity, actionKey: Int): Boolean {
 fun checkCameraPermission(activity: Activity, actionKey: Int): Boolean {
     if (!EasyPermissions.hasPermissions(activity, Manifest.permission.CAMERA)) {
         EasyPermissions.requestPermissions(activity, "", actionKey, Manifest.permission.CAMERA)
+        return false
+    }
+    return true
+}
+
+fun checkRecordingPermission(activity: Activity, actionKey: Int): Boolean {
+    if (!EasyPermissions.hasPermissions(activity, Manifest.permission.RECORD_AUDIO)) {
+        EasyPermissions.requestPermissions(activity, "", actionKey, Manifest.permission.RECORD_AUDIO)
         return false
     }
     return true
@@ -96,13 +110,14 @@ fun isVideo(file: File): Boolean = when {
 }
 
 fun loadThumbnail(file: File, context: Context, imageView: ImageView) {
-    LoadThumbnail({ bitmap ->
-        if (bitmap != null) {
-            imageView.setImageBitmap(bitmap)
-        } else {
-
-        }
-    }, file, context.contentResolver, context.applicationContext as KentaiClient).execute()
+    val isImage = isImage(file)
+    val isGif = isGif(file)
+    val isVideo = isVideo(file)
+    if (isImage) {
+        Picasso.with(context).load(file).resize(200, 0).placeholder(null).into(imageView)
+    } else if (isGif || isVideo) {
+        videoPicasso(context).loadVideoThumbnailMini(file.path).placeholder(null).into(imageView)
+    }
 }
 
 private class LoadThumbnail(private val callback: (Bitmap?) -> (Unit), val file: File, val contentResolver: ContentResolver, val kentaiClient: KentaiClient) : AsyncTask<Unit, Unit, Bitmap?>() {
@@ -149,3 +164,54 @@ private fun resize(image: Bitmap, maxWidth: Int, maxHeight: Int): Bitmap {
         return image
     }
 }
+
+fun isUsingLightTheme(context: Context): Boolean {
+    val sp = context.getSharedPreferences(SHARED_PREFERENCES_THEME, Context.MODE_PRIVATE)
+    return sp.getBoolean(SP_IS_LIGHT_THEME_KEY, false)
+}
+
+fun getSelectedTheme(context: Context, actionBar: Boolean = true): Int {
+    return if (!isUsingLightTheme(context)) {
+        if (actionBar) R.style.AppTheme else R.style.AppTheme_NoActionBar
+    } else {
+        if (actionBar) R.style.AppThemeLight else R.style.AppThemeLight_NoActionBar
+    }
+}
+
+fun setSelectedTheme(context: Context, lightTheme: Boolean) {
+    val sp = context.getSharedPreferences(SHARED_PREFERENCES_THEME, Context.MODE_PRIVATE)
+    val editor = sp.edit()
+    editor.putBoolean(SP_IS_LIGHT_THEME_KEY, lightTheme)
+    editor.apply()
+}
+
+fun getAttrDrawable(context: Context, attr: Int): Drawable {
+    val a = context.theme.obtainStyledAttributes(getSelectedTheme(context), intArrayOf(attr))
+    return context.resources.getDrawable(a.getResourceId(0, 0), context.theme)
+}
+
+private const val VIDEO_KIND_MINI = "videoThumbnailMini"
+private const val VIDEO_KIND_FULL = "videoThumbnailFull"
+
+fun videoPicasso(context: Context): Picasso =
+        Picasso.Builder(context)
+                .addRequestHandler(object : RequestHandler() {
+                    override fun canHandleRequest(data: Request): Boolean = data.uri.scheme == VIDEO_KIND_MINI
+
+                    override fun load(request: Request, networkPolicy: Int): Result {
+                        val bm = ThumbnailUtils.createVideoThumbnail(request.uri.path, MediaStore.Images.Thumbnails.MINI_KIND)
+                        return Result(bm, Picasso.LoadedFrom.DISK)
+                    }
+                })
+                .addRequestHandler(object : RequestHandler() {
+                    override fun canHandleRequest(data: Request): Boolean = data.uri.scheme == VIDEO_KIND_FULL
+
+                    override fun load(request: Request, networkPolicy: Int): Result {
+                        val bm = ThumbnailUtils.createVideoThumbnail(request.uri.path, MediaStore.Images.Thumbnails.FULL_SCREEN_KIND)
+                        return Result(bm, Picasso.LoadedFrom.DISK)
+                    }
+                }).build()
+
+fun Picasso.loadVideoThumbnailMini(path: String): RequestCreator = load("$VIDEO_KIND_MINI:$path")
+
+fun Picasso.loadVideoThumbnailFull(path: String): RequestCreator = load("$VIDEO_KIND_FULL:$path")

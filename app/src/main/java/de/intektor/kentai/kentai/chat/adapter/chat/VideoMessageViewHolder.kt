@@ -1,9 +1,7 @@
 package de.intektor.kentai.kentai.chat.adapter.chat
 
 import android.content.Intent
-import android.media.ThumbnailUtils
 import android.net.Uri
-import android.provider.MediaStore
 import android.view.Gravity
 import android.view.View
 import android.widget.ImageView
@@ -14,13 +12,12 @@ import com.squareup.picasso.Picasso
 import de.intektor.kentai.KentaiClient
 import de.intektor.kentai.R
 import de.intektor.kentai.ViewIndividualMediaActivity
-import de.intektor.kentai.kentai.KEY_FILE_URI
-import de.intektor.kentai.kentai.KEY_MEDIA_TYPE
-import de.intektor.kentai.kentai.KEY_MESSAGE_UUID
+import de.intektor.kentai.kentai.*
 import de.intektor.kentai.kentai.chat.ReferenceHolder
 import de.intektor.kentai.kentai.references.getReferenceFile
 import de.intektor.kentai_http_common.chat.ChatMessageVideo
 import de.intektor.kentai_http_common.reference.FileType
+import de.intektor.kentai_http_common.util.toUUID
 
 class VideoMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessageViewHolder(view, chatAdapter) {
 
@@ -62,7 +59,7 @@ class VideoMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessage
             val viewImageIntent = Intent(imageView.context, ViewIndividualMediaActivity::class.java)
             viewImageIntent.putExtra(KEY_FILE_URI, Uri.fromFile(referenceFile))
             viewImageIntent.putExtra(KEY_MEDIA_TYPE, FileType.VIDEO)
-            viewImageIntent.putExtra(KEY_MESSAGE_UUID, message.id)
+            viewImageIntent.putExtra(KEY_MESSAGE_UUID, message.id.toUUID())
             imageView.context.startActivity(viewImageIntent)
         }
 
@@ -77,14 +74,8 @@ class VideoMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessage
             chatAdapter.activity.startReferenceLoad(component, adapterPosition, FileType.VIDEO)
         }
 
-        if (wrapper.client) {
-            val b = ThumbnailUtils.createVideoThumbnail(referenceFile.path, MediaStore.Images.Thumbnails.MINI_KIND)
-            imageView.setImageBitmap(b)
-        } else {
-            if (component.isFinished) {
-                val b = ThumbnailUtils.createVideoThumbnail(referenceFile.path, MediaStore.Images.Thumbnails.MINI_KIND)
-                imageView.setImageBitmap(b)
-            }
+        if (wrapper.client || component.isFinished) {
+            videoPicasso(itemView.context).loadVideoThumbnailFull(referenceFile.path).into(imageView)
         }
 
         text.visibility = if (message.text.isBlank()) View.GONE else View.VISIBLE
@@ -92,12 +83,12 @@ class VideoMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessage
 
         val layout = itemView.findViewById(R.id.bubble_layout) as LinearLayout
         val parentLayout = itemView.findViewById(R.id.bubble_layout_parent) as LinearLayout
-        // if message is mine then align to right
-        if (wrapper.client) {
-            layout.setBackgroundResource(R.drawable.bubble_right)
+
+        if (component.chatMessageWrapper.client) {
+            layout.background = getAttrDrawable(itemView.context, R.attr.bubble_right)
             parentLayout.gravity = Gravity.END
         } else {
-            layout.setBackgroundResource(R.drawable.bubble_left)
+            layout.background = getAttrDrawable(itemView.context, R.attr.bubble_left)
             parentLayout.gravity = Gravity.START
         }
     }

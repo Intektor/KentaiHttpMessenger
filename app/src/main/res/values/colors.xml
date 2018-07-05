@@ -1,9 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#212121</color>
-    <color name="colorPrimaryDark">#000000</color>
-    <color name="colorAccent">#1e88e5</color>
+    <color name="colorPrimaryDarkTheme">#212121</color>
+    <color name="colorPrimaryDarkDarkTheme">#000000</color>
+    <color name="colorAccentDarkTheme">#1e88e5</color>
+    <color name="colorBackgroundDarkTheme">#212121</color>
+
+    <color name="colorPrimaryLightTheme">#fafafa</color>
+    <color name="colorPrimaryDarkLightTheme">#c7c7c7</color>
+    <color name="colorAccentLightTheme">#29b6f6</color>
+    <color name="colorBackgroundLightTheme">#fafafa</color>
+
     <color name="colorImageOverlayTransparent">#cc212121</color>
     <color name="colorSelectedVideoOverlay">#88000000</color>
     <color name="colorSelectedItem">#4488ff00</color>
+
 </resources>

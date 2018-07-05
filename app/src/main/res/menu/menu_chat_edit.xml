@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/menuChatEditReply"
+        android:icon="?attr/ic_reply"
+        android:title="@string/chat_activity_edit_chat_menu_reply"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/menuChatEditDelete"
+        android:icon="?attr/ic_delete"
+        android:title="@string/chat_activity_edit_chat_menu_delete"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/menuChatEditCopy"
+        android:icon="?attr/ic_file_copy"
+        android:title="@string/chat_activity_edit_chat_menu_copy"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/menuChatEditInfo"
+        android:icon="?attr/ic_info"
+        android:title="@string/chat_activity_edit_chat_menu_info"
+        app:showAsAction="always" />
+    <item
+        android:id="@+id/menuChatEditShare"
+        android:icon="?attr/ic_share"
+        android:title="@string/chat_activity_edit_chat_menu_share"
+        app:showAsAction="always" />
+</menu>

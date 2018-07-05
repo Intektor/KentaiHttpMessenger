@@ -4,7 +4,7 @@
       tools:context="de.intektor.kentai.NewChatUserActivity">
     <item android:id="@+id/new_chat_user_action_search"
           android:title="@string/new_chat_action_search"
-          android:icon="@drawable/ic_search_black_24dp"
+          android:icon="?attr/ic_search"
           app:showAsAction="always|collapseActionView"
           app:actionViewClass="android.support.v7.widget.SearchView"/>
 </menu>

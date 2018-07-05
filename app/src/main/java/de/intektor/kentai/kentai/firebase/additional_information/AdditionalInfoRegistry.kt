@@ -20,7 +20,7 @@ object AdditionalInfoRegistry {
     }
 
     private fun register(clazz: Class<out IAdditionalInfo>) {
-        registry.put(registry.size, clazz)
+        registry[registry.size] = clazz
     }
 
     fun getID(clazz: Class<out IAdditionalInfo>): Int = registry.inverse()[clazz]!!

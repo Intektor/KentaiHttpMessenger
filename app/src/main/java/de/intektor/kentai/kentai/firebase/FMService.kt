@@ -7,21 +7,27 @@ import com.google.common.io.BaseEncoding
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import de.intektor.kentai.KentaiClient
-import de.intektor.kentai.kentai.DbHelper
+import de.intektor.kentai.kentai.*
 import de.intektor.kentai.kentai.android.writeMessageWrapper
 import de.intektor.kentai.kentai.chat.*
 import de.intektor.kentai.kentai.contacts.addContact
 import de.intektor.kentai.kentai.firebase.additional_information.AdditionalInfoRegistry
 import de.intektor.kentai.kentai.firebase.additional_information.IAdditionalInfo
 import de.intektor.kentai.kentai.firebase.additional_information.info.*
-import de.intektor.kentai.kentai.groups.handleGroupModification
-import de.intektor.kentai.kentai.httpPost
+import de.intektor.kentai.kentai.groups.*
+import de.intektor.kentai.kentai.references.downloadAudio
+import de.intektor.kentai.kentai.references.downloadImage
+import de.intektor.kentai.kentai.references.downloadVideo
 import de.intektor.kentai_http_common.chat.*
 import de.intektor.kentai_http_common.chat.group_modification.ChatMessageGroupModification
-import de.intektor.kentai_http_common.chat.group_modification.GroupModificationRegistry
+import de.intektor.kentai_http_common.chat.group_modification.GroupModification
+import de.intektor.kentai_http_common.chat.group_modification.GroupModificationAddUser
 import de.intektor.kentai_http_common.client_to_server.FetchMessageRequest
+import de.intektor.kentai_http_common.client_to_server.HandledMessagesRequest
+import de.intektor.kentai_http_common.client_to_server.UsersRequest
 import de.intektor.kentai_http_common.gson.genGson
 import de.intektor.kentai_http_common.server_to_client.FetchMessageResponse
+import de.intektor.kentai_http_common.server_to_client.UsersResponse
 import de.intektor.kentai_http_common.util.*
 import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
@@ -38,7 +44,6 @@ import javax.crypto.spec.SecretKeySpec
  */
 class FMService : FirebaseMessagingService() {
 
-    private lateinit var dataBase: SQLiteDatabase
     private var privateAuthKey: Key? = null
     private var privateMessageKey: RSAPrivateKey? = null
     private var publicMessageKey: Key? = null
@@ -47,8 +52,6 @@ class FMService : FirebaseMessagingService() {
 
     override fun onCreate() {
         super.onCreate()
-        val dbHelper = DbHelper(this)
-        dataBase = dbHelper.writableDatabase
 
         val pKeyFile = File(filesDir.path + "/" + "keys/authKeyPrivate.key")
         if (pKeyFile.exists()) {
@@ -67,14 +70,18 @@ class FMService : FirebaseMessagingService() {
 
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         val type = FCMMessageType.values()[remoteMessage.data["type"]!!.toInt()]
-        if (type == FCMMessageType.CHAT_MESSAGE) {
-            try {
+        when (type) {
+            FCMMessageType.CHAT_MESSAGE -> try {
                 fetchAndProcessMessageData()
             } catch (t: Throwable) {
                 Log.e("ERROR", "ERROR", t)
             }
-        } else if (type == FCMMessageType.ONLINE_MESSAGE) {
+            FCMMessageType.ONLINE_MESSAGE -> {
 
+            }
+            FCMMessageType.SERVER_NOTIFICATION -> {
+
+            }
         }
     }
 
@@ -85,209 +92,297 @@ class FMService : FirebaseMessagingService() {
         val res = httpPost(gson.toJson(FetchMessageRequest(userUUID.toString(), userUUIDEncrypted)), FetchMessageRequest.TARGET)
 
         val response = gson.fromJson(res, FetchMessageResponse::class.java)
-        processChatMessage(response)
+        val handled = processChatMessage(response)
+        if (handled.isNotEmpty()) {
+            httpPost(gson.toJson(HandledMessagesRequest(handled, userUUIDEncrypted, userUUID.toString())), HandledMessagesRequest.TARGET)
+        }
     }
 
-    private fun processChatMessage(fetched: FetchMessageResponse) {
-        val db = dataBase
+    private fun processChatMessage(fetched: FetchMessageResponse): List<String> {
+        val kentaiClient = applicationContext as KentaiClient
+        val dataBase = kentaiClient.dataBase
 
-        for (fetchedMessage in fetched.list) {
-            val registryID = fetchedMessage.messageRegistryID.decryptRSA(privateMessageKey!!).toInt()
-            val message = ChatMessageRegistry.create(registryID)
-            message.id = fetchedMessage.messageUUID.toUUID()
-            message.senderUUID = fetchedMessage.senderUUID.toUUID()
-            message.text = fetchedMessage.text
-            message.timeSent = fetchedMessage.timeSent
-            message.aesKey = fetchedMessage.aesKey
-            message.initVector = fetchedMessage.initVector
-            message.signature = fetchedMessage.signature
-            message.referenceUUID = fetchedMessage.referenceUUID.toUUID()
-            val isSmallData = message.isSmallData()
-            if (isSmallData) {
-                message.processAdditionalInfo(BaseEncoding.base64().decode(fetchedMessage.smallAdditionalInfo!!))
-            }
+        val privateMessageKey = privateMessageKey!!
 
-            val chatUUID = fetchedMessage.chatUUID.toUUID()
-            val senderUUID = fetchedMessage.senderUUID.toUUID()
-            val senderUsername = fetchedMessage.senderUsername
-            val messageUUID = fetchedMessage.messageUUID.toUUID()
+        val chats = fetched.list.groupBy { it.chatUUID.decryptRSA(privateMessageKey).toUUID() }.map { Pair(it.key, it.value.sortedBy { it.timeSent }) }
 
-            val cursor = dataBase.rawQuery("SELECT username, message_key FROM contacts WHERE user_uuid = ?", arrayOf(senderUUID.toString()))
+        val finished = mutableListOf<String>()
 
-            val chatInfo = ChatInfo(chatUUID, senderUsername, ChatType.TWO_PEOPLE, listOf(ChatReceiver(userUUID!!, publicMessageKey!!, ChatReceiver.ReceiverType.USER), ChatReceiver(senderUUID, null, ChatReceiver.ReceiverType.USER)))
+        val receivedGroupModificationsAsAdmin = mutableListOf<Triple<GroupModification, Long, UUID>>()
 
-            if (!cursor.moveToNext()) {
-                addContact(senderUUID, senderUsername, dataBase)
-
-                sendKeyRequest(senderUUID)
-
-                createChat(chatInfo, dataBase, userUUID!!)
-            }
-
-            cursor.close()
-
-            fun tryFetchKey(): RSAPublicKey {
-                try {
-                    return requestPublicKey(listOf(senderUUID), db)[senderUUID]!!
-                } catch (t: Throwable) {
-                    throw RuntimeException("No key can be fetched, it is impossible to decrypt the message! Try again later", t)
+        for (chat in chats) {
+            a@ for (fetchedMessage in chat.second) {
+                val registryID = fetchedMessage.messageRegistryID.decryptRSA(privateMessageKey).toInt()
+                val message = ChatMessageRegistry.create(registryID)
+                message.id = fetchedMessage.messageUUID
+                message.senderUUID = fetchedMessage.senderUUID.toUUID()
+                message.text = fetchedMessage.text
+                message.timeSent = fetchedMessage.timeSent
+                message.aesKey = fetchedMessage.aesKey
+                message.initVector = fetchedMessage.initVector
+                message.signature = fetchedMessage.signature
+                message.referenceUUID = fetchedMessage.referenceUUID.toUUID()
+                val isSmallData = message.isSmallData()
+                if (isSmallData) {
+                    message.processAdditionalInfo(BaseEncoding.base64().decode(fetchedMessage.smallAdditionalInfo!!))
                 }
-            }
 
-            db.rawQuery("SELECT message_key FROM contacts WHERE user_uuid = ?", arrayOf(senderUUID.toString())).use { query ->
-                val senderPublic: RSAPublicKey
-                senderPublic = if (query.moveToNext()) {
-                    if (query.isNull(0)) {
-                        tryFetchKey()
-                    } else {
-                        val messageKeyString = query.getString(0)
-                        if (messageKeyString.isNotEmpty()) {
-                            messageKeyString.toKey() as RSAPublicKey
+                val chatUUID = fetchedMessage.chatUUID.decryptRSA(privateMessageKey).toUUID()
+                val senderUUID = fetchedMessage.senderUUID.toUUID()
+                val senderUsername = fetchedMessage.senderUsername
+
+                val cI = getChatInfo(chatUUID, dataBase)
+                val chatInfo = if (cI != null) cI else {
+                    addContact(senderUUID, senderUsername, dataBase)
+                    sendKeyRequest(senderUUID, dataBase)
+                    val newChat = ChatInfo(chatUUID, senderUsername, ChatType.TWO_PEOPLE, listOf(ChatReceiver(userUUID!!, publicMessageKey!!,
+                            ChatReceiver.ReceiverType.USER), ChatReceiver(senderUUID, null, ChatReceiver.ReceiverType.USER)))
+                    createChat(newChat, dataBase, kentaiClient.userUUID)
+                    newChat
+                }
+
+                fun tryFetchKey(userUUID: UUID): RSAPublicKey? {
+                    return try {
+                        requestPublicKey(listOf(userUUID), dataBase)[userUUID]!!
+                    } catch (t: Throwable) {
+                        null
+                    }
+                }
+
+                val senderPublic = dataBase.rawQuery("SELECT message_key FROM contacts WHERE user_uuid = ?", arrayOf(senderUUID.toString())).use { query ->
+                    if (query.moveToNext()) {
+                        if (query.isNull(0)) {
+                            tryFetchKey(senderUUID)
                         } else {
-                            tryFetchKey()
+                            val messageKeyString = query.getString(0)
+                            if (messageKeyString.isNotEmpty()) {
+                                messageKeyString.toKey() as RSAPublicKey
+                            } else {
+                                tryFetchKey(senderUUID)
+                            }
+                        }
+                    } else {
+                        tryFetchKey(senderUUID)
+                    }
+                } ?: break@a
+
+                message.decrypt(senderPublic, privateMessageKey)
+
+                val messageUUID = message.id.toUUID()
+
+                if (hasMessage(dataBase, messageUUID)) {
+                    finished += fetchedMessage.messageUUID
+                    continue@a
+                }
+
+                if (message !is ChatMessageGroupModification || chatInfo.chatType.isGroup()) {
+                    saveMessage(chatUUID, ChatMessageWrapper(message, MessageStatus.RECEIVED, false, 0L, chatUUID), dataBase)
+                }
+
+                val isActive = dataBase.rawQuery("SELECT is_active FROM chat_participants WHERE chat_uuid = ? AND participant_uuid = ?", arrayOf(chatUUID.toString(), senderUUID.toString())).use { query ->
+                    if (query.moveToNext()) {
+                        query.getInt(0) == 1
+                    } else false
+                }
+
+                if (!isActive) continue@a
+
+                if (message.shouldBeStored()) {
+                    val wrapper = ChatMessageWrapper(ChatMessageStatusChange(chatUUID, messageUUID, MessageStatus.RECEIVED, System.currentTimeMillis(), userUUID!!, System.currentTimeMillis()),
+                            MessageStatus.RECEIVED, true, System.currentTimeMillis(), chatUUID)
+                    sendMessageToServer(this, PendingMessage(wrapper, chatInfo.chatUUID, chatInfo.participants.filter { it.receiverUUID != userUUID }), kentaiClient.dataBase)
+                }
+
+                val messageType = MessageType.values()[ChatMessageRegistry.getID(message.javaClass)]
+                when (messageType) {
+                    MessageType.TEXT_MESSAGE -> updateChatAndSendBroadcast(message, chatInfo, senderUsername, senderUUID, registryID, AdditionalInfoEmpty())
+                    MessageType.MESSAGE_STATUS_CHANGE -> {
+                        message as ChatMessageStatusChange
+                        val changeStatusIntent = Intent(ACTION_MESSAGE_STATUS_CHANGE)
+                        changeStatusIntent.putExtra(KEY_AMOUNT, 1)
+
+                        saveMessageStatusChange(dataBase, MessageStatusChange(message.messageUUID.toUUID(), MessageStatus.values()[message.status.toInt()], System.currentTimeMillis()))
+
+                        changeStatusIntent.putExtra("$KEY_MESSAGE_UUID${0}", message.messageUUID.toUUID())
+                        changeStatusIntent.putExtra("$KEY_CHAT_UUID${0}", chatUUID)
+                        changeStatusIntent.putExtra("$KEY_MESSAGE_STATUS${0}", message.status.toInt())
+                        changeStatusIntent.putExtra("$KEY_TIME${0}", System.currentTimeMillis())
+
+                        sendBroadcast(changeStatusIntent)
+
+                        updateChatAndSendBroadcast(message, chatInfo, senderUsername, senderUUID, registryID, AdditionalInfoEmpty())
+                    }
+                    MessageType.GROUP_INVITE -> {
+                        message as ChatMessageGroupInvite
+
+                        val groupInvite = message.groupInvite
+                        if (groupInvite is ChatMessageGroupInvite.GroupInviteDecentralizedChat) {
+
+                            var exists = false
+                            val newInfo = ChatInfo(groupInvite.chatUUID.toUUID(), groupInvite.groupName, ChatType.GROUP_DECENTRALIZED, groupInvite.roleMap.keys.map { ChatReceiver(it, null, ChatReceiver.ReceiverType.USER) })
+
+                            putGroupRoles(groupInvite.roleMap, groupInvite.chatUUID.toUUID(), dataBase)
+
+                            dataBase.rawQuery("SELECT chat_uuid FROM chats WHERE chat_uuid = ?", arrayOf(groupInvite.chatUUID)).use { query ->
+                                exists = query.moveToNext()
+                            }
+                            if (!exists) {
+                                createGroupChat(newInfo, groupInvite.roleMap, SecretKeySpec(BaseEncoding.base64().decode(groupInvite.groupKey), "AES"), dataBase, userUUID!!)
+
+                                val messageIntent = Intent("de.intektor.kentai.groupInvite")
+
+                                messageIntent.putExtra("groupName", groupInvite.groupName)
+                                messageIntent.putExtra("senderUUID", senderUUID)
+                                messageIntent.putExtra("chatInfo", newInfo)
+                                messageIntent.putExtra("sentToChatUUID", chatUUID)
+                                messageIntent.writeMessageWrapper(ChatMessageWrapper(message, MessageStatus.RECEIVED, false, System.currentTimeMillis(), chatUUID), 0)
+
+                                sendOrderedBroadcast(messageIntent, null)
+
+                                val missing = groupInvite.roleMap.keys.filterNot { hasContact(dataBase, it) }
+                                if (missing.isNotEmpty()) {
+                                    try {
+                                        val gson = genGson()
+                                        val r = httpPost(gson.toJson(UsersRequest(missing)), UsersRequest.TARGET)
+                                        val response = gson.fromJson(r, UsersResponse::class.java)
+                                        for (user in response.users) {
+                                            addContact(user.userUUID, user.username, dataBase, user.messageKey)
+                                        }
+                                    } catch (t: Throwable) {
+                                        break@a
+                                    }
+                                }
+                            } else {
+                                addChatParticipant(groupInvite.chatUUID.toUUID(), userUUID!!, dataBase)
+                            }
+                            updateChatAndSendBroadcast(message, chatInfo, senderUsername, senderUUID, registryID, AdditionalInfoGroupInviteMessage(senderUsername, groupInvite.groupName))
                         }
                     }
-                } else {
-                    tryFetchKey()
-                }
+                    MessageType.GROUP_MODIFICATION -> {
+                        message as ChatMessageGroupModification
+                        val groupModification = message.groupModification
 
-                message.decrypt(senderPublic, privateMessageKey!!)
-            }
+                        if (groupModification.chatUUID.toUUID() == chatUUID) {
+                            val senderRole = getGroupRole(dataBase, chatUUID, senderUUID)
+                            if (chatInfo.chatType == ChatType.GROUP_DECENTRALIZED && senderRole == GroupRole.ADMIN) {
+                                handleGroupModification(groupModification, senderUUID, dataBase, kentaiClient.userUUID)
 
-            db.rawQuery("SELECT is_active FROM chat_participants WHERE chat_uuid = ? AND participant_uuid = ?", arrayOf(chatUUID.toString(), senderUUID.toString())).use { query ->
-                if (query.moveToNext()) {
-                    if (query.getInt(0) != 1) return
-                }
-            }
+                                updateChatAndSendBroadcast(message, chatInfo, senderUsername, senderUUID, registryID, AdditionalInfoGroupModification(groupModification))
 
-            if (message.shouldBeStored()) {
-                val kentaiClient = applicationContext as KentaiClient
-                val wrapper = ChatMessageWrapper(ChatMessageStatusChange(chatUUID, messageUUID, MessageStatus.RECEIVED, System.currentTimeMillis(), userUUID!!, System.currentTimeMillis()),
-                        MessageStatus.RECEIVED, true, System.currentTimeMillis())
-                sendMessageToServer(this, PendingMessage(wrapper, chatInfo.chatUUID, chatInfo.participants.filter { it.receiverUUID != userUUID }), kentaiClient.dataBase)
-            }
+                                sendGroupModificationBroadcast(this, groupModification)
 
-            saveMessage(chatUUID, ChatMessageWrapper(message, MessageStatus.RECEIVED, false, 0L), db)
-
-            val messageType = MessageType.values()[ChatMessageRegistry.getID(message.javaClass)]
-            when (messageType) {
-                MessageType.TEXT_MESSAGE -> updateChatAndSendBroadcast(message, chatInfo, senderUsername, senderUUID, registryID, AdditionalInfoEmpty())
-                MessageType.MESSAGE_STATUS_CHANGE -> {
-                    message as ChatMessageStatusChange
-                    val changeStatusIntent = Intent("de.intektor.kentai.messageStatusUpdate")
-                    changeStatusIntent.putExtra("amount", 1)
-
-                    saveMessageStatusChange(dataBase, MessageStatusChange(message.messageUUID.toUUID(), MessageStatus.values()[message.status.toInt()], System.currentTimeMillis()))
-
-                    changeStatusIntent.putExtra("messageUUID0", message.messageUUID)
-                    changeStatusIntent.putExtra("chatUUID0", chatUUID.toString())
-                    changeStatusIntent.putExtra("status0", message.status.toInt())
-                    changeStatusIntent.putExtra("time0", System.currentTimeMillis())
-
-                    sendOrderedBroadcast(changeStatusIntent, null)
-
-                    updateChatAndSendBroadcast(message, chatInfo, senderUsername, senderUUID, registryID, AdditionalInfoEmpty())
-                }
-                MessageType.GROUP_INVITE -> {
-                    message as ChatMessageGroupInvite
-                    var exists = false
-                    val newInfo = ChatInfo(message.chatUUID.toUUID(), message.groupName, ChatType.GROUP, message.roleMap.keys.map { ChatReceiver(it, null, ChatReceiver.ReceiverType.USER) }.plus(ChatReceiver(userUUID!!, null, ChatReceiver.ReceiverType.USER)))
-
-                    putGroupRoles(message.roleMap, message.chatUUID.toUUID(), dataBase)
-
-                    db.rawQuery("SELECT chat_uuid FROM chats WHERE chat_uuid = ?", arrayOf(message.chatUUID)).use { query ->
-                        exists = query.moveToNext()
+                                removePendingGroupModification(groupModification.modificationUUID.toUUID(), dataBase)
+                            }
+                        } else {
+                            if (minimumGroupRole(groupModification, dataBase, kentaiClient.userUUID).isLessOrEqual(getGroupRole(dataBase, groupModification.chatUUID.toUUID(), senderUUID))) {
+                                //This is a group modification sent by a moderator to the admin, we do not show this to the user because this is not interesting for him
+                                receivedGroupModificationsAsAdmin += Triple(groupModification, message.timeSent, senderUUID)
+                            }
+                        }
                     }
-                    if (!exists) {
-                        createGroupChat(newInfo, message.roleMap, SecretKeySpec(BaseEncoding.base64().decode(message.groupKey), "AES"), dataBase, userUUID!!)
-
-                        val messageIntent = Intent("de.intektor.kentai.groupInvite")
-
-                        messageIntent.putExtra("groupName", message.groupName)
-                        messageIntent.putExtra("senderUUID", senderUUID)
-                        messageIntent.putExtra("chatInfo", newInfo)
-                        messageIntent.putExtra("sentToChatUUID", chatUUID)
-                        messageIntent.writeMessageWrapper(ChatMessageWrapper(message, MessageStatus.RECEIVED, false, System.currentTimeMillis()), 0)
-
-                        sendOrderedBroadcast(messageIntent, null)
-                    } else {
-                        addChatParticipant(message.chatUUID.toUUID(), userUUID!!, db)
+                    MessageType.VOICE_MESSAGE -> {
+                        message as ChatMessageVoiceMessage
+                        downloadAudio(this, dataBase, chatInfo.chatUUID, message.referenceUUID, chatInfo.chatType, message.fileHash, privateMessageKey)
+                        updateChatAndSendBroadcast(message, chatInfo, senderUsername, senderUUID, registryID, AdditionalInfoVoiceMessage(message.durationSeconds.toInt()))
                     }
-                    updateChatAndSendBroadcast(message, chatInfo, senderUsername, senderUUID, registryID, AdditionalInfoGroupInviteMessage(senderUsername, message.groupName))
-                }
-                MessageType.GROUP_MODIFICATION -> {
-                    message as ChatMessageGroupModification
-                    val groupModification = message.groupModification
-                    handleGroupModification(groupModification, db)
+                    MessageType.IMAGE_MESSAGE -> {
+                        message as ChatMessageImage
+                        downloadImage(this, dataBase, chatInfo.chatUUID, message.referenceUUID, chatInfo.chatType, message.hash, privateMessageKey)
+                        updateChatAndSendBroadcast(message, chatInfo, senderUsername, senderUUID, registryID, AdditionalInfoEmpty())
+                    }
+                    MessageType.VIDEO_MESSAGE -> {
+                        message as ChatMessageVideo
+                        downloadVideo(this, dataBase, chatInfo.chatUUID, message.referenceUUID, chatInfo.chatType, message.hash, privateMessageKey)
+                        updateChatAndSendBroadcast(message, chatInfo, senderUsername, senderUUID, registryID, AdditionalInfoVideoMessage(message.durationSeconds.toInt()))
+                    }
+                    MessageType.TYPING_MESSAGE -> {
 
-                    updateChatAndSendBroadcast(message, chatInfo, senderUsername, senderUUID, registryID, AdditionalInfoGroupModification(groupModification))
-
-                    val byteOut = ByteArrayOutputStream()
-                    val dataOut = DataOutputStream(byteOut)
-                    message.groupModification.write(dataOut)
-
-                    val messageIntent = Intent("de.intektor.kentai.groupModification")
-                    messageIntent.putExtra("chatUUID", message.groupModification.chatUUID)
-                    messageIntent.putExtra("groupModificationID", GroupModificationRegistry.getID(message.groupModification::class.java))
-                    messageIntent.putExtra("groupModification", byteOut.toByteArray())
-
-                    sendOrderedBroadcast(messageIntent, null)
+                    }
                 }
-                MessageType.VOICE_MESSAGE -> {
-                    message as ChatMessageVoiceMessage
-                    updateChatAndSendBroadcast(message, chatInfo, senderUsername, senderUUID, registryID, AdditionalInfoVoiceMessage(message.durationSeconds.toInt()))
-                }
-                MessageType.IMAGE_MESSAGE -> {
-                    message as ChatMessageImage
-                    updateChatAndSendBroadcast(message, chatInfo, senderUsername, senderUUID, registryID, AdditionalInfoEmpty())
-                }
-                MessageType.VIDEO_MESSAGE -> {
-                    message as ChatMessageVideo
-                    updateChatAndSendBroadcast(message, chatInfo, senderUsername, senderUUID, registryID, AdditionalInfoVideoMessage(message.durationSeconds.toInt()))
-                }
-                MessageType.TYPING_MESSAGE -> {
+                finished += fetchedMessage.messageUUID
+            }
+        }
 
+        val sortedReceivedGroupModificationsAsAdmin = receivedGroupModificationsAsAdmin.sortedBy { it.second }
+        for ((modification, _, senderUUID) in sortedReceivedGroupModificationsAsAdmin) {
+            handleGroupModification(modification, senderUUID, dataBase, kentaiClient.userUUID)
+        }
+
+        val chatParticipantMap = mutableMapOf<UUID, List<ChatReceiver>>()
+
+        sortedReceivedGroupModificationsAsAdmin.forEach { (groupModification, _, _) ->
+            val chatUUID = groupModification.chatUUID.toUUID()
+            val pendingMessage = PendingMessage(ChatMessageWrapper(ChatMessageGroupModification(groupModification, kentaiClient.userUUID, System.currentTimeMillis()), MessageStatus.WAITING, true,
+                    System.currentTimeMillis(), chatUUID), chatUUID,
+                    chatParticipantMap.getOrPut(chatUUID, { readChatParticipants(dataBase, chatUUID).filter { it.receiverUUID != kentaiClient.userUUID } }))
+
+            sendMessageToServer(this, pendingMessage, dataBase)
+
+            sendGroupModificationBroadcast(this, groupModification)
+
+            if (groupModification is GroupModificationAddUser) {
+                val chatInfo = getChatInfo(chatUUID, dataBase)
+                val groupKey = getGroupKey(chatUUID, dataBase)
+
+                if (chatInfo != null && groupKey != null) {
+                    val roleMap = hashMapOf<UUID, GroupRole>()
+
+                    getGroupMembers(dataBase, chatUUID).forEach {
+                        roleMap[it.contact.userUUID] = it.role
+                    }
+
+                    roleMap += Pair(groupModification.userUUID.toUUID(), GroupRole.DEFAULT)
+
+                    val groupInvite = if (chatInfo.chatType == ChatType.GROUP_DECENTRALIZED)
+                        ChatMessageGroupInvite.GroupInviteDecentralizedChat(roleMap, chatUUID, chatInfo.chatName, groupKey)
+                    else ChatMessageGroupInvite.GroupInviteCentralizedChat(chatUUID, chatInfo.chatName, groupKey)
+
+                    inviteUserToGroupChat(groupModification.userUUID.toUUID(), chatInfo, groupInvite, kentaiClient.userUUID, this, dataBase)
                 }
             }
         }
+
+        return finished
     }
 
     private fun updateChatAndSendBroadcast(message: ChatMessage, chatInfo: ChatInfo, senderUsername: String, senderUUID: UUID, registryID: Int, additionalInformation: IAdditionalInfo) {
-        val cursor2 = dataBase.rawQuery("SELECT unread_messages, chat_name, type FROM chats WHERE chat_uuid = '${chatInfo.chatUUID}' LIMIT 1", null)
+        val kentaiClient = applicationContext as KentaiClient
+        val dataBase = kentaiClient.dataBase
+        dataBase.rawQuery("SELECT unread_messages, chat_name, type FROM chats WHERE chat_uuid = ? LIMIT 1", arrayOf(chatInfo.chatUUID.toString())).use { cursor ->
+            if (cursor.moveToNext()) {
+                val unreadMessages = cursor.getInt(0)
+                val chatName = cursor.getString(1)
+                val chatType = cursor.getInt(2)
+                cursor.close()
 
-        if (cursor2.moveToNext()) {
-            val unreadMessages = cursor2.getInt(0)
-            val chatName = cursor2.getString(1)
-            val chatType = cursor2.getInt(2)
-            cursor2.close()
+                if (message !is ChatMessageStatusChange) {
+                    incrementUnreadMessages(dataBase, chatInfo.chatUUID)
+                }
 
-            if (message !is ChatMessageStatusChange) {
-                dataBase.execSQL("UPDATE chats SET unread_messages = unread_messages + 1 WHERE chat_uuid = '${chatInfo.chatUUID}'")
+                val byteOut = ByteArrayOutputStream()
+                val dataOut = DataOutputStream(byteOut)
+                additionalInformation.writeToStream(dataOut)
+
+                val newUnreadMessages = if (message !is ChatMessageStatusChange) unreadMessages + 1 else unreadMessages
+
+                val intent = Intent(ACTION_CHAT_NOTIFICATION)
+                intent.putExtra(KEY_UNREAD_MESSAGES, newUnreadMessages)
+                intent.putExtra(KEY_CHAT_TYPE, chatType)
+                intent.putExtra(KEY_CHAT_UUID, chatInfo.chatUUID.toString())
+                intent.putExtra(KEY_CHAT_NAME, chatName)
+                intent.putExtra(KEY_USER_UUID, senderUUID.toString())
+                intent.putExtra(KEY_ADDITIONAL_INFO_REGISTRY_ID, AdditionalInfoRegistry.getID(additionalInformation.javaClass))
+                intent.putExtra(KEY_ADDITIONAL_INFO_CONTENT, byteOut.toByteArray())
+                intent.putExtra(KEY_MESSAGE_REGISTRY_ID, registryID)
+                intent.writeMessageWrapper(ChatMessageWrapper(message, MessageStatus.RECEIVED, false, System.currentTimeMillis(), chatInfo.chatUUID), 0)
+                sendOrderedBroadcast(intent, null)
+            } else {
+                Log.w("WARNING", "NO CHAT FOUND, THIS SHOULD NEVER HAPPEN")
             }
-
-            val byteOut = ByteArrayOutputStream()
-            val dataOut = DataOutputStream(byteOut)
-            additionalInformation.writeToStream(dataOut)
-
-            val newUnreadMessages = if (message !is ChatMessageStatusChange) unreadMessages + 1 else unreadMessages
-
-            val intent = Intent("de.intektor.kentai.chatNotification")
-            intent.putExtra("unreadMessages", newUnreadMessages)
-            intent.putExtra("chatType", chatType)
-            intent.putExtra("chatUUID", chatInfo.chatUUID.toString())
-            intent.putExtra("chatName", chatName)
-            intent.putExtra("senderName", senderUsername)
-            intent.putExtra("senderUUID", senderUUID.toString())
-            intent.putExtra("additionalInfoID", AdditionalInfoRegistry.getID(additionalInformation.javaClass))
-            intent.putExtra("additionalInfoContent", byteOut.toByteArray())
-            intent.writeMessageWrapper(ChatMessageWrapper(message, MessageStatus.RECEIVED, false, System.currentTimeMillis()), 0)
-            sendOrderedBroadcast(intent, null)
-        } else {
-            Log.w("WARNING", "NO CHAT FOUND, THIS SHOULD NEVER HAPPEN")
         }
     }
 
-    private fun sendKeyRequest(requestedUUID: UUID) {
+    private fun sendKeyRequest(requestedUUID: UUID, dataBase: SQLiteDatabase) {
         object : Thread() {
             override fun run() {
                 requestPublicKey(listOf(requestedUUID), dataBase)
@@ -297,10 +392,5 @@ class FMService : FirebaseMessagingService() {
 
     override fun onDeletedMessages() {
 
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        dataBase.close()
     }
 }

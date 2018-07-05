@@ -27,6 +27,9 @@ class SendMediaActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        setTheme(getSelectedTheme(this))
+
         setContentView(R.layout.activity_send_media)
 
         val chatInfo: ChatInfo = intent.getParcelableExtra(KEY_CHAT_INFO)

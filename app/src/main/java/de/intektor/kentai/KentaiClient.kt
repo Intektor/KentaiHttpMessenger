@@ -43,7 +43,6 @@ import de.intektor.kentai_http_common.tcp.server_to_client.UserChange
 import de.intektor.kentai_http_common.util.readKey
 import de.intektor.kentai_http_common.util.readPrivateKey
 import de.intektor.kentai_http_common.util.toKey
-import de.intektor.kentai_http_common.util.toUUID
 import java.io.ByteArrayInputStream
 import java.io.DataInputStream
 import java.io.File
@@ -84,7 +83,6 @@ class KentaiClient : Application() {
     override fun onCreate() {
         super.onCreate()
 
-
         if (hasClient(this)) {
             val client = readClientContact(this)
             username = client.name
@@ -112,23 +110,27 @@ class KentaiClient : Application() {
 
             createNotificationChannel(R.string.notification_channel_download_media_name, R.string.notification_channel_download_media_description,
                     NotificationManagerCompat.IMPORTANCE_LOW, NOTIFICATION_CHANNEL_DOWNLOAD_MEDIA, notificationManager)
+
+            createNotificationChannel(R.string.notification_channel_miscellaneous_name, R.string.notification_channel_miscellaneous_description,
+                    NotificationManagerCompat.IMPORTANCE_LOW, NOTIFICATION_CHANNEL_MISC, notificationManager)
         }
 
         val chatNotificationBroadcastReceiver: BroadcastReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
-                val unreadMessages = intent.getIntExtra("unreadMessages", 0)
+                val unreadMessages = intent.getIntExtra(KEY_UNREAD_MESSAGES, 0)
 
                 val activity = currentActivity
-                val chatUUID = UUID.fromString(intent.getStringExtra("chatUUID"))
-                val chatType = ChatType.values()[intent.getIntExtra("chatType", 0)]
-                val senderName = intent.getStringExtra("senderName")
-                val chatName = intent.getStringExtra("chatName")
-                val senderUUID = UUID.fromString(intent.getStringExtra("senderUUID"))
-                val messageMessageID = intent.getIntExtra("message.messageID", 0)
-                val additionalInfoID = intent.getIntExtra("additionalInfoID", 0)
-                val additionalInfoContent = intent.getByteArrayExtra("additionalInfoContent")
+                val chatUUID = UUID.fromString(intent.getStringExtra(KEY_CHAT_UUID))
+                val chatType = ChatType.values()[intent.getIntExtra(KEY_CHAT_TYPE, 0)]
+                val chatName = intent.getStringExtra(KEY_CHAT_NAME)
+                val senderUUID = UUID.fromString(intent.getStringExtra(KEY_USER_UUID))
+                val messageMessageID = intent.getIntExtra(KEY_MESSAGE_REGISTRY_ID, 0)
+                val additionalInfoID = intent.getIntExtra(KEY_ADDITIONAL_INFO_REGISTRY_ID, 0)
+                val additionalInfoContent = intent.getByteArrayExtra(KEY_ADDITIONAL_INFO_CONTENT)
 
                 val wrapper = intent.readMessageWrapper(0)
+
+                val senderName = getName(getContact(dataBase, senderUUID), context, false)
 
                 if (activity is ChatActivity && activity.chatInfo.chatUUID == chatUUID) {
                     activity.addMessage(wrapper, true)
@@ -145,7 +147,7 @@ class KentaiClient : Application() {
                         val senderKey = cursor.getString(0)?.toKey()
                         cursor.close()
 
-                        activity.addChat(ChatListViewAdapter.ChatItem(ChatInfo(chatUUID, senderName, ChatType.TWO_PEOPLE, listOf(ChatReceiver(senderUUID, senderKey, ChatReceiver.ReceiverType.USER), ChatReceiver(userUUID, publicMessageKey!!, ChatReceiver.ReceiverType.USER))), wrapper, unreadMessages))
+                        activity.addChat(ChatListViewAdapter.ChatItem(ChatInfo(chatUUID, senderName, ChatType.TWO_PEOPLE, listOf(ChatReceiver(senderUUID, senderKey, ChatReceiver.ReceiverType.USER), ChatReceiver(userUUID, publicMessageKey!!, ChatReceiver.ReceiverType.USER))), wrapper, unreadMessages, true))
                     } else {
                         activity.updateLatestChatMessage(chatUUID, wrapper, unreadMessages)
                     }
@@ -160,13 +162,13 @@ class KentaiClient : Application() {
             override fun onReceive(context: Context, intent: Intent) {
                 val activity = currentActivity
 
-                val amount = intent.getIntExtra("amount", 0)
+                val amount = intent.getIntExtra(KEY_AMOUNT, 0)
 
                 for (i in 0 until amount) {
-                    val chatUUID = intent.getStringExtra("chatUUID$i").toUUID()
-                    val messageUUID = intent.getStringExtra("messageUUID$i").toUUID()
-                    val status = MessageStatus.values()[intent.getIntExtra("status$i", 0)]
-                    val time = intent.getLongExtra("time$i", 0L)
+                    val chatUUID = intent.getSerializableExtra("$KEY_CHAT_UUID$i") as UUID
+                    val messageUUID = intent.getSerializableExtra("$KEY_MESSAGE_UUID$i") as UUID
+                    val status = MessageStatus.values()[intent.getIntExtra("$KEY_MESSAGE_STATUS$i", 0)]
+                    val time = intent.getLongExtra("$KEY_TIME$i", 0L)
 
                     if (activity is ChatActivity && activity.chatInfo.chatUUID == chatUUID) {
                         activity.updateMessageStatus(messageUUID, status)
@@ -188,7 +190,8 @@ class KentaiClient : Application() {
                 val activity = currentActivity
 
                 if (activity is OverviewActivity) {
-                    activity.addChat(ChatListViewAdapter.ChatItem(chatInfo, ChatMessageWrapper(ChatMessageText("", senderUUID, System.currentTimeMillis()), MessageStatus.WAITING, false, System.currentTimeMillis()), 0))
+                    val finished = !chatInfo.hasUnitializedUser()
+                    activity.addChat(ChatListViewAdapter.ChatItem(chatInfo, ChatMessageWrapper(ChatMessageText("", senderUUID, System.currentTimeMillis()), MessageStatus.WAITING, false, System.currentTimeMillis(), chatInfo.chatUUID), 0, finished))
                     //TODO: set the correct unread messages
                     activity.updateLatestChatMessage(sentToChatUUID, message, 1)
                 } else if (activity is ChatActivity && activity.chatInfo.chatUUID == sentToChatUUID) {
@@ -202,9 +205,10 @@ class KentaiClient : Application() {
 
         val groupModificationBroadcastReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
-                val chatUUID = intent.getStringExtra("chatUUID").toUUID()
-                val modification = GroupModificationRegistry.create(intent.getIntExtra("groupModificationID", 0), chatUUID)
-                val input = intent.getByteArrayExtra("groupModification")
+                val chatUUID = intent.getSerializableExtra(KEY_CHAT_UUID) as UUID
+                val modificationUUID = intent.getSerializableExtra(KEY_GROUP_MODIFICATION_UUID) as UUID
+                val modification = GroupModificationRegistry.create(intent.getIntExtra(KEY_GROUP_MODIFICATION_TYPE_ID, 0), chatUUID, modificationUUID)
+                val input = intent.getByteArrayExtra(KEY_GROUP_MODIFICATION)
                 modification.read(DataInputStream(ByteArrayInputStream(input)))
 
                 if (modification is GroupModificationChangeName) {
@@ -212,7 +216,7 @@ class KentaiClient : Application() {
                     if (activity is OverviewActivity) {
                         activity.updateChatName(chatUUID, modification.newName)
                     } else if (activity is ChatActivity) {
-                        activity.supportActionBar?.title = modification.newName
+                        activity.updateChatName(chatUUID, modification.newName)
                     }
                 }
             }
@@ -240,7 +244,7 @@ class KentaiClient : Application() {
             }
         }
 
-        this@KentaiClient.registerReceiver(chatNotificationBroadcastReceiver, IntentFilter("de.intektor.kentai.chatNotification"))
+        this@KentaiClient.registerReceiver(chatNotificationBroadcastReceiver, IntentFilter(de.intektor.kentai.kentai.ACTION_CHAT_NOTIFICATION))
 
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             override fun onActivityPaused(activity: Activity?) {
@@ -254,9 +258,7 @@ class KentaiClient : Application() {
             override fun onActivityStarted(activity: Activity?) {
                 currentActivity = activity
                 if (activitiesStarted == 0) {
-                    var filter = IntentFilter("de.intektor.kentai.messageStatusUpdate")
-
-                    filter.priority = 1
+                    var filter = IntentFilter(ACTION_MESSAGE_STATUS_CHANGE)
 
                     this@KentaiClient.registerReceiver(updateMessageStatusBroadcastReceiver, filter)
 
@@ -265,7 +267,7 @@ class KentaiClient : Application() {
 
                     this@KentaiClient.registerReceiver(groupInviteBroadcastReceiver, filter)
 
-                    filter = IntentFilter("de.intektor.kentai.groupModification")
+                    filter = IntentFilter(ACTION_GROUP_MODIFICATION_RECEIVED)
                     filter.priority = 1
                     this@KentaiClient.registerReceiver(groupModificationBroadcastReceiver, filter)
 
@@ -462,6 +464,7 @@ class KentaiClient : Application() {
     }
 
     fun addInterestedUser(userUUID: UUID) {
+        if (userUUID == this.userUUID) return
         interestedUsers += userUUID
         if (directConnectionManager.isConnected) {
             val time = getProfilePicture(userUUID, this).lastModified()

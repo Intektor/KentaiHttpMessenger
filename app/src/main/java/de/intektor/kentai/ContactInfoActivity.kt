@@ -10,7 +10,7 @@ import com.squareup.picasso.MemoryPolicy
 import com.squareup.picasso.Picasso
 import de.intektor.kentai.kentai.*
 import de.intektor.kentai.kentai.chat.getUserChat
-import de.intektor.kentai.kentai.chat.readContact
+import de.intektor.kentai.kentai.chat.getContact
 import de.intektor.kentai.kentai.firebase.SendService
 import de.intektor.kentai_http_common.users.ProfilePictureType
 import kotlinx.android.synthetic.main.activity_user_chat_info.*
@@ -22,13 +22,16 @@ class ContactInfoActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        setTheme(getSelectedTheme(this))
+
         setContentView(R.layout.activity_user_chat_info)
 
         val kentaiClient = applicationContext as KentaiClient
 
         val userUUID = intent.getSerializableExtra(KEY_USER_UUID) as UUID
 
-        val contact = readContact(kentaiClient.dataBase, userUUID)
+        val contact = getContact(kentaiClient.dataBase, userUUID)
 
         activityUserChatInfoProfileName.text = contact.name
         activityUserChatInfoProfileAlias.text = contact.alias

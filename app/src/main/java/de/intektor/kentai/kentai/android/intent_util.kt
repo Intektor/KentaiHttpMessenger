@@ -17,6 +17,7 @@ fun Intent.writeMessageWrapper(wrapper: ChatMessageWrapper, id: Int) {
     this.putExtra("wrapper_client$id", wrapper.client)
     this.putExtra("wrapper_status$id", wrapper.status.ordinal)
     this.putExtra("wrapper_status_change_time$id", wrapper.statusChangeTime)
+    this.putExtra("wrapper_chat_uuid$id", wrapper.chatUUID)
 
     this.putExtra("wrapper_message_registry_id$id", ChatMessageRegistry.getID(wrapper.message.javaClass))
     this.putExtra("wrapper_message_aes_key$id", wrapper.message.aesKey)
@@ -33,10 +34,11 @@ fun Intent.readMessageWrapper(id: Int): ChatMessageWrapper {
     val wrapperClient = getBooleanExtra("wrapper_client$id", false)
     val wrapperStatus = MessageStatus.values()[getIntExtra("wrapper_status$id", 0)]
     val wrapperStatusChangeTime = getLongExtra("wrapper_status_change_time$id", 0)
+    val chatUUID = getSerializableExtra("wrapper_chat_uuid$id") as UUID
 
     val message = ChatMessageRegistry.create(getIntExtra("wrapper_message_registry_id$id", 0))
     message.aesKey = getStringExtra("wrapper_message_aes_key$id")
-    message.id = getSerializableExtra("wrapper_message_id$id") as UUID
+    message.id = getStringExtra("wrapper_message_id$id")
     message.initVector = getStringExtra("wrapper_message_init_vector$id")
     message.senderUUID = getSerializableExtra("wrapper_message_sender_uuid$id") as UUID
     message.text = getStringExtra("wrapper_message_text$id")
@@ -44,5 +46,5 @@ fun Intent.readMessageWrapper(id: Int): ChatMessageWrapper {
     message.referenceUUID = getSerializableExtra("wrapper_message_reference$id") as UUID
     message.processAdditionalInfo(getByteArrayExtra("wrapper_message_additional_info$id"))
 
-    return ChatMessageWrapper(message, wrapperStatus, wrapperClient, wrapperStatusChangeTime)
+    return ChatMessageWrapper(message, wrapperStatus, wrapperClient, wrapperStatusChangeTime, chatUUID)
 }

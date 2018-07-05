@@ -1,17 +1,16 @@
 package de.intektor.kentai.kentai.chat
 
-import android.content.ContentProvider
 import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
 import android.os.AsyncTask
 import android.support.v13.view.inputmethod.EditorInfoCompat
 import android.support.v13.view.inputmethod.InputConnectionCompat
+import android.support.v4.os.BuildCompat
 import android.util.AttributeSet
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.widget.EditText
-import android.support.v4.os.BuildCompat
 import com.google.common.hash.Hashing
 import de.intektor.kentai.ChatActivity
 import de.intektor.kentai.KentaiClient
@@ -61,7 +60,7 @@ class RichEditText(context: Context, attrs: AttributeSet) : EditText(context, at
                             else -> throw IllegalArgumentException()
                         }
                         message.referenceUUID = referenceUUID
-                        val wrapper = ChatMessageWrapper(message, MessageStatus.WAITING, true, System.currentTimeMillis())
+                        val wrapper = ChatMessageWrapper(message, MessageStatus.WAITING, true, System.currentTimeMillis(), context.chatInfo.chatUUID)
 
                         context.addMessage(wrapper, true)
                         sendMessageToServer(kentaiClient, PendingMessage(wrapper, context.chatInfo.chatUUID, context.chatInfo.participants.filter { it.receiverUUID != kentaiClient.userUUID }), kentaiClient.dataBase)

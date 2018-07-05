@@ -1,13 +1,105 @@
 <resources>
-    <!-- Base application theme. -->
+
+    <attr name="ic_account" format="reference" />
+    <attr name="ic_cancel" format="reference" />
+    <attr name="ic_check_circle" format="reference" />
+    <attr name="ic_check" format="reference" />
+    <attr name="ic_error_outline" format="reference" />
+    <attr name="ic_file_download" format="reference" />
+    <attr name="ic_file_upload" format="reference" />
+    <attr name="ic_message" format="reference" />
+    <attr name="ic_perm_media" format="reference" />
+    <attr name="ic_person_add" format="reference" />
+    <attr name="ic_photo" format="reference" />
+    <attr name="ic_play_arrow" format="reference" />
+    <attr name="ic_search" format="reference" />
+    <attr name="ic_settings" format="reference" />
+    <attr name="ic_share" format="reference" />
+    <attr name="ic_send" format="reference" />
+    <attr name="ic_pause" format="reference" />
+    <attr name="bubble_left" format="reference" />
+    <attr name="bubble_right" format="reference" />
+    <attr name="ic_mic" format="reference" />
+    <attr name="ic_camera" format="reference" />
+    <attr name="ic_edit" format="reference" />
+    <attr name="ic_reply" format="reference" />
+    <attr name="ic_delete" format="reference" />
+    <attr name="ic_file_copy" format="reference" />
+    <attr name="ic_info" format="reference" />
+    <attr name="messageTextColor" format="color" />
+    <attr name="backgroundColor" format="color" />
+
     <style name="AppTheme" parent="Theme.AppCompat">
-        <!-- Customize your theme here. -->
-        <item name="colorPrimary">@color/colorPrimary</item>
-        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
-        <item name="colorAccent">@color/colorAccent</item>
+        <item name="colorPrimary">@color/colorPrimaryDarkTheme</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDarkDarkTheme</item>
+        <item name="colorAccent">@color/colorAccentDarkTheme</item>
+        <item name="ic_account">@drawable/ic_account_circle_white_24dp</item>
+        <item name="ic_cancel">@drawable/ic_cancel_white_24dp</item>
+        <item name="ic_check_circle">@drawable/ic_check_circle_white_24dp</item>
+        <item name="ic_check">@drawable/ic_check_white_24dp</item>
+        <item name="ic_error_outline">@drawable/ic_error_outline_white_24dp</item>
+        <item name="ic_file_download">@drawable/ic_file_download_white_24dp</item>
+        <item name="ic_file_upload">@drawable/ic_file_upload_white_24dp</item>
+        <item name="ic_message">@drawable/ic_message_white_24dp</item>
+        <item name="ic_perm_media">@drawable/ic_perm_media_white_24dp</item>
+        <item name="ic_person_add">@drawable/ic_person_add_white_24dp</item>
+        <item name="ic_photo">@drawable/ic_photo_white_24dp</item>
+        <item name="ic_play_arrow">@drawable/ic_play_arrow_white_24dp</item>
+        <item name="ic_search">@drawable/ic_search_white_24dp</item>
+        <item name="ic_settings">@drawable/ic_settings_white_24dp</item>
+        <item name="ic_share">@drawable/ic_share_white_24dp</item>
+        <item name="ic_send">@drawable/ic_send_white_24dp</item>
+        <item name="ic_pause">@drawable/ic_pause_white_24dp</item>
+        <item name="ic_mic">@drawable/baseline_mic_white_24</item>
+        <item name="ic_camera">@drawable/baseline_photo_camera_white_24</item>
+        <item name="ic_edit">@drawable/baseline_edit_white_24</item>
+        <item name="ic_reply">@drawable/baseline_reply_white_24</item>
+        <item name="ic_delete">@drawable/baseline_delete_white_24</item>
+        <item name="ic_file_copy">@drawable/baseline_file_copy_white_24</item>
+        <item name="ic_info">@drawable/baseline_info_white_24</item>
+        <item name="bubble_left">@drawable/bubble_left</item>
+        <item name="bubble_right">@drawable/bubble_right</item>
+        <item name="messageTextColor">#ffffff</item>
+        <item name="backgroundColor">@color/material_grey_850</item>
     </style>
 
-    <style name="AppTheme.NoActionBar">
+    <style name="AppThemeLight" parent="Theme.AppCompat.Light">
+        <item name="ic_account">@drawable/ic_account_circle_black_24dp</item>
+        <item name="ic_cancel">@drawable/ic_cancel_black_24dp</item>
+        <item name="ic_check_circle">@drawable/ic_check_circle_black_24dp</item>
+        <item name="ic_check">@drawable/ic_check_black_24dp</item>
+        <item name="ic_error_outline">@drawable/ic_error_outline_black_24dp</item>
+        <item name="ic_file_download">@drawable/ic_file_download_black_24dp</item>
+        <item name="ic_file_upload">@drawable/ic_file_upload_black_24dp</item>
+        <item name="ic_message">@drawable/ic_message_black_24dp</item>
+        <item name="ic_perm_media">@drawable/ic_perm_media_black_24dp</item>
+        <item name="ic_person_add">@drawable/ic_person_add_black_24dp</item>
+        <item name="ic_photo">@drawable/ic_photo_black_24dp</item>
+        <item name="ic_play_arrow">@drawable/ic_play_arrow_black_24dp</item>
+        <item name="ic_search">@drawable/ic_search_black_24dp</item>
+        <item name="ic_settings">@drawable/ic_settings_black_24dp</item>
+        <item name="ic_share">@drawable/ic_share_black_24dp</item>
+        <item name="ic_send">@drawable/ic_send_black_24dp</item>
+        <item name="ic_pause">@drawable/ic_pause_black_24dp</item>
+        <item name="ic_mic">@drawable/baseline_mic_black_24</item>
+        <item name="ic_camera">@drawable/baseline_photo_camera_black_24</item>
+        <item name="ic_edit">@drawable/baseline_edit_black_24</item>
+        <item name="ic_reply">@drawable/baseline_reply_black_24</item>
+        <item name="ic_delete">@drawable/baseline_delete_black_24</item>
+        <item name="ic_file_copy">@drawable/baseline_file_copy_black_24</item>
+        <item name="ic_file_copy">@drawable/baseline_info_black_24</item>
+        <item name="bubble_left">@drawable/bubble_left_light</item>
+        <item name="bubble_right">@drawable/bubble_right_light</item>
+        <item name="messageTextColor">#000000</item>#
+        <item name="backgroundColor">@color/material_grey_50</item>
+    </style>
+
+    <style name="AppThemeLight.NoActionBar" parent="AppThemeLight">
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+
+    <style name="AppTheme.NoActionBar" parent="AppTheme">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
     </style>

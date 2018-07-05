@@ -31,6 +31,9 @@ class PickGalleryActivity : AppCompatActivity(), SearchView.OnQueryTextListener 
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        setTheme(getSelectedTheme(this))
+
         setContentView(R.layout.activity_pick_gallery)
 
         val chatInfo: ChatInfo = intent.getParcelableExtra(KEY_CHAT_INFO)

@@ -39,7 +39,7 @@ import javax.crypto.spec.SecretKeySpec
  */
 
 fun uploadAudio(context: Context, database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, audioFile: File) {
-    uploadReference(context, database, chatUUID, referenceUUID, audioFile, FileType.AUDIO)
+    uploadReference(context, chatUUID, referenceUUID, audioFile, FileType.AUDIO)
 }
 
 fun downloadAudio(context: Context, database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, chatType: ChatType, hash: String, privateMessageKey: Key) {
@@ -47,7 +47,7 @@ fun downloadAudio(context: Context, database: SQLiteDatabase, chatUUID: UUID, re
 }
 
 fun uploadImage(context: Context, database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, imageFile: File) {
-    uploadReference(context, database, chatUUID, referenceUUID, imageFile, FileType.IMAGE)
+    uploadReference(context, chatUUID, referenceUUID, imageFile, FileType.IMAGE)
 }
 
 fun downloadImage(context: Context, database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, chatType: ChatType, hash: String, privateMessageKey: Key) {
@@ -55,7 +55,7 @@ fun downloadImage(context: Context, database: SQLiteDatabase, chatUUID: UUID, re
 }
 
 fun uploadVideo(context: Context, database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, imageFile: File) {
-    uploadReference(context, database, chatUUID, referenceUUID, imageFile, FileType.VIDEO)
+    uploadReference(context, chatUUID, referenceUUID, imageFile, FileType.VIDEO)
 }
 
 fun downloadVideo(context: Context, database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, chatType: ChatType, hash: String, privateMessageKey: Key) {
@@ -73,7 +73,7 @@ fun downloadReference(context: Context, database: SQLiteDatabase, chatUUID: UUID
                 ChatType.TWO_PEOPLE -> {
                     privateMessageKey
                 }
-                ChatType.GROUP -> {
+                ChatType.GROUP_CENTRALIZED, ChatType.GROUP_DECENTRALIZED -> {
                     database.rawQuery("SELECT group_key FROM group_key_table WHERE chat_uuid = ?", arrayOf(chatUUID.toString())).use { query ->
                         query.moveToNext()
                         query.getString(0).toAESKey()
@@ -181,12 +181,7 @@ fun downloadReference(context: Context, database: SQLiteDatabase, chatUUID: UUID
     }.execute()
 }
 
-fun uploadReference(context: Context, database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, referenceFile: File, fileType: FileType) {
-    val alreadyContained = database.rawQuery("SELECT COUNT(*) FROM reference_upload_table WHERE reference_uuid = ?", arrayOf(referenceUUID.toString())).use { query ->
-        query.moveToNext()
-        query.getInt(0) == 1
-    }
-
+fun uploadReference(context: Context, chatUUID: UUID, referenceUUID: UUID, referenceFile: File, fileType: FileType) {
     val startService = Intent(context, SendService::class.java)
     context.startService(startService)
 

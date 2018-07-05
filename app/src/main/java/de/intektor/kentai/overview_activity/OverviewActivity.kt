@@ -3,8 +3,10 @@ package de.intektor.kentai.overview_activity
 import android.Manifest
 import android.accounts.AccountManager
 import android.app.*
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.net.ConnectivityManager
 import android.os.AsyncTask
 import android.os.Bundle
@@ -12,8 +14,12 @@ import android.support.v4.app.Fragment
 import android.support.v4.app.FragmentManager
 import android.support.v4.app.FragmentPagerAdapter
 import android.support.v7.app.AppCompatActivity
+import android.support.v7.widget.LinearLayoutManager
+import android.support.v7.widget.RecyclerView
+import android.support.v7.widget.SearchView
 import android.view.Menu
 import android.view.MenuItem
+import android.view.View
 import android.widget.EditText
 import android.widget.TextView
 import com.google.android.gms.auth.UserRecoverableAuthException
@@ -27,12 +33,15 @@ import com.google.api.services.drive.Drive
 import com.google.firebase.iid.FirebaseInstanceId
 import de.intektor.kentai.*
 import de.intektor.kentai.fragment.ChatListViewAdapter
-import de.intektor.kentai.kentai.Kentai
+import de.intektor.kentai.kentai.*
 import de.intektor.kentai.kentai.android.backup.BackupService
 import de.intektor.kentai.kentai.android.backup.BackupService.Companion.PREF_ACCOUNT_NAME
 import de.intektor.kentai.kentai.android.backup.installChatBackup
 import de.intektor.kentai.kentai.chat.ChatMessageWrapper
-import de.intektor.kentai.kentai.httpPost
+import de.intektor.kentai.kentai.chat.adapter.chat.HeaderItemDecoration
+import de.intektor.kentai.kentai.chat.readChatMessageWrappers
+import de.intektor.kentai.kentai.chat.readChats
+import de.intektor.kentai_http_common.chat.ChatMessageStatusChange
 import de.intektor.kentai_http_common.chat.MessageStatus
 import de.intektor.kentai_http_common.client_to_server.UpdateFBCMTokenRequest
 import de.intektor.kentai_http_common.gson.genGson
@@ -66,37 +75,170 @@ class OverviewActivity : AppCompatActivity() {
     @Volatile
     private lateinit var driveService: Drive
 
-    companion object {
-        private val SIGN_IN_REQUEST_CODE = 0
-        private val REQUEST_ACCOUNT_PICKER = 1000
-        private val REQUEST_AUTHORIZATION = 1001
-        private val REQUEST_GOOGLE_PLAY_SERVICES = 1002
-        private const val REQUEST_PERMISSION_GET_ACCOUNTS = 1003
+    private var currentTheme: Int = -1
 
+    private lateinit var searchAdapter: SearchAdapter
+
+    private val searchList = mutableListOf<Any>()
+
+    private var currentMessagesOffset = 0
+
+    private val chatList = mutableListOf<ChatListViewAdapter.ChatItem>()
+    private var currentQuery = ""
+
+    private lateinit var initChatListener: BroadcastReceiver
+
+    companion object {
+        private const val SIGN_IN_REQUEST_CODE = 0
+        private const val REQUEST_ACCOUNT_PICKER = 1000
+        private const val REQUEST_AUTHORIZATION = 1001
+        private const val REQUEST_GOOGLE_PLAY_SERVICES = 1002
+        private const val REQUEST_PERMISSION_GET_ACCOUNTS = 1003
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         if (!File(filesDir.path + "/username.info").exists()) {
             val intent = Intent(this, RegisterActivity::class.java)
             startActivity(intent)
         }
 
+        currentTheme = getSelectedTheme(this, false)
+
+        setTheme(currentTheme)
+
         setContentView(R.layout.activity_overview)
 
         setSupportActionBar(toolbar)
+
+        appbar.context.setTheme(currentTheme)
+
+        toolbar.context.setTheme(currentTheme)
 
         mSectionsPagerAdapter = SectionsPagerAdapter(supportFragmentManager)
 
         container.adapter = mSectionsPagerAdapter
 
         tabs.setupWithViewPager(container)
+
+        searchAdapter = SearchAdapter(searchList, { item ->
+            if (item is ChatListViewAdapter.ChatItem) {
+                val i = Intent(this@OverviewActivity, ChatActivity::class.java)
+                i.putExtra(KEY_CHAT_INFO, item.chatInfo)
+                startActivity(i)
+            } else if (item is SearchAdapter.ChatMessageSearch) {
+                val i = Intent(this@OverviewActivity, ChatActivity::class.java)
+                i.putExtra(KEY_CHAT_INFO, item.chatInfo)
+                i.putExtra(KEY_MESSAGE_UUID, item.message.message.id)
+                startActivity(i)
+            }
+        })
+
+        overviewActivitySearchList.adapter = searchAdapter
+        overviewActivitySearchList.layoutManager = LinearLayoutManager(this)
+
+        overviewActivitySearchList.addItemDecoration(HeaderItemDecoration(overviewActivitySearchList, object : HeaderItemDecoration.StickyHeaderInterface {
+            override fun getHeaderPositionForItem(itemPosition: Int): Int {
+                var i = itemPosition
+                while (true) {
+                    if (isHeader(i)) return i
+                    i--
+                }
+            }
+
+            override fun getHeaderLayout(headerPosition: Int): Int = R.layout.search_label
+
+            override fun bindHeaderData(header: View, headerPosition: Int) {
+                SearchAdapter.SearchLabelViewHolder(header).bind(searchList[headerPosition] as SearchAdapter.SearchHeader)
+            }
+
+            override fun isHeader(itemPosition: Int): Boolean = searchList[itemPosition] is SearchAdapter.SearchHeader
+        }))
+
+        overviewActivitySearchList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView?, dx: Int, dy: Int) {
+                val scrollPercent = (overviewActivitySearchList.computeVerticalScrollOffset().toFloat() + overviewActivitySearchList.height) / overviewActivitySearchList.computeVerticalScrollRange().toFloat()
+
+                if (scrollPercent >= 0.9f) {
+                    loadMoreSearchMessages()
+                }
+            }
+        })
+
+        initChatListener = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                val chatUUID = intent.getSerializableExtra(KEY_CHAT_UUID) as UUID
+                val successful = intent.getBooleanExtra(KEY_SUCCESSFUL, false)
+                updateInitChat(chatUUID, successful)
+            }
+        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_overview, menu)
+        menu.findItem(R.id.new_chat).icon = getAttrDrawable(this, R.attr.ic_message)
+        menu.findItem(R.id.new_contact).icon = getAttrDrawable(this, R.attr.ic_person_add)
+        val searchItem = menu.findItem(R.id.search_chat)
+        searchItem.icon = getAttrDrawable(this, R.attr.ic_search)
+
+        val searchView = searchItem.actionView as SearchView
+        searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(query: String?): Boolean {
+                doSearch(query)
+                return true
+            }
+
+            override fun onQueryTextChange(newText: String?): Boolean {
+                doSearch(newText)
+                return true
+            }
+
+            private fun doSearch(query: String?) {
+                if (query == null || query.isBlank()) {
+                    tabs.visibility = View.VISIBLE
+                    container.visibility = View.VISIBLE
+                    overviewActivitySearchList.visibility = View.GONE
+                } else {
+                    currentMessagesOffset = 0
+                    currentQuery = query
+
+                    tabs.visibility = View.GONE
+                    container.visibility = View.GONE
+                    overviewActivitySearchList.visibility = View.VISIBLE
+
+                    val kentaiClient = applicationContext as KentaiClient
+
+                    if (chatList.isEmpty()) {
+                        chatList += readChats(kentaiClient.dataBase, this@OverviewActivity)
+                    }
+
+                    val foundChats = chatList.filter { it.chatInfo.chatName.contains(query, true) }
+
+                    searchList.clear()
+                    searchList += SearchAdapter.SearchHeader(SearchAdapter.SearchHeader.SearchHeaderType.CHATS)
+                    searchList.addAll(foundChats)
+                    searchList += SearchAdapter.SearchHeader(SearchAdapter.SearchHeader.SearchHeaderType.MESSAGES)
+                    searchAdapter.notifyDataSetChanged()
+
+                    loadMoreSearchMessages()
+                }
+            }
+        })
         return true
+    }
+
+    private fun loadMoreSearchMessages() {
+        val kentaiClient = applicationContext as KentaiClient
+        val messages = readChatMessageWrappers(kentaiClient.dataBase, "text LIKE ?", arrayOf("%$currentQuery%"), "time",
+                limit = "$currentMessagesOffset, 20")
+                .map { a -> SearchAdapter.ChatMessageSearch(a, chatList.first { it.chatInfo.chatUUID == a.chatUUID }.chatInfo) }
+
+        currentMessagesOffset += messages.size
+
+        val oldSize = searchList.size
+
+        searchList.addAll(messages)
+        searchAdapter.notifyItemRangeInserted(oldSize, messages.size)
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -150,8 +292,9 @@ class OverviewActivity : AppCompatActivity() {
     }
 
     fun updateLatestChatMessage(chatUUID: UUID, lastMessage: ChatMessageWrapper, unreadMessages: Int) {
+        if (lastMessage.message is ChatMessageStatusChange) return
         val fragment = supportFragmentManager.findFragmentByTag("android:switcher:" + R.id.container + ":0") as FragmentChatsOverview
-        val chatItem = fragment.chatMap[chatUUID]!!
+        val chatItem = fragment.chatMap[chatUUID] ?: return
         chatItem.lastChatMessage = lastMessage
         chatItem.unreadMessages = unreadMessages
         fragment.shownChatList.sortByDescending { it.lastChatMessage.message.timeSent }
@@ -161,7 +304,7 @@ class OverviewActivity : AppCompatActivity() {
     fun updateLatestChatMessageStatus(chatUUID: UUID, status: MessageStatus, messageUUID: UUID) {
         val fragment = supportFragmentManager.findFragmentByTag("android:switcher:" + R.id.container + ":0") as FragmentChatsOverview
         val chatItem = fragment.chatMap[chatUUID]!!
-        if (chatItem.lastChatMessage.message.id == messageUUID) {
+        if (chatItem.lastChatMessage.message.id == messageUUID.toString()) {
             chatItem.lastChatMessage.status = status
             fragment.list.adapter.notifyDataSetChanged()
         }
@@ -172,6 +315,29 @@ class OverviewActivity : AppCompatActivity() {
         val chatItem = fragment.chatMap[chatUUID]!!
         chatItem.chatInfo = chatItem.chatInfo.copy(chatName = name)
         fragment.list.adapter.notifyDataSetChanged()
+    }
+
+    fun updateInitChat(chatUUID: UUID, successful: Boolean) {
+        val fragment = supportFragmentManager.findFragmentByTag("android:switcher:" + R.id.container + ":0") as FragmentChatsOverview
+        fragment.updateInitChat(chatUUID, successful, false)
+    }
+
+    override fun onResume() {
+        super.onResume()
+
+        if (currentTheme != getSelectedTheme(this, false)) {
+            val i = Intent(this, OverviewActivity::class.java)
+            startActivity(i)
+            finish()
+        }
+
+        registerReceiver(initChatListener, IntentFilter(ACTION_INIT_CHAT_FINISHED))
+    }
+
+    override fun onPause() {
+        super.onPause()
+
+        unregisterReceiver(initChatListener)
     }
 
     inner class SectionsPagerAdapter(fm: FragmentManager) : FragmentPagerAdapter(fm) {

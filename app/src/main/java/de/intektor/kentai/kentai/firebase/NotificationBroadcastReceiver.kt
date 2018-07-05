@@ -27,20 +27,14 @@ class NotificationBroadcastReceiver : BroadcastReceiver() {
             val id = intent.getIntExtra(KEY_NOTIFICATION_ID, 0)
             val remoteInput = getRemoteInput(intent)
             val chatMessage = ChatMessageText(remoteInput.toString(), kentaiClient.userUUID, System.currentTimeMillis())
-            val wrapper = ChatMessageWrapper(chatMessage, MessageStatus.WAITING, true, System.currentTimeMillis())
+            val wrapper = ChatMessageWrapper(chatMessage, MessageStatus.WAITING, true, System.currentTimeMillis(), chatUUID)
             wrapper.message.referenceUUID = UUID.randomUUID()
             sendMessageToServer(context, PendingMessage(wrapper, chatUUID, participants.filter { it.receiverUUID != kentaiClient.userUUID }), kentaiClient.dataBase)
 
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.cancel(id)
 
-            clearPreviousNotificationOfChat(kentaiClient.dataBase, chatUUID)
-
-            val prev = readPreviousNotificationsFromDataBase(null, kentaiClient.dataBase)
-
-            notificationManager.cancel(KEY_NOTIFICATION_GROUP_ID)
-
-            popNotifications(context, prev, notificationManager)
+            cancelChatNotifications(context, chatUUID)
         }
     }
 

@@ -7,8 +7,12 @@ abstract class AbstractViewHolder(itemView: View, val chatAdapter: ChatAdapter) 
 
     fun bind(component: Any) {
         setComponent(component)
-        chatAdapter.activity.registerForContextMenu(itemView)
+        if (registerForContextMenu()) {
+            chatAdapter.activity.registerForContextMenu(itemView)
+        }
     }
 
     protected abstract fun setComponent(component: Any)
+
+    protected open fun registerForContextMenu() = true
 }

@@ -22,10 +22,13 @@ class SettingsOverviewActivity : AppCompatActivity() {
         private const val ACTION_PICK_PROFILE_PICTURE = 0
     }
 
-    lateinit var receiverUploadedProfilePicture: BroadcastReceiver
+    private lateinit var receiverUploadedProfilePicture: BroadcastReceiver
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        setTheme(getSelectedTheme(this))
+
         setContentView(R.layout.activity_settings_overview)
 
         val kentaiClient = applicationContext as KentaiClient
@@ -52,6 +55,17 @@ class SettingsOverviewActivity : AppCompatActivity() {
                         .memoryPolicy(MemoryPolicy.NO_CACHE)
                         .into(settingsOverviewActivityProfilePicture)
             }
+        }
+
+        settingsOverviewLightThemeSwitch.isChecked = isUsingLightTheme(this)
+
+        settingsOverviewLightThemeSwitch.setOnCheckedChangeListener { _, isChecked ->
+            setSelectedTheme(this, isChecked)
+            setTheme(getSelectedTheme(this))
+
+            val i = Intent(this, SettingsOverviewActivity::class.java)
+            startActivity(i)
+            finish()
         }
     }
 

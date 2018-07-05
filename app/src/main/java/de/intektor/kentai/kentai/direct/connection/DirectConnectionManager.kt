@@ -2,7 +2,6 @@ package de.intektor.kentai.kentai.direct.connection
 
 import android.content.Intent
 import android.database.sqlite.SQLiteDatabase
-import android.util.Log
 import de.intektor.kentai.KentaiClient
 import de.intektor.kentai.kentai.ACTION_DIRECT_CONNECTION_CONNECTED
 import de.intektor.kentai.kentai.address
@@ -51,6 +50,15 @@ class DirectConnectionManager(val kentaiClient: KentaiClient) {
             registerHandler(UserViewChatPacketToClient::class.java, UserViewChatPacketToClientHandler())
             registerHandler(ProfilePictureUpdatedPacketToClient::class.java, ProfilePictureUpdatedPacketToClientHandler())
         }
+
+        thread {
+            while (true) {
+                Thread.sleep(5000L)
+                if (!isConnected && wantConnection) {
+                    launchConnection(kentaiClient.dataBase)
+                }
+            }
+        }
     }
 
     fun launchConnection(database: SQLiteDatabase) {
@@ -58,15 +66,6 @@ class DirectConnectionManager(val kentaiClient: KentaiClient) {
         keepConnection = true
 
         lastHeartbeatTime = System.currentTimeMillis()
-
-        thread {
-            while (wantConnection) {
-                Thread.sleep(5000L)
-                if (!isConnected && wantConnection) {
-                    launchConnection(kentaiClient.dataBase)
-                }
-            }
-        }
 
         LaunchThread(kentaiClient).start()
     }
@@ -150,14 +149,12 @@ class DirectConnectionManager(val kentaiClient: KentaiClient) {
                         val packet = readPacket(dataIn, KentaiTCPOperator.packetRegistry, Side.CLIENT)
                         handlePacket(packet, socket!!)
                     } catch (t: Throwable) {
-                        Log.e("ERROR", "Networking", t)
                         if (keepConnection && connectedSocket == socket && isConnected) {
                             exitConnection()
                         }
                     }
                 }
             } catch (t: Throwable) {
-                Log.e("ERROR", "Networking", t)
             }
         }
     }

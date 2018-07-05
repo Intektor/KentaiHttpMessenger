@@ -14,8 +14,10 @@
         android:layout_height="match_parent"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintVertical_bias="0.0">
 
         <android.support.constraint.ConstraintLayout
             android:id="@+id/activityUserChatInfoUserLayout"
@@ -32,7 +34,7 @@
                 android:scaleType="fitCenter"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                app:srcCompat="@drawable/account" />
+                app:srcCompat="?attr/ic_account" />
 
             <TextView
                 android:id="@+id/activityUserChatInfoProfileName"
@@ -49,7 +51,7 @@
                 app:layout_constraintStart_toEndOf="@+id/activityUserChatInfoProfilePicture"
                 app:layout_constraintTop_toTopOf="parent" />
 
-            <Button
+            <android.support.constraint.ConstraintLayout
                 android:id="@+id/activityUserChatInfoProfileEdit"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -57,12 +59,24 @@
                 android:layout_marginEnd="8dp"
                 android:layout_marginStart="8dp"
                 android:layout_marginTop="76dp"
-                android:text="@string/contact_info_edit_alias"
                 app:layout_constraintBottom_toBottomOf="@+id/activityUserChatInfoProfilePicture"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintHorizontal_bias="0.0"
                 app:layout_constraintStart_toEndOf="@+id/activityUserChatInfoProfilePicture"
-                app:layout_constraintTop_toBottomOf="@+id/activityUserChatInfoProfileName" />
+                app:layout_constraintTop_toBottomOf="@+id/activityUserChatInfoProfileName">
+
+                <Button
+                    android:id="@+id/activityUserChatInfoProfileEdit"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:text="@string/contact_info_edit_alias"
+                    android:visibility="visible"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent" />
+
+            </android.support.constraint.ConstraintLayout>
 
             <TextView
                 android:id="@+id/activityUserChatInfoProfileAlias"
@@ -80,6 +94,7 @@
 
             <Button
                 android:id="@+id/activityUserChatInfoSentMedia"
+                style="?android:attr/borderlessButtonStyle"
                 android:layout_width="0dp"
                 android:layout_height="48dp"
                 android:layout_marginEnd="8dp"
@@ -90,6 +105,7 @@
                 android:gravity="center_vertical"
                 android:text="@string/contact_info_sent_media"
                 android:textAlignment="gravity"
+                android:textAllCaps="false"
                 android:textSize="18sp"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
@@ -110,6 +126,7 @@
                 android:text="@string/contact_info_alias_label"
                 app:layout_constraintBottom_toTopOf="@+id/activityUserChatInfoProfileAlias"
                 app:layout_constraintStart_toEndOf="@+id/activityUserChatInfoProfilePicture" />
+
 
         </android.support.constraint.ConstraintLayout>
     </ScrollView>

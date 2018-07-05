@@ -21,7 +21,7 @@ import java.util.*
 /**
  * @author Intektor
  */
-class ChatAdapter(val componentList: MutableList<Any>, val chatInfo: ChatInfo, val contactMap: Map<UUID, Contact>, val activity: ChatActivity) : RecyclerView.Adapter<AbstractViewHolder>() {
+class ChatAdapter(private val componentList: MutableList<Any>, val chatInfo: ChatInfo, val contactMap: Map<UUID, Contact>, val activity: ChatActivity) : RecyclerView.Adapter<AbstractViewHolder>() {
 
     companion object {
         const val TEXT_MESSAGE_ID = 0
@@ -37,6 +37,7 @@ class ChatAdapter(val componentList: MutableList<Any>, val chatInfo: ChatInfo, v
         const val VIDEO_MESSAGE = 10
         const val NINE_GAG_VIEW_ID = 11
         const val GIF_MESSAGE = 12
+        const val DATE_INFO = 13
     }
 
     fun add(any: Any) {
@@ -87,6 +88,7 @@ class ChatAdapter(val componentList: MutableList<Any>, val chatInfo: ChatInfo, v
                     else -> TODO()
                 }
             }
+            is DateInfo -> DATE_INFO
             else -> TODO("$component")
         }
     }
@@ -106,6 +108,7 @@ class ChatAdapter(val componentList: MutableList<Any>, val chatInfo: ChatInfo, v
                 VIDEO_MESSAGE -> VideoMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_message_video, parent, false), this)
                 GIF_MESSAGE -> GifMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_message_gif, parent, false), this)
                 NINE_GAG_VIEW_ID -> NineGagViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.nine_gag_bubble, parent, false), this)
+                DATE_INFO -> DateViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_date_item, parent, false), this)
                 else -> throw RuntimeException()
             }
 
@@ -120,4 +123,6 @@ class ChatAdapter(val componentList: MutableList<Any>, val chatInfo: ChatInfo, v
     }
 
     override fun getItemCount(): Int = componentList.size
+
+//    class ChatAdapterWrapper(val selected: )
 }

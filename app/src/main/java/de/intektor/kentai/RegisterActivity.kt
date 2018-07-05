@@ -14,6 +14,7 @@ import androidmads.library.qrgenearator.QRGEncoder
 import com.google.common.io.BaseEncoding
 import com.google.firebase.iid.FirebaseInstanceId
 import de.intektor.kentai.kentai.contacts.addContact
+import de.intektor.kentai.kentai.getSelectedTheme
 import de.intektor.kentai.kentai.httpPost
 import de.intektor.kentai.kentai.internalFile
 import de.intektor.kentai.overview_activity.OverviewActivity
@@ -45,6 +46,9 @@ class RegisterActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        setTheme(getSelectedTheme(this))
+
         setContentView(R.layout.activity_register)
 
         register_register_button.setOnClickListener({
@@ -109,8 +113,8 @@ class RegisterActivity : AppCompatActivity() {
     }
 
     private fun attemptRegister() {
-        val messagePair = generateMessageKeys()
         val authPair = generateAuthKeys()
+        val messagePair = generateMessageKeys()
 
         val username = register_username_field.text.toString()
         AttemptRegisterTask({ response ->
@@ -283,6 +287,14 @@ class RegisterActivity : AppCompatActivity() {
 
             context.startActivity(Intent(context, OverviewActivity::class.java))
         }
+    }
+
+    override fun onSupportNavigateUp(): Boolean = true
+
+    override fun onNavigateUp(): Boolean = true
+
+    override fun onBackPressed() {
+
     }
 }
 

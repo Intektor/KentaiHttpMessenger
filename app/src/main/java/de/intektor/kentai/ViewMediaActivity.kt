@@ -4,14 +4,13 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
-import android.support.v7.widget.LinearLayoutManager
-import de.intektor.kentai.kentai.KEY_CHAT_INFO
-import de.intektor.kentai.kentai.KEY_FILE_URI
-import de.intektor.kentai.kentai.KEY_MEDIA_TYPE
-import de.intektor.kentai.kentai.KEY_MESSAGE_UUID
+import android.support.v7.widget.GridLayoutManager
+import android.view.View
+import de.intektor.kentai.kentai.*
 import de.intektor.kentai.kentai.chat.ChatInfo
+import de.intektor.kentai.kentai.chat.adapter.chat.HeaderItemDecoration
 import de.intektor.kentai.kentai.references.getReferenceFile
-import de.intektor.kentai.kentai.view.media.MediaGroupAdapter
+import de.intektor.kentai.kentai.view.media.MediaAdapter
 import de.intektor.kentai_http_common.chat.MessageType
 import de.intektor.kentai_http_common.reference.FileType
 import de.intektor.kentai_http_common.util.toUUID
@@ -21,10 +20,12 @@ import java.util.*
 
 class ViewMediaActivity : AppCompatActivity() {
 
-    lateinit var adapter: MediaGroupAdapter<ReferenceFile, CombinedReferences>
+    lateinit var adapter: MediaAdapter<ReferenceFile>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        setTheme(getSelectedTheme(this))
 
         setContentView(R.layout.activity_view_media)
 
@@ -61,23 +62,59 @@ class ViewMediaActivity : AppCompatActivity() {
             calendar.get(Calendar.MONTH) to calendar.get(Calendar.YEAR)
         }.map { CombinedReferences(Date(it.value.first().time), it.value.toMutableList()) }
 
-        adapter = MediaGroupAdapter(grouped, { item, _, _ ->
+        val actList = mutableListOf<Any>()
+        grouped.reversed().forEach {
+            actList += MediaAdapter.MediaFileHeader(it.date.time)
+            actList.addAll(it.combined.reversed())
+        }
+
+        adapter = MediaAdapter(actList, { item, _ ->
             val viewMediaIntent = Intent(this, ViewIndividualMediaActivity::class.java)
             viewMediaIntent.putExtra(KEY_FILE_URI, Uri.fromFile(item.file))
             viewMediaIntent.putExtra(KEY_MEDIA_TYPE, item.fileType)
             viewMediaIntent.putExtra(KEY_MESSAGE_UUID, item.messageUUID)
             startActivity(viewMediaIntent)
-        }, { _, _, _ -> })
+        }, { _, _ -> })
         activityViewMediaList.adapter = adapter
-        activityViewMediaList.layoutManager = LinearLayoutManager(this)
-        activityViewMediaList.isNestedScrollingEnabled = false
+
+        val layoutManager = GridLayoutManager(this, 3)
+        layoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+            override fun getSpanSize(position: Int): Int {
+                return when (actList[position]) {
+                    is MediaAdapter.MediaFileHeader -> 3
+                    is ReferenceFile -> 1
+                    else -> throw IllegalArgumentException()
+                }
+            }
+        }
+
+        activityViewMediaList.layoutManager = layoutManager
+
+        activityViewMediaList.addItemDecoration(HeaderItemDecoration(activityViewMediaList, object : HeaderItemDecoration.StickyHeaderInterface {
+            override fun getHeaderPositionForItem(itemPosition: Int): Int {
+                var i = itemPosition
+                while (true) {
+                    if (isHeader(i)) return i
+                    i--
+                }
+            }
+
+            override fun getHeaderLayout(headerPosition: Int): Int = R.layout.media_group_header
+
+            override fun bindHeaderData(header: View, headerPosition: Int) {
+                MediaAdapter.MediaHeaderViewHolder(header).bind(actList[headerPosition] as MediaAdapter.MediaFileHeader)
+            }
+
+            override fun isHeader(itemPosition: Int): Boolean = actList[itemPosition] is MediaAdapter.MediaFileHeader
+        }))
+
 
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
     }
 
-    class ReferenceFile(referenceFile: File, val fileType: FileType, time: Long, val messageUUID: UUID) : MediaGroupAdapter.MediaFile(time, referenceFile)
+    class ReferenceFile(referenceFile: File, val fileType: FileType, time: Long, val messageUUID: UUID) : MediaAdapter.MediaFile(time, referenceFile)
 
-    class CombinedReferences(date: Date, combined: MutableList<ReferenceFile>) : MediaGroupAdapter.GroupedMediaFile<ReferenceFile>(date, combined)
+    class CombinedReferences(val date: Date, val combined: MutableList<ReferenceFile>)
 
     override fun onSupportNavigateUp(): Boolean {
         finish()

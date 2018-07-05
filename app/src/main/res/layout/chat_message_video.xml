@@ -1,59 +1,80 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/bubble_layout_parent"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:gravity="end"
-    android:orientation="vertical"
-    android:paddingEnd="5dp"
-    android:paddingStart="5dp">
+    android:layout_height="wrap_content">
 
-    <LinearLayout
-        android:id="@+id/bubble_layout"
+    <CheckBox
+        android:id="@+id/selectedBox"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical">
+        android:layout_marginStart="16dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 
-        <FrameLayout
+    <LinearLayout
+        android:id="@+id/bubble_layout_parent"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="8dp"
+        android:gravity="end"
+        android:orientation="vertical"
+        android:paddingEnd="5dp"
+        android:paddingStart="5dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/selectedBox"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <LinearLayout
+            android:id="@+id/bubble_layout"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content">
-
-            <ImageView
-                android:id="@+id/chatMessageVideoView"
-                android:layout_width="200dp"
-                android:layout_height="250dp"
-                android:padding="8dp"
-                android:scaleType="fitCenter"
-                app:srcCompat="@mipmap/ic_launcher" />
-
-            <ImageView
-                android:id="@+id/chatMessageVideoPlayButton"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_gravity="center"
-                app:srcCompat="@android:drawable/ic_media_play" />
-
-            <ProgressBar
-                android:id="@+id/chatMessageVideoViewLoadBar"
-                style="?android:attr/progressBarStyle"
-                android:layout_width="40dp"
-                android:layout_height="50dp"
-                android:layout_gravity="center"
-                android:visibility="visible" />
-        </FrameLayout>
-
-        <TextView
-            android:id="@+id/chatMessageVideoViewText"
-            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text=""
-            android:textSize="18sp"
-            tools:text=""
-            android:autoLink="all" />
+            android:orientation="vertical">
 
+            <FrameLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content">
+
+                <ImageView
+                    android:id="@+id/chatMessageVideoView"
+                    android:layout_width="200dp"
+                    android:layout_height="250dp"
+                    android:padding="8dp"
+                    android:scaleType="fitCenter"
+                    app:srcCompat="@mipmap/ic_launcher" />
+
+                <ImageView
+                    android:id="@+id/chatMessageVideoPlayButton"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_gravity="center"
+                    app:srcCompat="@android:drawable/ic_media_play" />
+
+                <ProgressBar
+                    android:id="@+id/chatMessageVideoViewLoadBar"
+                    style="?android:attr/progressBarStyle"
+                    android:layout_width="40dp"
+                    android:layout_height="50dp"
+                    android:layout_gravity="center"
+                    android:visibility="visible" />
+            </FrameLayout>
+
+            <TextView
+                android:id="@+id/chatMessageVideoViewText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:autoLink="all"
+                android:text=""
+                android:textSize="18sp"
+                tools:text="" />
+
+        </LinearLayout>
     </LinearLayout>
-
-
-</LinearLayout>
+</android.support.constraint.ConstraintLayout>

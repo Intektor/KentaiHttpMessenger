@@ -5,9 +5,9 @@
     tools:context="de.intektor.kentai.overview_activity.OverviewActivity">
     <item
         android:id="@+id/new_chat"
-        android:icon="@drawable/ic_message_white_24dp"
+        android:icon="?attr/ic_message"
         android:title="@string/new_chat_label"
-        app:showAsAction="always">
+        app:showAsAction="ifRoom">
         <menu>
             <item
                 android:id="@+id/new_chat_button_user"
@@ -19,10 +19,16 @@
     </item>
     <item
         android:id="@+id/new_contact"
-        android:icon="@drawable/ic_person_add_white_24dp"
+        android:icon="?attr/ic_person_add"
         android:title="@string/new_contact_label"
-        app:showAsAction="always" />
+        app:showAsAction="ifRoom" />
 
+    <item
+        android:id="@+id/search_chat"
+        android:icon="?attr/ic_search"
+        android:title="@string/overview_activity_search"
+        app:showAsAction="always|collapseActionView"
+        app:actionViewClass="android.support.v7.widget.SearchView" />
     <item
         android:id="@+id/chat_backup"
         android:title="@string/overview_activity_menu_chat_backup"
@@ -54,7 +60,7 @@
 
     <item
         android:id="@+id/menuOverviewSettings"
-        android:icon="@drawable/ic_settings_white_24dp"
+        android:icon="?attr/ic_settings"
         android:title="@string/overview_activity_settings_label"
         app:showAsAction="ifRoom" />
 </menu>

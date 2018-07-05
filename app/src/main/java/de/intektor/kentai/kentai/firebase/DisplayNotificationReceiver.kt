@@ -3,8 +3,6 @@ package de.intektor.kentai.kentai.firebase
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.os.Build
-import android.support.annotation.RequiresApi
 import de.intektor.kentai.kentai.android.readMessageWrapper
 import de.intektor.kentai.kentai.handleNotification
 import de.intektor.kentai_http_common.chat.ChatType
@@ -16,13 +14,6 @@ import java.util.*
  */
 class DisplayNotificationReceiver : BroadcastReceiver() {
 
-    companion object {
-        const val NOTIFICATION_FILE: String = "de.intektor.kentai.messenger.NOTIFICATION_FILE_KEY"
-        const val GROUP_KEY = "Kentai"
-        const val NOTIFICATION_ID = "de.intektor.kentai.NOTIFICATION_ID"
-    }
-
-    @RequiresApi(Build.VERSION_CODES.N)
     override fun onReceive(context: Context, intent: Intent) {
         val unreadMessages = intent.getIntExtra("unreadMessages", 0)
 

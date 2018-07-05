@@ -5,9 +5,11 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.view.Gravity
 import android.view.View
-import android.widget.*
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.ProgressBar
+import android.widget.TextView
 import com.squareup.picasso.Picasso
-import de.intektor.kentai.ChatActivity
 import de.intektor.kentai.KentaiClient
 import de.intektor.kentai.R
 import de.intektor.kentai.ViewIndividualMediaActivity
@@ -15,13 +17,12 @@ import de.intektor.kentai.kentai.KEY_FILE_URI
 import de.intektor.kentai.kentai.KEY_MEDIA_TYPE
 import de.intektor.kentai.kentai.KEY_MESSAGE_UUID
 import de.intektor.kentai.kentai.chat.ReferenceHolder
-import de.intektor.kentai.kentai.checkStoragePermission
-import de.intektor.kentai.kentai.references.downloadImage
+import de.intektor.kentai.kentai.getAttrDrawable
 import de.intektor.kentai.kentai.references.getReferenceFile
-import de.intektor.kentai.kentai.references.uploadImage
 import de.intektor.kentai_http_common.chat.ChatMessage
 import de.intektor.kentai_http_common.chat.ChatMessageImage
 import de.intektor.kentai_http_common.reference.FileType
+import de.intektor.kentai_http_common.util.toUUID
 
 class ImageMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessageViewHolder(view, chatAdapter) {
 
@@ -74,7 +75,7 @@ class ImageMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessage
             val viewImageIntent = Intent(imageView.context, ViewIndividualMediaActivity::class.java)
             viewImageIntent.putExtra(KEY_FILE_URI, Uri.fromFile(referenceFile))
             viewImageIntent.putExtra(KEY_MEDIA_TYPE, FileType.IMAGE)
-            viewImageIntent.putExtra(KEY_MESSAGE_UUID, message.id)
+            viewImageIntent.putExtra(KEY_MESSAGE_UUID, message.id.toUUID())
             imageView.context.startActivity(viewImageIntent)
         }
 
@@ -89,11 +90,11 @@ class ImageMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessage
         val layout = itemView.findViewById(R.id.bubble_layout) as LinearLayout
         val parentLayout = itemView.findViewById(R.id.bubble_layout_parent) as LinearLayout
 
-        if (wrapper.client) {
-            layout.setBackgroundResource(R.drawable.bubble_right)
+        if (component.chatMessageWrapper.client) {
+            layout.background = getAttrDrawable(itemView.context, R.attr.bubble_right)
             parentLayout.gravity = Gravity.END
         } else {
-            layout.setBackgroundResource(R.drawable.bubble_left)
+            layout.background = getAttrDrawable(itemView.context, R.attr.bubble_left)
             parentLayout.gravity = Gravity.START
         }
     }

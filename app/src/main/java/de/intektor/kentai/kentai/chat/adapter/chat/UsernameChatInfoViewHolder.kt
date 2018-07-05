@@ -14,4 +14,6 @@ class UsernameChatInfoViewHolder(view: View, chatAdapter: ChatAdapter) : Abstrac
         text.text = component.username
         text.setTextColor(Color.parseColor("#${component.color}"))
     }
+
+    override fun registerForContextMenu(): Boolean = false
 }

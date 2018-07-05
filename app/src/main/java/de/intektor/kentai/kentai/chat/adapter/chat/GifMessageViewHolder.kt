@@ -1,5 +1,6 @@
 package de.intektor.kentai.kentai.chat.adapter.chat
 
+import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Movie
@@ -13,7 +14,11 @@ import android.webkit.WebView
 import android.widget.*
 import de.intektor.kentai.KentaiClient
 import de.intektor.kentai.R
+import de.intektor.kentai.ViewIndividualMediaActivity
+import de.intektor.kentai.kentai.KEY_FILE_URI
+import de.intektor.kentai.kentai.KEY_MEDIA_TYPE
 import de.intektor.kentai.kentai.chat.ReferenceHolder
+import de.intektor.kentai.kentai.getAttrDrawable
 import de.intektor.kentai.kentai.references.getReferenceFile
 import de.intektor.kentai_http_common.chat.ChatMessageVideo
 import de.intektor.kentai_http_common.reference.FileType
@@ -93,6 +98,13 @@ class GifMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessageVi
                 }
             }
 
+            thumbnail.setOnClickListener {
+                val i = Intent(itemView.context, ViewIndividualMediaActivity::class.java)
+                i.putExtra(KEY_FILE_URI, Uri.fromFile(referenceFile))
+                i.putExtra(KEY_MEDIA_TYPE, FileType.GIF)
+                itemView.context.startActivity(i)
+            }
+
             videoView.setOnCompletionListener {
                 videoView.seekTo(0)
                 videoView.start()
@@ -140,10 +152,10 @@ class GifMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessageVi
         val parentLayout = itemView.findViewById(R.id.bubble_layout_parent) as LinearLayout
         // if message is mine then align to right
         if (component.chatMessageWrapper.client) {
-            layout.setBackgroundResource(R.drawable.bubble_right)
+            layout.background = getAttrDrawable(itemView.context, R.attr.bubble_right)
             parentLayout.gravity = Gravity.END
         } else {
-            layout.setBackgroundResource(R.drawable.bubble_left)
+            layout.background = getAttrDrawable(itemView.context, R.attr.bubble_left)
             parentLayout.gravity = Gravity.START
         }
     }

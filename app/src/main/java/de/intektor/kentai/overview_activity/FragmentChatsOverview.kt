@@ -12,10 +12,16 @@ import de.intektor.kentai.KentaiClient
 import de.intektor.kentai.R
 import de.intektor.kentai.fragment.ChatListViewAdapter
 import de.intektor.kentai.fragment.ChatListViewAdapter.ChatItem
+import de.intektor.kentai.kentai.ACTION_INITIALIZE_CHAT
 import de.intektor.kentai.kentai.KEY_CHAT_INFO
+import de.intektor.kentai.kentai.KEY_CHAT_UUID
+import de.intektor.kentai.kentai.KEY_USER_UUID
 import de.intektor.kentai.kentai.chat.deleteChat
+import de.intektor.kentai.kentai.chat.readChatParticipants
 import de.intektor.kentai.kentai.chat.readChats
+import de.intektor.kentai.kentai.firebase.SendService
 import java.util.*
+import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 
 
@@ -27,7 +33,7 @@ class FragmentChatsOverview : Fragment() {
     lateinit var chatList: RecyclerView
 
     lateinit var kentaiClient: KentaiClient
-    
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setHasOptionsMenu(true)
@@ -42,10 +48,21 @@ class FragmentChatsOverview : Fragment() {
         kentaiClient = context.applicationContext as KentaiClient
 
         chatList.adapter = ChatListViewAdapter(shownChatList, { item ->
-                val intent = Intent(kentaiClient.currentActivity, ChatActivity::class.java)
-                intent.putExtra(KEY_CHAT_INFO, item.chatInfo)
-                kentaiClient.currentActivity!!.startActivity(intent)
+            val missingUsers = readChatParticipants(kentaiClient.dataBase, item.chatInfo.chatUUID).filter { it.publicKey == null }
 
+            if (missingUsers.isNotEmpty()) {
+                val intent = Intent(context, SendService::class.java)
+                intent.action = ACTION_INITIALIZE_CHAT
+                intent.putStringArrayListExtra(KEY_USER_UUID, ArrayList(missingUsers.map { it.receiverUUID.toString() }))
+                intent.putExtra(KEY_CHAT_UUID, item.chatInfo.chatUUID)
+                context.startService(intent)
+
+                updateInitChat(item.chatInfo.chatUUID, true, false)
+            } else {
+                val intent = Intent(context, ChatActivity::class.java)
+                intent.putExtra(KEY_CHAT_INFO, item.chatInfo)
+                context.startActivity(intent)
+            }
         }, this@FragmentChatsOverview)
 
         return chatList
@@ -67,6 +84,16 @@ class FragmentChatsOverview : Fragment() {
         shownChatList.sortByDescending { it.lastChatMessage.message.timeSent }
 
         chatList.adapter.notifyDataSetChanged()
+    }
+
+    fun updateInitChat(chatUUID: UUID, loading: Boolean, successful: Boolean) {
+        val index = shownChatList.indexOfFirst { it.chatInfo.chatUUID == chatUUID }
+        if (index != -1) {
+            val item = shownChatList[index]
+            item.loading = loading
+            item.finished = successful
+            chatList.adapter.notifyItemChanged(index)
+        }
     }
 
     private var currentContextSelectedIndex = -1

@@ -24,6 +24,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="center_vertical"
         android:layout_weight="1"
+        android:singleLine="true"
         android:text="Username"
         android:textSize="18sp"
         android:visibility="gone" />

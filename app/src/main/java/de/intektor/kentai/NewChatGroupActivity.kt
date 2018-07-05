@@ -13,11 +13,13 @@ import android.view.*
 import android.widget.ImageView
 import com.squareup.picasso.MemoryPolicy
 import com.squareup.picasso.Picasso
-import de.intektor.kentai.fragment.ContactViewAdapter
+import de.intektor.kentai.fragment.ContactAdapter
 import de.intektor.kentai.kentai.KEY_CHAT_INFO
 import de.intektor.kentai.kentai.chat.*
 import de.intektor.kentai.kentai.contacts.Contact
+import de.intektor.kentai.kentai.getAttrDrawable
 import de.intektor.kentai.kentai.getProfilePicture
+import de.intektor.kentai.kentai.getSelectedTheme
 import de.intektor.kentai_http_common.chat.ChatMessageGroupInvite
 import de.intektor.kentai_http_common.chat.ChatType
 import de.intektor.kentai_http_common.chat.GroupRole
@@ -32,15 +34,18 @@ import kotlin.collections.HashMap
 
 class NewChatGroupActivity : AppCompatActivity(), android.support.v7.widget.SearchView.OnQueryTextListener {
 
-    private val contactList = mutableListOf<ContactViewAdapter.ContactWrapper>()
-    private val shownContactList = mutableListOf<ContactViewAdapter.ContactWrapper>()
-    private val selected = mutableListOf<ContactViewAdapter.ContactWrapper>()
+    private val contactList = mutableListOf<ContactAdapter.ContactWrapper>()
+    private val shownContactList = mutableListOf<ContactAdapter.ContactWrapper>()
+    private val selected = mutableListOf<ContactAdapter.ContactWrapper>()
     private lateinit var createItem: MenuItem
     private lateinit var selectedAdapter: SelectedContactsAdapter
-    private lateinit var contactAdapter: ContactViewAdapter
+    private lateinit var contactAdapter: ContactAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        setTheme(getSelectedTheme(this))
+
         setContentView(R.layout.activity_new_chat_group)
 
         val kentaiClient = applicationContext as KentaiClient
@@ -60,18 +65,18 @@ class NewChatGroupActivity : AppCompatActivity(), android.support.v7.widget.Sear
             }
         }
         cursor.close()
-        this.contactList += contactList.map { ContactViewAdapter.ContactWrapper(it, false) }
+        this.contactList += contactList.map { ContactAdapter.ContactWrapper(it, false) }
 
         this.shownContactList += this.contactList
 
-        contactAdapter = ContactViewAdapter(this.shownContactList, { _, _ -> }, true) { contact, view ->
+        contactAdapter = ContactAdapter(this.shownContactList, { _, _ -> }, true, { contact, view ->
             if (view.checkBox.isChecked) {
                 addContact(contact)
             } else {
                 removeContact(contact)
             }
             createItem.isEnabled = selected.isNotEmpty() && groupName.text.isNotBlank() && groupName.text.length >= 3
-        }
+        }, { false })
         contactListView.adapter = contactAdapter
 
         groupName.addTextChangedListener(object : TextWatcher {
@@ -97,13 +102,13 @@ class NewChatGroupActivity : AppCompatActivity(), android.support.v7.widget.Sear
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
     }
 
-    private fun addContact(contact: ContactViewAdapter.ContactWrapper) {
+    private fun addContact(contact: ContactAdapter.ContactWrapper) {
         selected += contact
         selectedAdapter.notifyItemInserted(selected.size - 1)
         contact.checked = true
     }
 
-    private fun removeContact(contact: ContactViewAdapter.ContactWrapper) {
+    private fun removeContact(contact: ContactAdapter.ContactWrapper) {
         val indexSelected = selected.indexOf(contact)
 
         contact.checked = false
@@ -119,7 +124,8 @@ class NewChatGroupActivity : AppCompatActivity(), android.support.v7.widget.Sear
     private fun startNewChat() {
         val kentaiClient = applicationContext as KentaiClient
 
-        val chatInfo = ChatInfo(UUID.randomUUID(), groupName.text.toString(), ChatType.GROUP, selected.map {
+        //TODO:
+        val chatInfo = ChatInfo(UUID.randomUUID(), groupName.text.toString(), ChatType.GROUP_DECENTRALIZED, selected.map {
             ChatReceiver(it.contact.userUUID, it.contact.message_key, ChatReceiver.ReceiverType.USER)
         }.plus(ChatReceiver(kentaiClient.userUUID, null, ChatReceiver.ReceiverType.USER)))
 
@@ -133,22 +139,20 @@ class NewChatGroupActivity : AppCompatActivity(), android.support.v7.widget.Sear
 
         createGroupChat(chatInfo, roleMap, groupKey, kentaiClient.dataBase, kentaiClient.userUUID)
 
-        val message = ChatMessageWrapper(ChatMessageGroupInvite(chatInfo.chatUUID, roleMap, groupName.text.toString(), groupKey, kentaiClient.userUUID, System.currentTimeMillis()), MessageStatus.WAITING, true, System.currentTimeMillis())
+        //TODO:
+        val groupInvite = ChatMessageGroupInvite.GroupInviteDecentralizedChat(roleMap, chatInfo.chatUUID, groupName.text.toString(), groupKey)
+        val message = ChatMessageWrapper(ChatMessageGroupInvite(groupInvite, kentaiClient.userUUID, System.currentTimeMillis()), MessageStatus.WAITING, true, System.currentTimeMillis(), chatInfo.chatUUID)
 
         val toSend = mutableListOf<PendingMessage>()
 
         for (wrapper in selected) {
-            kentaiClient.dataBase.rawQuery("SELECT chat_uuid FROM user_to_chat_uuid WHERE user_uuid = ?", arrayOf(wrapper.contact.userUUID.toString())).use { query ->
-                if (query.moveToNext()) {
-                    val chatUUID = query.getString(0).toUUID()
-                    toSend.add(PendingMessage(message, chatUUID, chatInfo.participants.filter { it.receiverUUID == wrapper.contact.userUUID }))
-                } else {
-                    val newChatUUID = UUID.randomUUID()
-                    createChat(ChatInfo(newChatUUID, wrapper.contact.name, ChatType.TWO_PEOPLE, listOf(ChatReceiver(wrapper.contact.userUUID, wrapper.contact.message_key, ChatReceiver.ReceiverType.USER),
-                            ChatReceiver(kentaiClient.userUUID, null, ChatReceiver.ReceiverType.USER))), kentaiClient.dataBase, kentaiClient.userUUID)
-                    toSend.add(PendingMessage(message, newChatUUID, chatInfo.participants.filter { it.receiverUUID == wrapper.contact.userUUID }))
-                }
-            }
+            val userChat = getUserChat(kentaiClient.dataBase, wrapper.contact, kentaiClient)
+
+            val newMessage = message.message.copy()
+            newMessage.id = UUID.randomUUID().toString()
+            val newWrapper = message.copy(message = newMessage)
+
+            toSend.add(PendingMessage(newWrapper, userChat.chatUUID, chatInfo.participants.filter { it.receiverUUID == wrapper.contact.userUUID }))
         }
 
         sendMessageToServer(this, toSend, kentaiClient.dataBase)
@@ -191,14 +195,14 @@ class NewChatGroupActivity : AppCompatActivity(), android.support.v7.widget.Sear
     override fun onQueryTextChange(newText: String): Boolean {
         val currentShownList = if (!newText.isEmpty()) contactList.filter { it.contact.name.contains(newText, true) || it.contact.alias.contains(newText, true) } else contactList
         val adapter = contactListView.adapter
-        adapter as ContactViewAdapter
+        adapter as ContactAdapter
         shownContactList.clear()
         shownContactList += currentShownList
         adapter.notifyDataSetChanged()
         return true
     }
 
-    private class SelectedContactsAdapter(val selectedList: List<ContactViewAdapter.ContactWrapper>, val onClick: (ContactViewAdapter.ContactWrapper) -> Unit) : RecyclerView.Adapter<SelectedViewHolder>() {
+    private class SelectedContactsAdapter(val selectedList: List<ContactAdapter.ContactWrapper>, val onClick: (ContactAdapter.ContactWrapper) -> Unit) : RecyclerView.Adapter<SelectedViewHolder>() {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SelectedViewHolder {
             val view = LayoutInflater.from(parent.context).inflate(R.layout.chat_item_small, parent, false)
@@ -214,8 +218,9 @@ class NewChatGroupActivity : AppCompatActivity(), android.support.v7.widget.Sear
             Picasso.with(holder.itemView.context)
                     .load(getProfilePicture(userUUID, holder.itemView.context))
                     .memoryPolicy(MemoryPolicy.NO_CACHE)
-                    .placeholder(R.drawable.ic_account_circle_white_24dp)
+                    .placeholder(getAttrDrawable(holder.itemView.context, R.attr.ic_account))
                     .into(holder.image)
+
 
             holder.itemView.setOnClickListener {
                 onClick.invoke(item)

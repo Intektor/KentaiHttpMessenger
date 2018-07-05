@@ -40,6 +40,9 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        setTheme(getSelectedTheme(this))
+
         setContentView(R.layout.activity_share_receive)
 
         val kentaiClient = applicationContext as KentaiClient
@@ -122,14 +125,14 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
                     when (action) {
                         Intent.ACTION_SEND -> {
                             val message = ChatMessageText(intent.getStringExtra(Intent.EXTRA_TEXT), kentaiClient.userUUID, System.currentTimeMillis())
-                            val wrapper = ChatMessageWrapper(message, MessageStatus.WAITING, true, System.currentTimeMillis())
+                            val wrapper = ChatMessageWrapper(message, MessageStatus.WAITING, true, System.currentTimeMillis(), UUID.randomUUID())
                             listOf(wrapper)
                         }
                         Intent.ACTION_SEND_MULTIPLE -> {
                             val tempList = mutableListOf<ChatMessageWrapper>()
                             for (string in intent.getStringArrayExtra(Intent.EXTRA_TEXT)) {
                                 val message = ChatMessageText(intent.getStringExtra(Intent.EXTRA_TEXT), kentaiClient.userUUID, System.currentTimeMillis())
-                                val wrapper = ChatMessageWrapper(message, MessageStatus.WAITING, true, System.currentTimeMillis())
+                                val wrapper = ChatMessageWrapper(message, MessageStatus.WAITING, true, System.currentTimeMillis(), UUID.randomUUID())
                                 tempList += wrapper
                             }
                             tempList
@@ -149,7 +152,7 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
                             val hash = Hashing.sha512().hashBytes(File(path).readBytes())
 
                             val message = ChatMessageImage(hash.toString(), kentaiClient.userUUID, "", System.currentTimeMillis(), createSmallPreviewImage(File(path), FileType.IMAGE))
-                            val wrapper = ChatMessageWrapper(message, MessageStatus.WAITING, true, System.currentTimeMillis())
+                            val wrapper = ChatMessageWrapper(message, MessageStatus.WAITING, true, System.currentTimeMillis(), UUID.randomUUID())
                             listOf(wrapper)
                         }
                         Intent.ACTION_SEND_MULTIPLE -> {
@@ -163,9 +166,12 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
                                 }
                                 val hash = Hashing.sha512().hashBytes(File(path).readBytes())
 
-                                val message = ChatMessageImage(hash.toString(), kentaiClient.userUUID, "", System.currentTimeMillis(), createSmallPreviewImage(File(path), FileType.IMAGE))
-                                val wrapper = ChatMessageWrapper(message, MessageStatus.WAITING, true, System.currentTimeMillis())
+                                val smallPreview = createSmallPreviewImage(File(path), FileType.IMAGE)
+
+                                val message = ChatMessageImage(hash.toString(), kentaiClient.userUUID, "", System.currentTimeMillis(), smallPreview)
+                                val wrapper = ChatMessageWrapper(message, MessageStatus.WAITING, true, System.currentTimeMillis(), UUID.randomUUID())
                                 tempList += wrapper
+
                             }
                             tempList
                         }
@@ -192,7 +198,7 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
                             val message = ChatMessageVideo(hash.toString(), videoDuration, kentaiClient.userUUID, "", System.currentTimeMillis(), false)
                             message.referenceUUID = referenceUUID
 
-                            val wrapper = ChatMessageWrapper(message, MessageStatus.WAITING, true, System.currentTimeMillis())
+                            val wrapper = ChatMessageWrapper(message, MessageStatus.WAITING, true, System.currentTimeMillis(), UUID.randomUUID())
                             listOf(wrapper)
                         }
                         Intent.ACTION_SEND_MULTIPLE -> {
@@ -215,7 +221,7 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
                                 val message = ChatMessageVideo(hash.toString(), videoDuration, kentaiClient.userUUID, "", System.currentTimeMillis(), false)
                                 message.referenceUUID = referenceUUID
 
-                                val wrapper = ChatMessageWrapper(message, MessageStatus.WAITING, true, System.currentTimeMillis())
+                                val wrapper = ChatMessageWrapper(message, MessageStatus.WAITING, true, System.currentTimeMillis(), UUID.randomUUID())
                                 tempList += wrapper
                             }
                             tempList
@@ -227,7 +233,13 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
             }
 
             val pendingMessages = messageList.map { wrapper ->
-                selectedList.map { PendingMessage(wrapper, it.chatInfo.chatUUID, it.chatInfo.participants.filter { it.receiverUUID != kentaiClient.userUUID }) }
+                selectedList.map {
+                    val message = wrapper.message.copy()
+                    message.id = UUID.randomUUID().toString()
+
+                    val act = wrapper.copy(message = message, chatUUID = it.chatInfo.chatUUID)
+                    PendingMessage(act, it.chatInfo.chatUUID, it.chatInfo.participants.filter { it.receiverUUID != kentaiClient.userUUID })
+                }
             }.flatMap { it }
             sendMessageToServer(this, pendingMessages, kentaiClient.dataBase)
 

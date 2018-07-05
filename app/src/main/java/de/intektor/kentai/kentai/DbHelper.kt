@@ -3,11 +3,12 @@ package de.intektor.kentai.kentai
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import de.intektor.kentai.database.DatabaseUpgradeUtil
 
 /**
  * @author Intektor
  */
-class DbHelper(context: Context) : SQLiteOpenHelper(context, "KENTAI_DATABASE", null, 1) {
+class DbHelper(context: Context) : SQLiteOpenHelper(context, "KENTAI_DATABASE", null, 2) {
 
     override fun onCreate(dB: SQLiteDatabase) {
         dB.execSQL("CREATE TABLE IF NOT EXISTS chats (" +
@@ -62,16 +63,6 @@ class DbHelper(context: Context) : SQLiteOpenHelper(context, "KENTAI_DATABASE", 
                 "message_uuid VARCHAR(45) NOT NULL, " +
                 "PRIMARY KEY (message_uuid));")
 
-        dB.execSQL("CREATE TABLE IF NOT EXISTS notification_messages (" +
-                "chat_uuid VARCHAR(40) NOT NULL, " +
-                "sender_uuid VARCHAR(40) NOT NULL, " +
-                "message_uuid VARCHAR(40) NOT NULL, " +
-                "preview_text VARCHAR(60) NOT NULL, " +
-                "additional_info_id INT NOT NULL, " +
-                "additional_info_content VARBINARY(1024), " +
-                "time BIGINT NOT NULL, " +
-                "PRIMARY KEY (message_uuid))")
-
         dB.execSQL("CREATE TABLE IF NOT EXISTS group_role_table (" +
                 "id INT, " +
                 "chat_uuid VARCHAR(40) NOT NULL REFERENCES chats(chat_uuid) ON DELETE CASCADE, " +
@@ -101,10 +92,13 @@ class DbHelper(context: Context) : SQLiteOpenHelper(context, "KENTAI_DATABASE", 
                 "file_type INT NOT NULL, " +
                 "state INT NOT NULL, " +
                 "PRIMARY KEY(reference_uuid));")
+
+        DatabaseUpgradeUtil.addPendingGroupModificationsTable(dB)
+        DatabaseUpgradeUtil.addGroupMessageUUIDTable(dB)
+        DatabaseUpgradeUtil.addNotificationMessagesTable(dB)
     }
 
     override fun onUpgrade(dB: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-
+        DatabaseUpgradeUtil.upgradeDatabase(dB, oldVersion, newVersion)
     }
-
 }

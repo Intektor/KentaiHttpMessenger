@@ -50,7 +50,7 @@ fun createChatBackup(backupName: String, context: Context, callback: (Int) -> (U
         var current = 0
         var lastTime = 0L
         while (current < messageAmount) {
-            val list = readChatMessageWrappers(kentaiClient.dataBase, "chat_uuid = '${info.chatUUID}' AND time > $lastTime", null, "time ASC", 10)
+            val list = readChatMessageWrappers(kentaiClient.dataBase, "chat_uuid = '${info.chatUUID}' AND time > $lastTime", null, "time ASC", "10")
 
             for (messageWrapper in list) {
                 zipBuilder.zipOut.putNextEntry(ZipEntry("$baseFolder/${messageWrapper.message.id}.km"))
@@ -64,10 +64,10 @@ fun createChatBackup(backupName: String, context: Context, callback: (Int) -> (U
         zipBuilder.zipOut.putNextEntry(ZipEntry("$baseFolder/info.kci"))
         writeChatInfo(info, dataOut)
 
-        if (chat.chatInfo.chatType == ChatType.GROUP) {
+        if (chat.chatInfo.chatType.isGroup()) {
             zipBuilder.zipOut.putNextEntry(ZipEntry("$baseFolder/roles.kcri"))
 
-            val groupRoles = readGroupRoles(kentaiClient.dataBase, chat.chatInfo.chatUUID)
+            val groupRoles = getGroupMembers(kentaiClient.dataBase, chat.chatInfo.chatUUID)
             dataOut.writeInt(groupRoles.size)
             for (role in groupRoles) {
                 writeGroupMember(role, dataOut)
@@ -134,7 +134,7 @@ fun installChatBackup(database: SQLiteDatabase, chatBackup: File, context: Conte
         zipIn.copyTo(fos)
     }
 
-    File(path + "/contacts/").listFiles()
+    File(path, "contacts/").listFiles()
             .map { readContact(it.inputStream().dataIn()) }
             .forEach { addContact(it.userUUID, it.name, database, it.message_key) }
 
@@ -150,7 +150,7 @@ fun installChatBackup(database: SQLiteDatabase, chatBackup: File, context: Conte
             ChatType.TWO_PEOPLE -> {
                 createChat(chatInfo, database, kentaiClient.userUUID)
             }
-            ChatType.GROUP -> {
+            ChatType.GROUP_CENTRALIZED, ChatType.GROUP_DECENTRALIZED -> {
                 val rolesDataIn = rolesFile.inputStream().dataIn()
 
                 val groupMembers = mutableListOf<GroupMember>()

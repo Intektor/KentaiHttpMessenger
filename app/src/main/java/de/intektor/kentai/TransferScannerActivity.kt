@@ -7,6 +7,7 @@ import android.support.v7.app.AlertDialog
 import android.support.v7.app.AppCompatActivity
 import com.google.common.io.BaseEncoding
 import com.google.zxing.BarcodeFormat
+import de.intektor.kentai.kentai.getSelectedTheme
 import de.intektor.kentai_http_common.util.*
 import kotlinx.android.synthetic.main.actitvity_transfer_scanner.*
 import me.dm7.barcodescanner.zxing.ZXingScannerView
@@ -25,6 +26,9 @@ class TransferScannerActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        setTheme(getSelectedTheme(this))
+
         setContentView(R.layout.actitvity_transfer_scanner)
 
         scannerView = ZXingScannerView(this)

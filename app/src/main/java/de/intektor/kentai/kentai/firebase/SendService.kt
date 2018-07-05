@@ -14,6 +14,7 @@ import android.os.AsyncTask
 import android.os.IBinder
 import android.os.Parcelable
 import android.support.v4.app.NotificationCompat
+import android.support.v4.app.NotificationManagerCompat
 import android.util.Log
 import com.google.common.io.BaseEncoding
 import de.intektor.kentai.KentaiClient
@@ -82,6 +83,7 @@ class SendService : Service() {
     private val downloadStreams = ConcurrentHashMap<UUID, InputStream>()
     private val uploadStreams = ConcurrentHashMap<UUID, OutputStream>()
 
+    private val initializingChats = mutableSetOf<UUID>()
 
     companion object {
         val MEDIA_TYPE_OCTET_STREAM = MediaType.parse("application/octet-stream")
@@ -95,24 +97,6 @@ class SendService : Service() {
         dataBase = kentaiClient.dataBase
 
         val userUUID = kentaiClient.userUUID
-
-        val chatMessageReceiver: BroadcastReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                val amount = intent.getIntExtra("amount", 0)
-
-                val list = mutableListOf<PendingMessage>()
-
-                for (i in 0 until amount) {
-                    val chatUUID = intent.getSerializableExtra("chatUUID$i") as UUID
-                    val receiver = intent.getParcelableArrayListExtra<ChatReceiver>("receiver$i")
-                    val wrapper = intent.readMessageWrapper(i)
-                    list.add(PendingMessage(wrapper, chatUUID, receiver))
-                }
-
-                chatMessageSendingQueue.addAll(list)
-            }
-        }
-        registerReceiver(chatMessageReceiver, IntentFilter("de.intektor.kentai.sendChatMessage"))
 
         val referenceMessageReceiver: BroadcastReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
@@ -207,6 +191,25 @@ class SendService : Service() {
                 val referenceUUID = intent.getSerializableExtra(KEY_REFERENCE_UUID) as UUID
                 referenceUploadQueue.add(buildReferenceInfo(chatUUID, fileType, File(referencePath), referenceUUID, kentaiClient.userUUID))
             }
+            ACTION_INITIALIZE_CHAT -> {
+                val userUUIDs = intent.getStringArrayListExtra(KEY_USER_UUID).map { it.toUUID() }
+                val chatUUID = intent.getSerializableExtra(KEY_CHAT_UUID) as UUID
+                initializeChat(userUUIDs, chatUUID)
+            }
+            ACTION_SEND_MESSAGES -> {
+                val amount = intent.getIntExtra(KEY_AMOUNT, 0)
+
+                val list = mutableListOf<PendingMessage>()
+
+                for (i in 0 until amount) {
+                    val chatUUID = intent.getSerializableExtra("$KEY_CHAT_UUID$i") as UUID
+                    val receiver = intent.getParcelableArrayListExtra<ChatReceiver>("$KEY_RECEIVER$i")
+                    val wrapper = intent.readMessageWrapper(i)
+                    list.add(PendingMessage(wrapper, chatUUID, receiver))
+                }
+
+                chatMessageSendingQueue.addAll(list)
+            }
         }
 
         return super.onStartCommand(intent, flags, startId)
@@ -258,13 +261,13 @@ class SendService : Service() {
                 val sendTo = participants.first { it.receiverUUID != userUUID }
                 ReferenceInfo(chatUUID, referenceUUID, sendTo.publicKey!!, referenceFile, fileType, ChatType.TWO_PEOPLE, participants.filter { it.isActive && it.receiverUUID != userUUID })
             }
-            ChatType.GROUP -> {
+            ChatType.GROUP_DECENTRALIZED, ChatType.GROUP_CENTRALIZED -> {
                 var groupKey: Key? = null
                 dataBase.rawQuery("SELECT group_key FROM group_key_table WHERE chat_uuid = ?", arrayOf(chatUUID.toString())).use { query ->
                     query.moveToNext()
                     groupKey = query.getString(0).toAESKey()
                 }
-                ReferenceInfo(chatUUID, referenceUUID, groupKey!!, referenceFile, fileType, ChatType.GROUP, participants.filter { it.isActive && it.receiverUUID != userUUID })
+                ReferenceInfo(chatUUID, referenceUUID, groupKey!!, referenceFile, fileType, chatType, participants.filter { it.isActive && it.receiverUUID != userUUID })
             }
             else -> throw NotImplementedError()
         }
@@ -280,46 +283,61 @@ class SendService : Service() {
         val gson = genGson()
         val sendingMap = mutableListOf<SendChatMessageRequest.SendingMessage>()
 
-        for ((message, chatUUID, sendTo) in list) {
-            val toProcess = message.copy(message = message.message.copy())
-            val previewText = ""
-            val registryId = ChatMessageRegistry.getID(toProcess.message.javaClass).toString()
+        val senderUUIDEncrypted = userUUID.toString().encryptRSA(privateAuthKey!!)
+
+        messages@ for ((message, chatUUID, sendTo) in list) {
+            val chatType = getChatType(chatUUID, dataBase) ?: continue@messages
+
             for (receiver in sendTo) {
+                val toProcess = message.copy(message = message.message.copy())
+                val registryId = ChatMessageRegistry.getID(toProcess.message.javaClass).toString()
                 if (receiver.isActive) {
                     if (receiver.publicKey == null) {
-                        receiver.publicKey = requestPublicKey(receiver.receiverUUID, dataBase)
+                        try {
+                            receiver.publicKey = requestPublicKey(receiver.receiverUUID, dataBase)
+                        } catch (t: Throwable) {
+                            continue@messages
+                        }
                     }
-                    val encryptedPreviewText = previewText.encryptRSA(receiver.publicKey!!)
-                    val encryptedReceiverUUID = receiver.receiverUUID.toString().encryptRSA(privateAuthKey!!)
-                    val sendingMessage = SendChatMessageRequest.SendingMessage(toProcess.message, userUUID, encryptedReceiverUUID, chatUUID, registryId, encryptedPreviewText)
+                    val encryptedChatUUID = chatUUID.toString().encryptRSA(receiver.publicKey!!)
+
+                    if (chatType.isGroup()) {
+                        val clientUUID = getGroupMessageClientMessageUUID(receiver.receiverUUID, message.message.id.toUUID(), dataBase)
+                                ?: UUID.randomUUID()
+                        toProcess.message.id = clientUUID.toString()
+
+                        setGroupMessageClientMessageUUID(message.message.id.toUUID(), receiver.receiverUUID, clientUUID, dataBase)
+                    }
+
+                    val sendingMessage = SendChatMessageRequest.SendingMessage(toProcess.message, receiver.receiverUUID, encryptedChatUUID, registryId)
                     sendingMessage.encrypt(privateMessageKey!!, receiver.publicKey!! as RSAPublicKey)
                     sendingMap.add(sendingMessage)
                 }
             }
         }
 
-        val response = httpPost(gson.toJson(SendChatMessageRequest(sendingMap)), SendChatMessageRequest.TARGET)
+        val response = httpPost(gson.toJson(SendChatMessageRequest(sendingMap, userUUID, senderUUIDEncrypted)), SendChatMessageRequest.TARGET)
         val res = gson.fromJson(response, SendChatMessageResponse::class.java)
         if (res.id == 0) {
-            val changeStatusIntent = Intent("de.intektor.kentai.messageStatusUpdate")
-            changeStatusIntent.putExtra("amount", list.count { it.message.message.shouldBeStored() })
+            val changeStatusIntent = Intent(ACTION_MESSAGE_STATUS_CHANGE)
+            changeStatusIntent.putExtra(KEY_AMOUNT, list.count { it.message.message.shouldBeStored() })
             for ((index, message) in list.withIndex()) {
                 dataBase.compileStatement("DELETE FROM pending_messages WHERE message_uuid = ?;").use { statement ->
-                    statement.bindString(1, message.message.message.id.toString())
+                    statement.bindString(1, message.message.message.id)
                     statement.execute()
                 }
                 dataBase.compileStatement("INSERT INTO message_status_change (message_uuid, status, time) VALUES(?, ?, ?)").use { statement ->
-                    statement.bindString(1, message.message.message.id.toString())
+                    statement.bindString(1, message.message.message.id)
                     statement.bindLong(2, MessageStatus.SENT.ordinal.toLong())
                     statement.bindLong(3, System.currentTimeMillis())
                     statement.execute()
                 }
 
                 if (message.message.message.shouldBeStored()) {
-                    changeStatusIntent.putExtra("messageUUID$index", message.message.message.id.toString())
-                    changeStatusIntent.putExtra("chatUUID$index", message.chatUUID.toString())
-                    changeStatusIntent.putExtra("status$index", MessageStatus.SENT.ordinal)
-                    changeStatusIntent.putExtra("time$index", System.currentTimeMillis())
+                    changeStatusIntent.putExtra("$KEY_MESSAGE_UUID$index", message.message.message.id.toUUID())
+                    changeStatusIntent.putExtra("$KEY_CHAT_UUID$index", message.chatUUID)
+                    changeStatusIntent.putExtra("$KEY_MESSAGE_STATUS$index", MessageStatus.SENT.ordinal)
+                    changeStatusIntent.putExtra("$KEY_TIME$index", System.currentTimeMillis())
                 }
             }
             sendOrderedBroadcast(changeStatusIntent, null)
@@ -349,9 +367,9 @@ class SendService : Service() {
                 .setProgress(100, 0, false)
                 .addAction(R.drawable.ic_cancel_white_24dp, getString(R.string.notification_upload_profile_picture_cancel_upload), cancelAction)
 
-        val sharedPreferences = getSharedPreferences(DisplayNotificationReceiver.NOTIFICATION_FILE, Context.MODE_PRIVATE)
+        val sharedPreferences = getNotificationPreferences(this)
 
-        val notId = nextNotificationID(sharedPreferences)
+        val notId = nextNotificationID(sharedPreferences, 1)
 
         notManager.notify(notId, notification.build())
 
@@ -450,6 +468,8 @@ class SendService : Service() {
             sendBroadcast(i)
 
             notification.setContentText(getString(R.string.notification_upload_media_description_failed))
+            notification.setSmallIcon(R.drawable.ic_error_outline_white_24dp)
+            notification.setOngoing(false)
             notification.setProgress(0, 0, false)
             notManager.notify(notId, notification.build())
         }
@@ -683,7 +703,7 @@ class SendService : Service() {
                     .setProgress(100, 0, false)
                     .addAction(R.drawable.ic_cancel_white_24dp, getString(R.string.notification_download_media_description_cancel), cancelAction)
 
-            val notId = nextNotificationID(getSharedPreferences(DisplayNotificationReceiver.NOTIFICATION_FILE, Context.MODE_PRIVATE))
+            val notId = nextNotificationID(getNotificationPreferences(this), 1)
 
             notManager.notify(notId, notification.build())
 
@@ -767,6 +787,43 @@ class SendService : Service() {
         FAILED,
         SUCCESS,
         NOT_FOUND
+    }
 
+    private fun initializeChat(users: List<UUID>, chatUUID: UUID) {
+        if (initializingChats.any { it == chatUUID }) return
+
+        initializingChats += chatUUID
+
+        val notManager = NotificationManagerCompat.from(this)
+
+        val notification = NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_MISC)
+                .setSmallIcon(android.R.drawable.stat_sys_download)
+                .setContentTitle(getString(R.string.notification_initialize_chat_title))
+                .setContentText(getString(R.string.notification_initialize_chat_title_description))
+                .setProgress(0, 100, true)
+                .setOngoing(true)
+
+        notManager.notify(KEY_NOTIFICATION_INITIALZE_CHAT_ID, notification.build())
+
+        thread {
+            val successful = try {
+                requestUsers(users, dataBase)
+                notManager.cancel(KEY_NOTIFICATION_INITIALZE_CHAT_ID)
+                true
+            } catch (t: Throwable) {
+                notification.setContentText(getString(R.string.notification_initialize_chat_title_description_failed))
+                notification.setOngoing(false)
+                notification.setSmallIcon(R.drawable.ic_file_download_white_24dp)
+                notification.setProgress(0, 0, false)
+                notManager.notify(KEY_NOTIFICATION_INITIALZE_CHAT_ID, notification.build())
+                false
+            }
+            val i = Intent(ACTION_INIT_CHAT_FINISHED)
+            i.putExtra(KEY_CHAT_UUID, chatUUID)
+            i.putExtra(KEY_SUCCESSFUL, successful)
+            sendBroadcast(i)
+
+            initializingChats -= chatUUID
+        }
     }
 }

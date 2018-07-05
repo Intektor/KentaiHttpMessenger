@@ -1,17 +1,18 @@
 package de.intektor.kentai.kentai
 
-import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
 import android.database.sqlite.SQLiteDatabase
+import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Typeface
 import android.media.RingtoneManager
 import android.os.Build
 import android.support.annotation.RequiresApi
 import android.support.v4.app.NotificationCompat
+import android.support.v4.app.NotificationManagerCompat
 import android.support.v4.app.TaskStackBuilder
 import android.text.Spannable
 import android.text.SpannableString
@@ -19,10 +20,8 @@ import android.text.style.StyleSpan
 import de.intektor.kentai.ChatActivity
 import de.intektor.kentai.KentaiClient
 import de.intektor.kentai.R
-import de.intektor.kentai.kentai.chat.ChatInfo
-import de.intektor.kentai.kentai.chat.ChatMessageWrapper
-import de.intektor.kentai.kentai.chat.readChatParticipants
-import de.intektor.kentai.kentai.firebase.DisplayNotificationReceiver
+import de.intektor.kentai.getName
+import de.intektor.kentai.kentai.chat.*
 import de.intektor.kentai.kentai.firebase.NotificationBroadcastReceiver
 import de.intektor.kentai.kentai.firebase.additional_information.AdditionalInfoRegistry
 import de.intektor.kentai.kentai.firebase.additional_information.IAdditionalInfo
@@ -30,9 +29,11 @@ import de.intektor.kentai.kentai.firebase.additional_information.info.Additional
 import de.intektor.kentai.kentai.firebase.additional_information.info.AdditionalInfoGroupModification
 import de.intektor.kentai.kentai.firebase.additional_information.info.AdditionalInfoVideoMessage
 import de.intektor.kentai.kentai.firebase.additional_information.info.AdditionalInfoVoiceMessage
+import de.intektor.kentai.kentai.groups.getGroupRoleName
 import de.intektor.kentai.overview_activity.OverviewActivity
 import de.intektor.kentai_http_common.chat.*
 import de.intektor.kentai_http_common.chat.group_modification.GroupModificationChangeName
+import de.intektor.kentai_http_common.chat.group_modification.GroupModificationChangeRole
 import de.intektor.kentai_http_common.util.minString
 import de.intektor.kentai_http_common.util.toUUID
 import java.io.ByteArrayInputStream
@@ -66,10 +67,10 @@ fun handleNotification(context: Context, chatUUID: UUID, chatType: ChatType, sen
     //Save the current message to the database, because we might need it next time
     writeNotificationToDatabase(chatUUID, senderUUID, chatMessage, additionalInfo, dataBase)
 
-    popNotifications(context, previousNotifications, context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager)
+    popNotifications(context, previousNotifications, NotificationManagerCompat.from(context))
 }
 
-fun popNotifications(context: Context, previousNotifications: List<NotificationHolder>, notificationManager: NotificationManager) {
+fun popNotifications(context: Context, previousNotifications: List<NotificationHolder>, notificationManager: NotificationManagerCompat) {
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
         popNotificationSDKUnderNougat(context, previousNotifications, notificationManager)
     } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
@@ -77,7 +78,7 @@ fun popNotifications(context: Context, previousNotifications: List<NotificationH
     }
 }
 
-fun popNotificationSDKUnderNougat(context: Context, list: List<NotificationHolder>, notificationManager: NotificationManager) {
+fun popNotificationSDKUnderNougat(context: Context, list: List<NotificationHolder>, notificationManager: NotificationManagerCompat) {
     val newMessage = list.lastOrNull() ?: return
 
     val builder = NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_NEW_MESSAGES)
@@ -93,11 +94,11 @@ fun popNotificationSDKUnderNougat(context: Context, list: List<NotificationHolde
         header.setSpan(StyleSpan(Typeface.BOLD), 0, "-$key-".length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
         inboxStyle.addLine(header)
         for (notification in value) {
-            inboxStyle.addLine(format(notification, false, notification.chatType == ChatType.GROUP, context, notification.additionalInfo))
+            inboxStyle.addLine(format(notification, false, notification.chatType.isGroup(), context, notification.additionalInfo))
         }
     }
-    inboxStyle.setBigContentTitle(format(newMessage, true, newMessage.chatType == ChatType.GROUP, context, newMessage.additionalInfo))
-    inboxStyle.setSummaryText(format(newMessage, true, newMessage.chatType == ChatType.GROUP, context, newMessage.additionalInfo))
+    inboxStyle.setBigContentTitle(format(newMessage, true, newMessage.chatType.isGroup(), context, newMessage.additionalInfo))
+    inboxStyle.setSummaryText(format(newMessage, true, newMessage.chatType.isGroup(), context, newMessage.additionalInfo))
     builder.setStyle(inboxStyle)
     builder.setLights(Color.BLUE, 1, 1)
     builder.color = Color.BLUE
@@ -119,32 +120,17 @@ fun popNotificationSDKUnderNougat(context: Context, list: List<NotificationHolde
 }
 
 @RequiresApi(Build.VERSION_CODES.N)
-fun popNotificationSDK24(context: Context, list: List<NotificationHolder>, notificationManager: NotificationManager) {
+fun popNotificationSDK24(context: Context, list: List<NotificationHolder>, notificationManager: NotificationManagerCompat) {
     val kentaiClient = context.applicationContext as KentaiClient
     val dataBase = kentaiClient.dataBase
 
-    val count = dataBase.rawQuery("SELECT COUNT(message_uuid) FROM notification_messages", null).use { query2 ->
-        if (query2.moveToNext()) {
-            query2.getInt(0)
-        } else 0
-    }
+    val count = getCountNotificationMessages(dataBase)
 
     val newMessage = list.lastOrNull() ?: return
 
-    val sharedPreferences = context.getSharedPreferences(DisplayNotificationReceiver.NOTIFICATION_FILE, Context.MODE_PRIVATE)
+    val sharedPreferences = getNotificationPreferences(context)
 
-    var builder = NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_NEW_MESSAGES)
-    builder.setContentTitle(context.getString(R.string.notification_amount_you_have_new_messages, count))
-    builder.setContentText(format(newMessage, true, true, context, newMessage.additionalInfo))
-    builder.color = Color.WHITE
-    builder.setSmallIcon(R.drawable.message_icon)
-    builder.setAutoCancel(true)
-    builder.setGroupSummary(true)
-    builder.setGroup(DisplayNotificationReceiver.GROUP_KEY)
-    builder.setShowWhen(true)
-    builder.setWhen(newMessage.time)
-
-    notificationManager.notify(KEY_NOTIFICATION_GROUP_ID, builder.build())
+    var builder: NotificationCompat.Builder
 
     val groupedByChat = list.groupBy { it.chatUUID }
 
@@ -154,32 +140,37 @@ fun popNotificationSDK24(context: Context, list: List<NotificationHolder>, notif
         builder = NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_NEW_MESSAGES)
         builder.setWhen(newMessage.time)
         builder.setShowWhen(true)
-        builder.setGroup(DisplayNotificationReceiver.GROUP_KEY)
         builder.setSmallIcon(R.drawable.message_icon)
         builder.setAutoCancel(true)
         builder.setContentTitle(first.chatName)
-        builder.setContentText(format(newMessage, false, first.chatType == ChatType.GROUP, context, first.additionalInfo))
+        builder.setContentText(format(newMessage, false, first.chatType.isGroup(), context, first.additionalInfo))
         builder.setSubText(first.chatName)
-        builder.priority = 1
+        builder.priority = NotificationCompat.PRIORITY_HIGH
+        builder.setGroup(KENTAI_NEW_MESSAGES_GROUP_KEY)
         builder.setVibrate(longArrayOf(0L, 200L, 100L, 200L, 1000L))
+        builder.setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
+
+        if (getProfilePicture(first.senderUUID, context).exists()) {
+            builder.setLargeIcon(BitmapFactory.decodeFile(getProfilePicture(first.senderUUID, context).path))
+        }
 
         val alarmSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
         builder.setSound(alarmSound)
 
         val inboxStyle = NotificationCompat.InboxStyle()
         inboxStyle.setBigContentTitle(context.getString(R.string.notification_amount_messages, first.chatName, notifications.size))
-        inboxStyle.setSummaryText(format(newMessage, false, newMessage.chatType == ChatType.GROUP, context, first.additionalInfo))
+        inboxStyle.setSummaryText(format(newMessage, false, newMessage.chatType.isGroup(), context, first.additionalInfo))
         for (notification in notifications) {
-            inboxStyle.addLine(format(notification, false, notification.chatType == ChatType.GROUP, context, notification.additionalInfo))
+            inboxStyle.addLine(format(notification, false, notification.chatType.isGroup(), context, notification.additionalInfo))
         }
         builder.setStyle(inboxStyle)
         builder.color = Color.WHITE
 
-        var id = sharedPreferences.getInt(newMessage.chatUUID.toString(), -1)
+        var id = sharedPreferences.getInt(first.chatUUID.toString(), -1)
         if (id == -1) {
-            id = nextNotificationID(sharedPreferences)
+            id = nextNotificationID(sharedPreferences, 1)
             val edit = sharedPreferences.edit()
-            edit.putInt(newMessage.chatUUID.toString(), id)
+            edit.putInt(first.chatUUID.toString(), id)
             edit.apply()
         }
 
@@ -221,15 +212,28 @@ fun popNotificationSDK24(context: Context, list: List<NotificationHolder>, notif
 
         notificationManager.notify(id, builder.build())
     }
+
+//    popNotificationSDK24Summary(context, newMessage, count, notificationManager)
 }
 
-fun nextNotificationID(sharedPreferences: SharedPreferences): Int {
-    var id = sharedPreferences.getInt(DisplayNotificationReceiver.NOTIFICATION_ID, KEY_NOTIFICATION_GROUP_ID) + 1
+fun popNotificationSDK24Summary(context: Context, newMessage: NotificationHolder, count: Int, notificationManager: NotificationManagerCompat) {
+    val builder = NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_NEW_MESSAGES)
+    builder.setContentTitle(context.getString(R.string.notification_amount_you_have_new_messages, count))
+    builder.setContentText(format(newMessage, true, true, context, newMessage.additionalInfo))
+    builder.setSmallIcon(R.drawable.message_icon)
+    builder.setGroup(KENTAI_NEW_MESSAGES_GROUP_KEY)
+    builder.setGroupSummary(true)
+
+    notificationManager.notify(KEY_NOTIFICATION_GROUP_ID, builder.build())
+}
+
+fun nextNotificationID(sharedPreferences: SharedPreferences, start: Int): Int {
+    var id = sharedPreferences.getInt(SP_NOTIFICATIONS_KEY, KEY_NOTIFICATION_GROUP_ID) + start
     while (id == KEY_NOTIFICATION_GROUP_ID) {
         id++
     }
     val editor = sharedPreferences.edit()
-    editor.putInt(DisplayNotificationReceiver.NOTIFICATION_ID, id)
+    editor.putInt(SP_NOTIFICATIONS_KEY, id)
     editor.apply()
     return id
 }
@@ -241,56 +245,67 @@ fun format(notification: NotificationHolder, addGroup: Boolean, addName: Boolean
     val chatName = notification.chatName
     val senderName = notification.senderName
     val previewText = notification.text
-    return when (MessageType.values()[notification.messageType]) {
-        MessageType.TEXT_MESSAGE -> {
-            val text = SpannableString((if (addGroup) "$chatName - " else "") + (if (addName) "$senderName: " else "") + previewText)
-            text.setSpan(StyleSpan(Typeface.BOLD), 0, ((if (addGroup) "$chatName - " else "") + (if (addName) "$senderName: " else "") + "").length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-            text
-        }
-        MessageType.GROUP_INVITE -> {
-            additionalInfo as AdditionalInfoGroupInviteMessage
-            context.getString(R.string.notification_group_invite, additionalInfo.invitedByUsername, additionalInfo.groupName)
-        }
-        MessageType.GROUP_MODIFICATION -> {
-            additionalInfo as AdditionalInfoGroupModification
-            val groupModification = additionalInfo.groupModification
-            when (groupModification) {
-                is GroupModificationChangeName -> {
-                    context.getString(R.string.notification_group_modification_change_name, senderName, groupModification.oldName, groupModification.newName)
+    val kentaiClient = context.applicationContext as KentaiClient
+    return try {
+        when (MessageType.values()[notification.messageType]) {
+            MessageType.TEXT_MESSAGE -> {
+                val text = SpannableString((if (addGroup) "$chatName - " else "") + (if (addName) "$senderName: " else "") + previewText)
+                text.setSpan(StyleSpan(Typeface.BOLD), 0, ((if (addGroup) "$chatName - " else "") + (if (addName) "$senderName: " else "") + "").length, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+                text
+            }
+            MessageType.GROUP_INVITE -> {
+                additionalInfo as AdditionalInfoGroupInviteMessage
+                context.getString(R.string.notification_group_invite, additionalInfo.invitedByUsername, additionalInfo.groupName)
+            }
+            MessageType.GROUP_MODIFICATION -> {
+                additionalInfo as AdditionalInfoGroupModification
+                val groupModification = additionalInfo.groupModification
+                when (groupModification) {
+                    is GroupModificationChangeName -> {
+                        context.getString(R.string.notification_group_modification_change_name, senderName, groupModification.oldName, groupModification.newName)
+                    }
+                    is GroupModificationChangeRole -> {
+                        val affectedName = getName(getContact(kentaiClient.dataBase, groupModification.userUUID.toUUID()), context, true)
+                        val oldRoleName = getGroupRoleName(context, GroupRole.values()[groupModification.oldRole.toInt()])
+                        val newRoleName = getGroupRoleName(context, GroupRole.values()[groupModification.newRole.toInt()])
+                        context.getString(R.string.notification_group_modification_change_role, senderName, affectedName, oldRoleName, newRoleName)
+                    }
+                    else -> TODO()
                 }
-                else -> TODO()
             }
-        }
-        MessageType.VOICE_MESSAGE -> {
-            additionalInfo as AdditionalInfoVoiceMessage
-            if (addGroup && addName) {
-                context.getString(R.string.notification_voice_message_group_name, chatName, senderName, additionalInfo.lengthSeconds)
-            } else if (addName) {
-                context.getString(R.string.notification_voice_message_name, senderName, additionalInfo.lengthSeconds)
-            } else {
-                context.getString(R.string.notification_voice_message, additionalInfo.lengthSeconds)
+            MessageType.VOICE_MESSAGE -> {
+                additionalInfo as AdditionalInfoVoiceMessage
+                if (addGroup && addName) {
+                    context.getString(R.string.notification_voice_message_group_name, chatName, senderName, additionalInfo.lengthSeconds)
+                } else if (addName) {
+                    context.getString(R.string.notification_voice_message_name, senderName, additionalInfo.lengthSeconds)
+                } else {
+                    context.getString(R.string.notification_voice_message, additionalInfo.lengthSeconds)
+                }
             }
-        }
-        MessageType.IMAGE_MESSAGE -> {
-            if (addGroup && addName) {
-                context.getString(R.string.notification_image_message_group_name, chatName, senderName)
-            } else if (addName) {
-                context.getString(R.string.notification_image_message_name, senderName)
-            } else {
-                context.getString(R.string.notification_image_message)
+            MessageType.IMAGE_MESSAGE -> {
+                if (addGroup && addName) {
+                    context.getString(R.string.notification_image_message_group_name, chatName, senderName)
+                } else if (addName) {
+                    context.getString(R.string.notification_image_message_name, senderName)
+                } else {
+                    context.getString(R.string.notification_image_message)
+                }
             }
-        }
-        MessageType.VIDEO_MESSAGE -> {
-            additionalInfo as AdditionalInfoVideoMessage
-            if (addGroup && addName) {
-                context.getString(R.string.notification_video_message_group_name, chatName, senderName, additionalInfo.durationSeconds)
-            } else if (addName) {
-                context.getString(R.string.notification_video_message_name, senderName, additionalInfo.durationSeconds)
-            } else {
-                context.getString(R.string.notification_video_message, additionalInfo.durationSeconds)
+            MessageType.VIDEO_MESSAGE -> {
+                additionalInfo as AdditionalInfoVideoMessage
+                if (addGroup && addName) {
+                    context.getString(R.string.notification_video_message_group_name, chatName, senderName, additionalInfo.durationSeconds)
+                } else if (addName) {
+                    context.getString(R.string.notification_video_message_name, senderName, additionalInfo.durationSeconds)
+                } else {
+                    context.getString(R.string.notification_video_message, additionalInfo.durationSeconds)
+                }
             }
+            else -> TODO()
         }
-        else -> TODO()
+    } catch (t: Throwable) {
+        "Error: ${t.localizedMessage}"
     }
 }
 
@@ -363,5 +378,31 @@ fun clearPreviousNotificationOfChat(dataBase: SQLiteDatabase, chatUUID: UUID) {
     dataBase.compileStatement("DELETE FROM notification_messages WHERE chat_uuid = ?").use { statement ->
         statement.bindString(1, chatUUID.toString())
         statement.execute()
+    }
+}
+
+fun getNotificationPreferences(context: Context): SharedPreferences = context.getSharedPreferences(SHARED_PREFERENCES_NOTIFICATIONS, Context.MODE_PRIVATE)
+
+fun cancelChatNotifications(context: Context, chatUUID: UUID) {
+    val kentaiClient = context.applicationContext as KentaiClient
+
+    val notificationManager = NotificationManagerCompat.from(context)
+
+    clearPreviousNotificationOfChat(kentaiClient.dataBase, chatUUID)
+
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+        val notificationID = getNotificationPreferences(context).getInt(chatUUID.toString(), -1)
+        if (notificationID != -1) {
+            notificationManager.cancel(notificationID)
+        }
+
+//        val newestMessage = readPreviousNotificationsFromDataBase(null, kentaiClient.dataBase).lastOrNull()
+//        if (newestMessage != null) {
+//            popNotificationSDK24Summary(context, newestMessage, getCountNotificationMessages(kentaiClient.dataBase), notificationManager)
+//        } else {
+//            notificationManager.cancel(KEY_NOTIFICATION_GROUP_ID)
+//        }
+    } else {
+        popNotificationSDKUnderNougat(context, readPreviousNotificationsFromDataBase(null, kentaiClient.dataBase), notificationManager)
     }
 }

@@ -16,7 +16,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:srcCompat="@drawable/ic_account_circle_white_24dp" />
+        app:srcCompat="?attr/ic_account" />
 
     <Button
         android:id="@+id/settingsOverviewActivityChangeProfilePictureButton"
@@ -29,4 +29,16 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/settingsOverviewActivityProfilePicture" />
+
+    <Switch
+        android:id="@+id/settingsOverviewLightThemeSwitch"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginEnd="8dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="16dp"
+        android:text="@string/settings_overview_use_light_theme"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/settingsOverviewActivityChangeProfilePictureButton" />
 </android.support.constraint.ConstraintLayout>

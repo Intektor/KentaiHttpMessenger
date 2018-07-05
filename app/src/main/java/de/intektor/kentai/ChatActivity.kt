@@ -1,10 +1,8 @@
 package de.intektor.kentai
 
-import android.Manifest
 import android.app.Activity
-import android.app.NotificationManager
+import android.app.AlertDialog
 import android.content.*
-import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.drawable.BitmapDrawable
@@ -15,8 +13,7 @@ import android.net.Uri
 import android.os.AsyncTask
 import android.os.Bundle
 import android.os.Handler
-import android.support.v13.app.ActivityCompat
-import android.support.v4.content.ContextCompat
+import android.support.v4.app.NotificationManagerCompat
 import android.support.v7.app.AppCompatActivity
 import android.support.v7.widget.LinearLayoutManager
 import android.support.v7.widget.RecyclerView
@@ -24,6 +21,7 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.text.format.DateUtils
 import android.view.*
+import android.widget.CheckBox
 import com.google.common.hash.Hashing
 import com.squareup.picasso.MemoryPolicy
 import com.squareup.picasso.Picasso
@@ -32,14 +30,11 @@ import de.intektor.kentai.group_info_activity.GroupInfoActivity
 import de.intektor.kentai.kentai.*
 import de.intektor.kentai.kentai.android.saveImageExternalKentai
 import de.intektor.kentai.kentai.chat.*
-import de.intektor.kentai.kentai.chat.adapter.chat.ChatAdapter
-import de.intektor.kentai.kentai.chat.adapter.chat.TimeStatusChatInfo
-import de.intektor.kentai.kentai.chat.adapter.chat.UsernameChatInfo
+import de.intektor.kentai.kentai.chat.adapter.chat.*
 import de.intektor.kentai.kentai.chat.adapter.viewing.UserState
 import de.intektor.kentai.kentai.chat.adapter.viewing.ViewingAdapter
 import de.intektor.kentai.kentai.chat.adapter.viewing.ViewingUser
 import de.intektor.kentai.kentai.contacts.Contact
-import de.intektor.kentai.kentai.firebase.DisplayNotificationReceiver
 import de.intektor.kentai.kentai.nine_gag.getGagUUID
 import de.intektor.kentai.kentai.nine_gag.isNineGagMessage
 import de.intektor.kentai.kentai.references.*
@@ -57,6 +52,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.text.DateFormat
 import java.util.*
+import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 
 class ChatActivity : AppCompatActivity() {
@@ -110,38 +106,62 @@ class ChatActivity : AppCompatActivity() {
 
     private val userTypingTime = mutableMapOf<UUID, Long>()
 
+    private var upToDate = true
+
+    lateinit var bubbleLeft: Drawable
+    lateinit var bubbleRight: Drawable
+
+    private var takePicturePhotoUUID: UUID? = null
+
+    private var actionModeEdit: ActionMode? = null
+    private var selectedItems: MutableList<ChatMessageWrapper> = mutableListOf()
+
+    private var selectedWithMedia = 0
+
     companion object {
         private val dateFormatTY = DateFormat.getTimeInstance(DateFormat.SHORT)
         private val dateFormatAnytime = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
 
         const val PERMISSION_REQUEST_EXTERNAL_STORAGE = 1000
         const val PERMISSION_REQUEST_CAMERA = 1001
+        const val PERMISSION_REQUEST_AUDIO = 1002
 
-        private const val ACTION_PICK_MEDIA = 1001
-        private const val ACTION_SEND_MEDIA = 1003
+        private const val ACTION_PICK_MEDIA = 1101
+        private const val ACTION_SEND_MEDIA = 1103
+        private const val ACTION_PICK_BACKGROUND_IMAGE = 1104
+        private const val ACTION_TAKE_IMAGE = 1105
+
+        private val calendar = Calendar.getInstance()
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        setTheme(getSelectedTheme(this))
+
         setContentView(R.layout.activity_chat)
 
         val kentaiClient = applicationContext as KentaiClient
 
-        chatActivitySendMessage.setOnClickListener({
-            sendMessage()
-            chatActivityTextInput.text.clear()
-        })
+        chatInfo = intent.getParcelableExtra(KEY_CHAT_INFO)
+
+        if (intent.extras.containsKey(KEY_MESSAGE_UUID)) {
+            val messageUUID = intent.getSerializableExtra(KEY_MESSAGE_UUID) as UUID
+            val message = readChatMessageWrappers(kentaiClient.dataBase, "message_uuid = ?", arrayOf(messageUUID.toString())).first()
+            firstMessageTime = message.message.timeSent + 1
+
+            upToDate = false
+        }
 
         val lM = LinearLayoutManager(this)
         chatActivityMessageList.layoutManager = lM
         lM.stackFromEnd = true
 
-        chatInfo = intent.getParcelableExtra(KEY_CHAT_INFO)
-
         val actionBar = supportActionBar
+
         actionBar?.title = chatInfo.chatName
 
-        if (chatInfo.chatType == ChatType.GROUP) {
+        if (chatInfo.chatType.isGroup()) {
             for ((receiverUUID) in chatInfo.participants) {
                 kentaiClient.dataBase.rawQuery("SELECT contacts.username, user_color_table.color, contacts.user_uuid, contacts.alias FROM user_color_table LEFT JOIN contacts ON contacts.user_uuid = user_color_table.user_uuid WHERE user_color_table.user_uuid = ?", arrayOf(receiverUUID.toString())).use { query ->
                     query.moveToNext()
@@ -155,23 +175,33 @@ class ChatActivity : AppCompatActivity() {
             }
         } else {
             for ((receiverUUID) in chatInfo.participants) {
-                val contact = readContact(kentaiClient.dataBase, receiverUUID)
+                val contact = getContact(kentaiClient.dataBase, receiverUUID)
                 contactMap[receiverUUID] = contact
             }
         }
 
-        if (!chatInfo.isUserParticipant(kentaiClient.userUUID) || !chatInfo.userProfile(kentaiClient.userUUID).isActive) {
+        val userNoMember = !chatInfo.isUserParticipant(kentaiClient.userUUID) || !chatInfo.userProfile(kentaiClient.userUUID).isActive
+        val adminNoMember = if (chatInfo.chatType == ChatType.GROUP_DECENTRALIZED) {
+            val adminContact = getGroupMembers(kentaiClient.dataBase, chatInfo.chatUUID).first { it.role == GroupRole.ADMIN }.contact
+            !chatInfo.participants.first { it.receiverUUID == adminContact.userUUID }.isActive
+        } else false
+
+        if (userNoMember || adminNoMember) {
             chatActivityTextInput.isEnabled = false
-            chatActivityTextInput.setText(R.string.chat_group_no_member)
             chatActivitySendMessage.isEnabled = false
         }
-
+        if (userNoMember) {
+            chatActivityTextInput.setText(R.string.chat_group_no_member)
+        }
+        if (adminNoMember) {
+            chatActivityTextInput.setText(R.string.chat_group_no_admin)
+        }
 
         viewingUsersAdapter = ViewingAdapter(viewingUsersList)
         chatActivityViewingUsersList.adapter = viewingUsersAdapter
         chatActivityViewingUsersList.layoutManager = LinearLayoutManager(this)
 
-        val messages = load20Messages(kentaiClient, chatInfo.chatUUID, firstMessageTime)
+        val messages = load20Messages(kentaiClient, chatInfo.chatUUID, firstMessageTime, true)
 
         lastMessageTime = messages.firstOrNull()?.message?.timeSent ?: 0L
 
@@ -189,26 +219,40 @@ class ChatActivity : AppCompatActivity() {
 
                 (Math.max(0, firstVisibleIndex)..Math.min(lastVisibleIndex, componentList.size))
                         .map { componentList[it] }
-                        .filter { it is ChatMessageWrapper }
-                        .filter { it as ChatMessageWrapper; it.status != MessageStatus.SEEN }
+                        .filter { it is ChatMessageWrapper || it is ReferenceHolder }
+                        .filter {
+                            val wrapper = (it as? ReferenceHolder)?.chatMessageWrapper
+                                    ?: it as ChatMessageWrapper
+                            wrapper.status != MessageStatus.SEEN
+                        }
                         .forEach {
-                            it as ChatMessageWrapper
-                            if (!it.client) {
-                                it.status = MessageStatus.SEEN
+                            val wrapper = (it as? ReferenceHolder)?.chatMessageWrapper
+                                    ?: it as ChatMessageWrapper
+                            if (!wrapper.client) {
+                                wrapper.status = MessageStatus.SEEN
 
-                                updateMessageStatus(kentaiClient.dataBase, it.message.id, it.status, System.currentTimeMillis())
+                                updateMessageStatus(kentaiClient.dataBase, wrapper.message.id.toUUID(), wrapper.status, System.currentTimeMillis())
 
                                 for (s in chatInfo.participants.filter { it.receiverUUID != kentaiClient.userUUID }) {
-                                    val wrapper = ChatMessageWrapper(ChatMessageStatusChange(chatInfo.chatUUID, it.message.id, MessageStatus.SEEN, System.currentTimeMillis(),
-                                            kentaiClient.userUUID, System.currentTimeMillis()), MessageStatus.WAITING, true, System.currentTimeMillis())
-                                    wrapper.message.referenceUUID = UUID.randomUUID()
-                                    sendMessageToServer(this@ChatActivity, PendingMessage(wrapper, chatInfo.chatUUID, chatInfo.participants.filter { it.receiverUUID != kentaiClient.userUUID }), kentaiClient.dataBase)
+                                    val other = ChatMessageWrapper(ChatMessageStatusChange(chatInfo.chatUUID, wrapper.message.id.toUUID(), MessageStatus.SEEN, System.currentTimeMillis(),
+                                            kentaiClient.userUUID, System.currentTimeMillis()), MessageStatus.WAITING, true, System.currentTimeMillis(), chatInfo.chatUUID)
+                                    other.message.referenceUUID = UUID.randomUUID()
+                                    sendMessageToServer(this@ChatActivity, PendingMessage(other, chatInfo.chatUUID, chatInfo.participants.filter { it.receiverUUID != kentaiClient.userUUID }), kentaiClient.dataBase)
                                 }
                                 recyclerView.adapter.notifyItemChanged(componentList.indexOf(it))
                             }
                         }
-                if (onTop && !currentlyLoadingMore) {
-                    loadMore()
+
+                if (firstVisibleIndex <= 10 && !currentlyLoadingMore) {
+                    loadMore(true)
+                }
+
+                if (lastVisibleIndex >= componentList.size - 10 && !currentlyLoadingMore && !upToDate) {
+                    loadMore(false)
+                }
+
+                if (onBottom) {
+                    upToDate = true
                 }
             }
         })
@@ -337,6 +381,11 @@ class ChatActivity : AppCompatActivity() {
             }
         }
 
+        chatActivitySendMessage.setOnClickListener({
+            sendMessage()
+            chatActivityTextInput.text.clear()
+        })
+
         val handler = Handler()
         TypingUpdater(handler).run()
 
@@ -348,6 +397,7 @@ class ChatActivity : AppCompatActivity() {
             if (checkStoragePermission(this, PERMISSION_REQUEST_EXTERNAL_STORAGE)) {
                 val pickMedia = Intent(this, PickGalleryActivity::class.java)
                 pickMedia.putExtra(KEY_CHAT_INFO, chatInfo)
+
                 startActivityForResult(pickMedia, ACTION_SEND_MEDIA)
             }
         }
@@ -362,19 +412,47 @@ class ChatActivity : AppCompatActivity() {
         }
 
         chatActivityButtonTakePicture.setOnClickListener {
-            //            if (checkCameraPermission(this, PERMISSION_REQUEST_CAMERA)) {
-//                val takePicture = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-//                if (takePicture.resolveActivity(packageManager) != null) {
-//                    startActivityForResult(takePicture, ACTION_PICK_MEDIA)
-//                }
-//            }
+            if (checkCameraPermission(this, PERMISSION_REQUEST_CAMERA)) {
+                val takePicture = Intent(this, CameraActivity::class.java)
+
+                startActivityForResult(takePicture, ACTION_TAKE_IMAGE)
+            }
         }
+
+        chatActivityMessageList.addItemDecoration(HeaderItemDecoration(chatActivityMessageList, object : HeaderItemDecoration.StickyHeaderInterface {
+            override fun getHeaderPositionForItem(itemPosition: Int): Int {
+                var i = itemPosition
+                while (true) {
+                    if (isHeader(i)) return i
+                    i--
+                }
+            }
+
+            override fun getHeaderLayout(headerPosition: Int): Int = R.layout.chat_date_item
+
+            override fun bindHeaderData(header: View, headerPosition: Int) {
+                DateViewHolder(header, chatAdapter).bind(componentList[headerPosition])
+            }
+
+            override fun isHeader(itemPosition: Int): Boolean = componentList[itemPosition] is DateInfo
+
+        }))
+
+        bubbleLeft = getAttrDrawable(this, R.attr.bubble_left)
+        bubbleRight = getAttrDrawable(this, R.attr.bubble_right)
 
         viewChat(true)
 
         addInterestedChatUsers(true)
 
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
+
+        applyBackgroundImage(getBackgroundChatFile(this, chatInfo.chatUUID))
+
+        chatActivityButtonTakePicture.setImageDrawable(getAttrDrawable(this, R.attr.ic_camera))
+        chatActivityButtonPickMedia.setImageDrawable(getAttrDrawable(this, R.attr.ic_perm_media))
+        chatActivityButtonRecordVoice.setImageDrawable(getAttrDrawable(this, R.attr.ic_mic))
+        chatActivitySendMessage.setImageDrawable(getAttrDrawable(this, R.attr.ic_send))
     }
 
 
@@ -389,7 +467,7 @@ class ChatActivity : AppCompatActivity() {
 
         val chatMessage = ChatMessageText(written, kentaiClient.userUUID, System.currentTimeMillis())
         chatMessage.referenceUUID = UUID.randomUUID()
-        val wrapper = ChatMessageWrapper(chatMessage, MessageStatus.WAITING, true, System.currentTimeMillis())
+        val wrapper = ChatMessageWrapper(chatMessage, MessageStatus.WAITING, true, System.currentTimeMillis(), chatInfo.chatUUID)
         val wrapperCopy = wrapper.copy(message = ChatMessageText(written, kentaiClient.userUUID, System.currentTimeMillis()))
         wrapperCopy.message.id = wrapper.message.id
         wrapperCopy.message.referenceUUID = wrapper.message.referenceUUID
@@ -410,18 +488,69 @@ class ChatActivity : AppCompatActivity() {
         val listToAdd = mutableListOf<Any>()
         for (wrapper in list) {
             val associated = createMessageObjects(wrapper)
-            messageObjects[wrapper.message.id] = associated
+            messageObjects[wrapper.message.id.toUUID()] = associated
+
+            val dateInfo = DateInfo(wrapper.message.timeSent)
+
+            if (!bottom) {
+                listToAdd.removeAll {
+                    if (it is DateInfo) {
+                        calendar.timeInMillis = it.time
+                        val dateThen = calendar.get(Calendar.DATE)
+
+                        calendar.timeInMillis = dateInfo.time
+                        val dateNow = calendar.get(Calendar.DATE)
+                        return@removeAll dateThen == dateNow
+                    }
+                    false
+                }
+            }
 
             if (bottom) {
+                if ((listToAdd + componentList).none {
+                            if (it is DateInfo) {
+                                calendar.timeInMillis = it.time
+                                val dateThen = calendar.get(Calendar.DATE)
+
+                                calendar.timeInMillis = dateInfo.time
+                                val dateNow = calendar.get(Calendar.DATE)
+                                dateThen == dateNow
+                            } else false
+                        }) {
+                    listToAdd += dateInfo
+                }
                 listToAdd.addAll(associated)
             } else {
                 listToAdd.addAll(0, associated)
+                listToAdd.add(0, dateInfo)
             }
 
-            referenceUUIDToMessageUUID[wrapper.message.referenceUUID] = wrapper.message.id
+            referenceUUIDToMessageUUID[wrapper.message.referenceUUID] = wrapper.message.id.toUUID()
             if (isNineGagMessage(wrapper.message.text)) {
                 val gagUUID = getGagUUID(wrapper.message.text)
-                referenceUUIDToMessageUUID[gagUUID] = wrapper.message.id
+                referenceUUIDToMessageUUID[gagUUID] = wrapper.message.id.toUUID()
+            }
+        }
+
+        val removed = mutableListOf<Int>()
+
+        if (!bottom) {
+            listToAdd.filter { it is DateInfo }.forEach { c ->
+                c as DateInfo
+                componentList.filter {
+                    if (it is DateInfo) {
+                        calendar.timeInMillis = it.time
+                        val dateThen = calendar.get(Calendar.DATE)
+
+                        calendar.timeInMillis = c.time
+                        val dateNow = calendar.get(Calendar.DATE)
+                        dateThen == dateNow
+                    } else false
+                }.forEach {
+                    val index = componentList.indexOf(it)
+                    componentList.remove(it)
+                    removed += index
+                }
             }
         }
 
@@ -433,6 +562,10 @@ class ChatActivity : AppCompatActivity() {
         } else {
             componentList.addAll(0, listToAdd)
             chatAdapter.notifyItemRangeInserted(0, listToAdd.size)
+        }
+
+        for (i in removed) {
+            chatAdapter.notifyItemRemoved(i)
         }
     }
 
@@ -454,7 +587,7 @@ class ChatActivity : AppCompatActivity() {
             }
         }
 
-        if (chatInfo.chatType == ChatType.GROUP && !wrapper.client) {
+        if (chatInfo.chatType.isGroup() && !wrapper.client) {
             resultList += userToUserInfo[message.senderUUID]!!
         }
 
@@ -469,7 +602,7 @@ class ChatActivity : AppCompatActivity() {
         } else if (isNineGagMessage(wrapper.message.text)) {
             val gagUUID = getGagUUID(wrapper.message.text)
 
-            val referenceState = getReferenceState(kentaiClient.dataBase, chatInfo.chatUUID, gagUUID)
+            val referenceState = getReferenceState(kentaiClient.dataBase, null, gagUUID)
 
             ReferenceHolder(wrapper, kentaiClient.currentLoadingTable.containsKey(gagUUID), referenceState == UploadState.FINISHED)
         } else {
@@ -483,8 +616,7 @@ class ChatActivity : AppCompatActivity() {
     }
 
     fun updateMessageStatus(messageUUID: UUID, status: MessageStatus) {
-        val associatedObjects = messageObjects[messageUUID]
-                ?: throw IllegalStateException("No chat message found")
+        val associatedObjects = messageObjects[messageUUID] ?: return
         val first = associatedObjects.first { it is ChatMessageWrapper || it is ReferenceHolder }
         val wrapper = (first as? ReferenceHolder)?.chatMessageWrapper ?: first as ChatMessageWrapper
         wrapper.status = status
@@ -515,20 +647,24 @@ class ChatActivity : AppCompatActivity() {
         chatActivityMessageList.smoothScrollToPosition(componentList.size)
     }
 
-    fun loadMore() {
+    fun loadMore(top: Boolean) {
         val kentaiClient = applicationContext as KentaiClient
         LoadMoreTask({ list ->
-            addMessages(list, false)
+            addMessages(list.reversed(), !top)
             if (list.isNotEmpty()) {
-                lastMessageTime = list.first().message.timeSent
+                if (top) {
+                    lastMessageTime = list.first().message.timeSent
+                } else {
+                    firstMessageTime = list.last().message.timeSent
+                }
             }
-        }, chatInfo.chatUUID, kentaiClient, lastMessageTime).execute()
+        }, chatInfo.chatUUID, kentaiClient, lastMessageTime, lastMessageTime, top).execute()
     }
 
-    private class LoadMoreTask(val updater: (List<ChatMessageWrapper>) -> (Unit), val chatUUID: UUID, val kentaiClient: KentaiClient, val firstMessageTime: Long) :
+    private class LoadMoreTask(val updater: (List<ChatMessageWrapper>) -> (Unit), val chatUUID: UUID, val kentaiClient: KentaiClient, val firstMessageTime: Long, val lastMessageTime: Long, val top: Boolean) :
             AsyncTask<Unit, Unit, List<ChatMessageWrapper>>() {
         override fun doInBackground(vararg params: Unit?): List<ChatMessageWrapper> =
-                load20Messages(kentaiClient, chatUUID, firstMessageTime)
+                load20Messages(kentaiClient, chatUUID, if (top) lastMessageTime else firstMessageTime, top)
 
         override fun onPostExecute(result: List<ChatMessageWrapper>) {
             updater.invoke(result)
@@ -571,21 +707,82 @@ class ChatActivity : AppCompatActivity() {
                 if (chatInfo.chatType == ChatType.TWO_PEOPLE) {
                     val intent = Intent(this@ChatActivity, ContactInfoActivity::class.java)
                     intent.putExtra(KEY_USER_UUID, chatInfo.participants.first { it.receiverUUID != kentaiClient.userUUID }.receiverUUID)
-                    this.startActivity(intent)
-                } else if (chatInfo.chatType == ChatType.GROUP) {
+                    startActivity(intent)
+                } else if (chatInfo.chatType.isGroup()) {
                     val intent = Intent(this@ChatActivity, GroupInfoActivity::class.java)
                     intent.putExtra(KEY_CHAT_INFO, chatInfo)
-                    this.startActivity(intent)
+                    startActivity(intent)
                 }
+                return true
             }
             R.id.chatActivityNativeGallery -> {
                 val i = Intent(Intent.ACTION_PICK)
                 i.type = "*/*"
                 i.putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*"))
                 startActivityForResult(i, ACTION_PICK_MEDIA)
+                return true
+            }
+            R.id.chatActivitySetBackgroundColor -> {
+
+            }
+            R.id.chatActivitySetBackgroundImage -> {
+                val i = Intent(Intent.ACTION_PICK)
+                i.type = "image/*"
+                startActivityForResult(i, ACTION_PICK_BACKGROUND_IMAGE)
+                return true
+            }
+            R.id.chatActivityEdit -> {
+                startActionMode(object : ActionMode.Callback {
+                    override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
+                        when (item.itemId) {
+                            R.id.menuChatEditDelete -> {
+                                val dialog = AlertDialog.Builder(this@ChatActivity)
+                                        .setIcon(R.drawable.baseline_warning_white_24)
+                                        .setTitle(R.string.chat_activity_edit_chat_menu_delete_alert_title)
+                                        .setMessage(getString(R.string.chat_activity_edit_chat_menu_delete_alert_message, selectedItems.size))
+                                        .setNegativeButton(R.string.chat_activity_edit_chat_menu_delete_alert_negative, { _, _ -> })
+                                        .setPositiveButton(R.string.chat_activity_edit_chat_menu_delete_alert_positive, { _, _ ->
+                                            DeleteMessagesTask(selectedItems, chatInfo.chatUUID, kentaiClient, NotificationManagerCompat.from(this@ChatActivity)).execute()
+                                            selectedItems.map { componentList.indexOf(it) }.forEach { chatAdapter.notifyItemRemoved(it) }
+                                            componentList.removeAll(selectedItems)
+                                        })
+                                if (selectedWithMedia > 0) {
+                                    val deleteMediaCheckbox = CheckBox(this@ChatActivity)
+                                    deleteMediaCheckbox.isChecked = false
+                                    deleteMediaCheckbox.text = getString(R.string.chat_activity_edit_chat_menu_delete_alert_media)
+
+                                    dialog.setView(deleteMediaCheckbox)
+                                }
+
+                                dialog.create().show()
+                            }
+                            R.id.menuChatEditShare -> {
+
+                            }
+                            R.id.menuChatEditReply -> {
+
+                            }
+                        }
+                        return true
+                    }
+
+                    override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
+                        mode.menuInflater.inflate(R.menu.menu_chat_edit, menu)
+                        return true
+                    }
+
+                    override fun onPrepareActionMode(mode: ActionMode, menu: Menu): Boolean {
+                        actionModeEdit = mode
+                        return false
+                    }
+
+                    override fun onDestroyActionMode(mode: ActionMode) {
+                        actionModeEdit = null
+                    }
+                })
             }
         }
-        return super.onOptionsItemSelected(item)
+        return false
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -610,6 +807,21 @@ class ChatActivity : AppCompatActivity() {
                     startMedia.putExtra(KEY_CHAT_INFO, chatInfo)
                     startMedia.putParcelableArrayListExtra(KEY_MEDIA_URL, ArrayList(listOf(data.data)))
                     startActivityForResult(startMedia, ACTION_SEND_MEDIA)
+                }
+            }
+            ACTION_PICK_BACKGROUND_IMAGE -> {
+                if (resultCode == Activity.RESULT_OK && data != null) {
+                    setBackgroundImage(this, data.data.toString(), chatInfo.chatUUID)
+                    applyBackgroundImage(getBackgroundChatFile(this, chatInfo.chatUUID))
+                }
+            }
+            ACTION_TAKE_IMAGE -> {
+                if (resultCode == Activity.RESULT_OK && data != null) {
+
+                    val i = Intent(this, SendMediaActivity::class.java)
+                    i.putParcelableArrayListExtra(KEY_MEDIA_URL, ArrayList(listOf(data.getParcelableExtra<Uri>(KEY_FILE_URI))))
+                    i.putExtra(KEY_CHAT_INFO, chatInfo)
+                    startActivityForResult(i, ACTION_SEND_MEDIA)
                 }
             }
         }
@@ -648,7 +860,7 @@ class ChatActivity : AppCompatActivity() {
             val message = ChatMessageImage(hash, kentaiClient.userUUID, text, System.currentTimeMillis(), createSmallPreviewImage(referenceFile, FileType.IMAGE))
             message.referenceUUID = referenceUUID
 
-            return ChatMessageWrapper(message, MessageStatus.WAITING, true, System.currentTimeMillis())
+            return ChatMessageWrapper(message, MessageStatus.WAITING, true, System.currentTimeMillis(), chatUUID)
         }
 
         override fun onPostExecute(result: ChatMessageWrapper) {
@@ -668,10 +880,10 @@ class ChatActivity : AppCompatActivity() {
             uploadVideo(this@ChatActivity, kentaiClient.dataBase, chatInfo.chatUUID, result.message.referenceUUID,
                     getReferenceFile(result.message.referenceUUID, if (isGif) FileType.GIF else FileType.VIDEO, filesDir, this@ChatActivity))
             scrollToBottom()
-        }, kentaiClient, uri, text, isGif).execute()
+        }, kentaiClient, uri, text, isGif, chatInfo.chatUUID).execute()
     }
 
-    private class SendVideoTask(val execute: (ChatMessageWrapper) -> Unit, val kentaiClient: KentaiClient, val uri: Uri, val text: String, val isGif: Boolean) : AsyncTask<Unit, Unit, ChatMessageWrapper>() {
+    private class SendVideoTask(val execute: (ChatMessageWrapper) -> Unit, val kentaiClient: KentaiClient, val uri: Uri, val text: String, val isGif: Boolean, val chatUUID: UUID) : AsyncTask<Unit, Unit, ChatMessageWrapper>() {
         override fun doInBackground(vararg args: Unit): ChatMessageWrapper {
             val referenceUUID = UUID.randomUUID()
 
@@ -681,7 +893,7 @@ class ChatActivity : AppCompatActivity() {
             val hash = Hashing.sha512().hashBytes(referenceFile.readBytes())
             val message = ChatMessageVideo(hash.toString(), getVideoDuration(referenceFile, kentaiClient), kentaiClient.userUUID, text, System.currentTimeMillis(), isGif)
             message.referenceUUID = referenceUUID
-            return ChatMessageWrapper(message, MessageStatus.WAITING, true, System.currentTimeMillis())
+            return ChatMessageWrapper(message, MessageStatus.WAITING, true, System.currentTimeMillis(), chatUUID)
         }
 
         override fun onPostExecute(result: ChatMessageWrapper) {
@@ -700,15 +912,15 @@ class ChatActivity : AppCompatActivity() {
 
         val kentaiClient = applicationContext as KentaiClient
 
-        if (componentList.isNotEmpty()) {
-            val (lastMessageTime: Long, lastMessageUUID: UUID) = if (componentList.any { it is ChatMessageWrapper }) {
+        if (componentList.isNotEmpty() && upToDate) {
+            val (_: Long, lastMessageUUID: UUID) = if (componentList.any { it is ChatMessageWrapper }) {
                 val message = (componentList.last { it is ChatMessageWrapper } as ChatMessageWrapper).message
-                message.timeSent to message.id
+                message.timeSent to message.id.toUUID()
             } else 0L to UUID.randomUUID()
 
             val newMessages = readChatMessageWrappers(kentaiClient.dataBase, "chat_uuid = '${chatInfo.chatUUID}' AND time > $firstMessageTime")
 
-            addMessages(newMessages.filter { it.message.id != lastMessageUUID }, true)
+            addMessages(newMessages.filter { it.message.id.toUUID() != lastMessageUUID }, true)
 
             if (onBottom) scrollToBottom()
         }
@@ -727,20 +939,7 @@ class ChatActivity : AppCompatActivity() {
 
         setUnreadMessages(kentaiClient.dataBase, chatInfo.chatUUID, 0)
 
-        val notificationManager = applicationContext.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-
-        //Remove notifications related to this chat
-        val sharedPreferences = getSharedPreferences(DisplayNotificationReceiver.NOTIFICATION_FILE, Context.MODE_PRIVATE)
-        val id = sharedPreferences.getInt(chatInfo.chatUUID.toString(), -1)
-        if (id != -1) {
-            notificationManager.cancel(id)
-        }
-
-        clearPreviousNotificationOfChat(kentaiClient.dataBase, chatInfo.chatUUID)
-
-        notificationManager.cancel(KEY_NOTIFICATION_GROUP_ID)
-
-        popNotifications(this, readPreviousNotificationsFromDataBase(null, kentaiClient.dataBase), notificationManager)
+        cancelChatNotifications(this, chatInfo.chatUUID)
     }
 
     override fun onPause() {
@@ -780,11 +979,12 @@ class ChatActivity : AppCompatActivity() {
         when (item.itemId) {
             R.id.menuChatBubbleDelete -> {
                 val temp = componentList[index]
-                val message = if (temp is ChatMessageWrapper) temp else (temp as? ReferenceHolder)?.chatMessageWrapper
-                        ?: throw IllegalStateException()
-                deleteMessage(chatInfo.chatUUID, message.message.id, message.message.referenceUUID, kentaiClient.dataBase)
+                val message = temp as? ChatMessageWrapper
+                        ?: ((temp as? ReferenceHolder)?.chatMessageWrapper
+                                ?: throw IllegalStateException())
+                deleteMessage(chatInfo.chatUUID, message.message.id.toUUID(), message.message.referenceUUID, kentaiClient.dataBase)
 
-                val messageComponentList = messageObjects[message.message.id]!!
+                val messageComponentList = messageObjects[message.message.id.toUUID()]!!
                 componentList.removeAll(messageComponentList)
                 chatAdapter.notifyDataSetChanged()
                 return true
@@ -805,7 +1005,7 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun startRecording() {
-        if (checkRecordingPermission()) {
+        if (checkRecordingPermission(this, PERMISSION_REQUEST_AUDIO)) {
             isRecording = true
             secondsRecording = -1
 
@@ -864,7 +1064,7 @@ class ChatActivity : AppCompatActivity() {
                 if (secondsRecording > 0 && stillOnButton) {
                     val audioFile = getReferenceFile(currentAudioUUID!!, FileType.AUDIO, filesDir, this@ChatActivity)
 
-                    val message = ChatMessageWrapper(ChatMessageVoiceMessage(secondsRecording, Hashing.sha512().hashBytes(audioFile.readBytes()).toString(), currentAudioUUID!!, kentaiClient.userUUID, "", System.currentTimeMillis()), MessageStatus.WAITING, true, System.currentTimeMillis())
+                    val message = ChatMessageWrapper(ChatMessageVoiceMessage(secondsRecording, Hashing.sha512().hashBytes(audioFile.readBytes()).toString(), currentAudioUUID!!, kentaiClient.userUUID, "", System.currentTimeMillis()), MessageStatus.WAITING, true, System.currentTimeMillis(), chatInfo.chatUUID)
                     sendMessageToServer(this, PendingMessage(
                             message,
                             chatInfo.chatUUID, chatInfo.participants.filter { it.isActive && it.receiverUUID != kentaiClient.userUUID }
@@ -878,14 +1078,6 @@ class ChatActivity : AppCompatActivity() {
 
             }
         }
-    }
-
-    private fun checkRecordingPermission(): Boolean {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 123)
-            return false
-        }
-        return true
     }
 
     fun userTyping(userUUID: UUID) {
@@ -1037,7 +1229,7 @@ class ChatActivity : AppCompatActivity() {
             else -> throw IllegalArgumentException()
         }
         if (upload) {
-            uploadReference(this, kentaiClient.dataBase, chatInfo.chatUUID, referenceUUID, referenceFile, fileType)
+            uploadReference(this, chatInfo.chatUUID, referenceUUID, referenceFile, fileType)
         } else {
             downloadReference(this, kentaiClient.dataBase, chatInfo.chatUUID, referenceUUID, fileType, chatInfo.chatType, hash, kentaiClient.privateMessageKey!!)
         }
@@ -1064,5 +1256,24 @@ class ChatActivity : AppCompatActivity() {
     override fun onSupportNavigateUp(): Boolean {
         finish()
         return true
+    }
+
+    private fun applyBackgroundImage(backgroundFile: File) {
+        if (backgroundFile.exists()) {
+            val drawable = BitmapDrawable(resources, BitmapFactory.decodeStream(backgroundFile.inputStream()))
+            drawable.gravity = Gravity.FILL
+            chatActivityBackgroundImage.setImageDrawable(drawable)
+        }
+    }
+
+    fun updateChatName(chatUUID: UUID, newName: String) {
+        if (chatUUID != chatInfo.chatUUID) return
+        supportActionBar?.title = newName
+        chatInfo = chatInfo.copy(chatName = newName)
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        recreate()
     }
 }

@@ -5,7 +5,7 @@
     tools:context="de.intektor.kentai.NewChatGroupActivity">
     <item
         android:id="@+id/new_chat_group_action_search"
-        android:icon="@drawable/ic_search_black_24dp"
+        android:icon="?attr/ic_search"
         android:title="@string/new_chat_action_search"
         app:actionViewClass="android.support.v7.widget.SearchView"
         app:showAsAction="always|collapseActionView" />

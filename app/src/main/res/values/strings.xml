@@ -22,13 +22,13 @@
     <!-- String related to add contact -->
 
     <string name="add_contact_username">Username</string>
-    <string name="add_contact_add">ADD</string>
+    <string name="add_contact_add">Add</string>
     <string name="add_contact_existing_user_title">OK!</string>
     <string name="add_contact_existing_user">This user exists!</string>
     <string name="add_contact_not_existing_user_title">Sorry!</string>
     <string name="add_contact_not_existing_user">This user does not exist!</string>
-    <string name="add_contact_try_again">TRY AGAIN!</string>
-    <string name="add_contact_proceed">PROCEED!</string>
+    <string name="add_contact_try_again">Try again!</string>
+    <string name="add_contact_proceed">Proceed!</string>
 
     <!-- Strings related to new chat -->
 
@@ -39,11 +39,11 @@
     <string name="start_chat_group_label">GROUP</string>
     <string name="new_chat_search_bar_hint">Search!</string>
     <string name="new_chat_action_search">Search</string>
-    <string name="new_chat_start_chat_proceed">PROCEED</string>
-    <string name="new_chat_start_chat_cancel">CANCEL</string>
-    <string name="new_chat_start_chat_title">CHAT</string>
+    <string name="new_chat_start_chat_proceed">Proceed</string>
+    <string name="new_chat_start_chat_cancel">Cancel</string>
+    <string name="new_chat_start_chat_title">Chat</string>
     <string name="new_chat_start_chat_text">Do you really want to create this chat?</string>
-    <string name="new_chat_group_create_action">CREATE</string>
+    <string name="new_chat_group_create_action">Create</string>
     <string name="new_chat_group_group_name_hint">Group Name</string>
 
     <!-- Strings related to notifications -->
@@ -51,6 +51,7 @@
     <string name="notification_reply_label">REPLY</string>
     <string name="notification_group_invite">%1$s has added you to group %2$s</string>
     <string name="notification_group_modification_change_name">%1$s has changed the group name from %2$s to %3$s</string>
+    <string name="notification_group_modification_change_role">%1$s has changed the role of %2$s from %3$s to %4$s</string>
     <string name="notification_amount_messages">%1$s: %2$d message(s)</string>
     <string name="notification_amount_you_have_new_messages">"You have %1$d new messages!</string>
 
@@ -81,6 +82,10 @@
     <string name="notification_download_media_description_failed">Downloading failed.</string>
     <string name="notification_download_media_description_cancel">Cancel download</string>
 
+    <string name="notification_initialize_chat_title">Initializing chat</string>
+    <string name="notification_initialize_chat_title_description">Please wait…</string>
+    <string name="notification_initialize_chat_title_description_failed">Initializing your chat failed. Please try again later.</string>
+
     <string name="notification_channel_new_messages_name">New messages</string>
     <string name="notification_channel_new_messages_description">This is the notification channel where you receive notifications about messages
     that have been sent to you.</string>
@@ -94,6 +99,9 @@
     <string name="notification_channel_download_media_name">Download media</string>
     <string name="notification_channel_download_media_description">This is the notification channel where you get a notification when media is being downloaded.</string>
 
+    <string name="notification_channel_miscellaneous_name">Miscellaneous</string>
+    <string name="notification_channel_miscellaneous_description">This is the notification channel where you get a notification that are rather miscellaneous.</string>
+
     <string name="chat_info">Chat Info</string>
 
     <!-- Strings related to user chat info / contact activity -->
@@ -106,7 +114,7 @@
 
     <string name="title_activity_start_chat">StartChatActivity</string>
     <string name="section_format">Hello World from section: %1$d</string>
-    <string name="new_contact_label">NEW CONTACT</string>
+    <string name="new_contact_label">New Contact</string>
 
     <!-- Strings related to chat -->
 
@@ -118,6 +126,7 @@
     <string name="chat_group_change_kick_user_with_reason">%1$s was kicked by %2$s for: %3$s</string>
     <string name="chat_group_change_add_user">%1$s was added by %2$s</string>
     <string name="chat_group_no_member">You are no member of this chat</string>
+    <string name="chat_group_no_admin">Admin has closed this group!</string>
     <string name="menu_chat_bubble_info_label">Info</string>
     <string name="menu_chat_bubble_delete_label">Delete</string>
     <string name="menu_chat_bubble_copy_label">Copy</string>
@@ -139,11 +148,33 @@
     <string name="chat_activity_voice_record">%1$02d:%2$02d</string>
     <string name="chat_activity_menu_profile">Chat Profile</string>
     <string name="chat_activity_menu_native_gallery">Pick from native gallery</string>
+    <string name="chat_activity_menu_change_background">Change background</string>
+    <string name="chat_activity_menu_change_background_color">Color</string>
+    <string name="chat_activity_menu_change_background_image">Image</string>
+    <string name="chat_activity_menu_edit">Edit Chat</string>
+    <string name="chat_activity_today_label">Today</string>
+    <string name="chat_activity_yesterday_label">Yesterday</string>
+    <string name="chat_activity_edit_chat_menu_reply">Reply</string>
+    <string name="chat_activity_edit_chat_menu_share">Share</string>
+    <string name="chat_activity_edit_chat_menu_delete">Delete</string>
+    <string name="chat_activity_edit_chat_menu_copy">Copy</string>
+    <string name="chat_activity_edit_chat_menu_info">Message information</string>
+    <string name="chat_activity_edit_chat_menu_items_selected">%1$d selected</string>
+    <string name="chat_activity_edit_chat_menu_delete_alert_title">Delete chat messages</string>
+    <string name="chat_activity_edit_chat_menu_delete_alert_message">Are you sure you want to delete %1$d messages, this cannot be undone</string>
+    <string name="chat_activity_edit_chat_menu_delete_alert_media">Delete media as well?</string>
+    <string name="chat_activity_edit_chat_menu_delete_alert_positive">Delete</string>
+    <string name="chat_activity_edit_chat_menu_delete_alert_negative">Cancel</string>
 
+    <!-- Strings related to deleting chat -->
+    <string name="chat_deletion_notification_title">Deleting messages</string>
+    <string name="chat_deletion_notification_content">Deleting %1$d messages</string>
+    <string name="chat_deletion_notification_content_failed">Deleted %1$d messages</string>
     <!-- Strings related to group info -->
 
     <string name="group_info_edit_button_text">Edit Group</string>
     <string name="group_info_add_member_button_text">Add Member</string>
+    <string name="group_info_leave_button_text">Leave Group</string>
     <string name="group_info_edit_group_alert_title">Edit Group</string>
     <string name="group_info_edit_group_alert_cancel">CANCEL</string>
     <string name="group_info_edit_group_alert_group_name_hint">Group Name</string>
@@ -153,6 +184,7 @@
     <string name="group_role_admin">Admin</string>
     <string name="group_role_moderator">Moderator</string>
     <string name="group_role_default">Default</string>
+    <string name="group_info_pending">Pending(%1$s)</string>
     <string name="group_role_member_yourself_label">You</string>
     <string name="menu_group_member_send_message">Send message</string>
     <string name="menu_group_member_change_role">Change group role</string>
@@ -160,25 +192,31 @@
     <string name="group_info_kick_alert_title">Kick</string>
     <string name="group_info_kick_alert_message">Do you really want to kick this user? You can give a reason here!</string>
     <string name="group_info_kick_alert_reason_hint">Give a reason?</string>
-    <string name="group_info_kick_alert_cancel">CANCEL</string>
+    <string name="group_info_kick_alert_cancel">@android:string/cancel</string>
     <string name="group_info_kick_alert_kick">KICK</string>
     <string name="group_info_add_member_username_hint">Username</string>
+    <string name="group_info_leave_group_alert_default_title">Leave Group</string>
+    <string name="group_info_leave_group_alert_admin_title">Close Group</string>
+    <string name="group_info_leave_group_alert_default_message">Are you sure you want to leave this group. You will no longer be able to write messages. An admin or moderator can still add you again. Are you sure?</string>
+    <string name="group_info_leave_group_alert_admin_message">Are you sure you want to close this group. No member will be able to write messages in this group. This can not be undone. Are you sure?</string>
+    <string name="group_info_leave_group_alert_cancel">@android:string/cancel</string>
+    <string name="group_info_leave_group_alert_ok">@android:string/ok</string>
 
     <!-- Strings related to AddGroupMember Activity -->
     <string name="add_group_member_activity_label">Add Group Member</string>
-    <string name="add_group_member_add_member_label">ADD</string>
+    <string name="add_group_member_add_member_label">Add</string>
     <string name="add_group_member_add_alert_title">Add User</string>
     <string name="add_group_member_add_alert_message">Do you really want to add this user?</string>
-    <string name="add_group_member_add_alert_positive">PROCEED</string>
-    <string name="add_group_member_add_alert_negative">CANCEL</string>
+    <string name="add_group_member_add_alert_positive">Proceed</string>
+    <string name="add_group_member_add_alert_negative">@android:string/cancel</string>
 
     <!-- Strings related to Overview Activity -->
     <string name="overview_activity_no_message">No messages</string>
     <string name="overview_activity_delete_chat">Delete Chat</string>
     <string name="overview_activity_delete_chat_title">Delete Chat</string>
     <string name="overview_activity_delete_chat_message">Do you really want to delete this chat?</string>
-    <string name="overview_activity_delete_chat_do_delete">DELETE</string>
-    <string name="overview_activity_delete_chat_cancel">CANCEL</string>
+    <string name="overview_activity_delete_chat_do_delete">Delete</string>
+    <string name="overview_activity_delete_chat_cancel">@android:string/cancel</string>
     <string name="overview_activity_menu_transfer">Transfer</string>
     <string name="overview_activity_menu_chat_backup">Chat Backup</string>
     <string name="overview_activity_menu_chat_backup_create">Create Chat Backup</string>
@@ -210,6 +248,9 @@
     <string name="overview_activity_chat_backup_use_install_progress_dialog_message">Please be patient, this might take some time!</string>
     <string name="overview_activity_update_fcm_key_label">Update FCM key!</string>
     <string name="overview_activity_settings_label">Settings</string>
+    <string name="overview_activity_search">Search</string>
+    <string name="overview_activity_search_label_chats">Chats</string>
+    <string name="overview_activity_search_label_messages">Messages</string>
 
     <!-- Strings related to Share Receive Activity -->
     <string name="share_receive_label">Share with Kentai…</string>
@@ -248,6 +289,7 @@
     <!-- Strings related to settings overview -->
     <string name="settings_overview_label">Settings</string>
     <string name="settings_overview_change_profile_picture">Change profile picture</string>
+    <string name="settings_overview_use_light_theme">Use light theme</string>
 
     <!-- Strings related to pick gallery activity -->
     <string name="pick_gallery_activity_label">Pick from gallery</string>

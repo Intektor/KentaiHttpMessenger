@@ -2,6 +2,7 @@ package de.intektor.kentai.kentai.chat
 
 import android.os.Parcel
 import android.os.Parcelable
+import de.intektor.kentai.kentai.contacts.Contact
 import java.security.Key
 import java.util.*
 
@@ -30,5 +31,8 @@ data class ChatReceiver(val receiverUUID: UUID, var publicKey: Key?, val type: R
         override fun createFromParcel(parcel: Parcel): ChatReceiver = ChatReceiver(parcel)
 
         override fun newArray(size: Int): Array<ChatReceiver?> = arrayOfNulls(size)
+
+        fun fromContact(contact: Contact, isActive: Boolean = true): ChatReceiver = ChatReceiver(contact.userUUID, contact.message_key, ReceiverType.USER, isActive)
+
     }
 }
