@@ -23,12 +23,14 @@ class TextMessageViewHolder(itemView: View, chatAdapter: ChatAdapter) : ChatMess
     private val bubbleLayout: LinearLayout = itemView.findViewById(R.id.bubble_layout)
     private val parentLayout: LinearLayout = itemView.findViewById(R.id.bubble_layout_parent)
 
-    override fun setComponent(component: Any) {
-        component as ChatMessageWrapper
-        val message = component.message
-        msg.text = component.message.text
+    override fun bind(component: ChatAdapter.ChatAdapterWrapper) {
+        super.bind(component)
 
-        if (component.client) {
+        val item = component.item as ChatMessageWrapper
+        val message = item.message
+        msg.text = item.message.text
+
+        if (item.client) {
             bubbleLayout.background = getAttrDrawable(itemView.context, R.attr.bubble_right)
             parentLayout.gravity = Gravity.END
         } else {
@@ -43,7 +45,7 @@ class TextMessageViewHolder(itemView: View, chatAdapter: ChatAdapter) : ChatMess
             val modification = message.groupModification
             when (modification) {
                 is GroupModificationChangeName -> {
-                    msg.text = itemView.context.getString(R.string.chat_group_change_name, chatAdapter.contactMap[component.message.senderUUID]!!.name, modification.oldName, modification.newName)
+                    msg.text = itemView.context.getString(R.string.chat_group_change_name, chatAdapter.contactMap[item.message.senderUUID]!!.name, modification.oldName, modification.newName)
                 }
                 is GroupModificationChangeRole -> {
                     //TODO: make it impossible to get anything crashing by sending wrong enums
@@ -60,7 +62,7 @@ class TextMessageViewHolder(itemView: View, chatAdapter: ChatAdapter) : ChatMess
                         GroupRole.DEFAULT -> itemView.context.getString(R.string.group_role_default)
                     }
 
-                    msg.text = itemView.context.getString(R.string.chat_group_change_role, chatAdapter.contactMap[component.message.senderUUID]!!.name, chatAdapter.contactMap[modification.userUUID.toUUID()]!!.name,
+                    msg.text = itemView.context.getString(R.string.chat_group_change_role, chatAdapter.contactMap[item.message.senderUUID]!!.name, chatAdapter.contactMap[modification.userUUID.toUUID()]!!.name,
                             oldRoleString, newRoleString)
                 }
                 is GroupModificationKickUser -> {
@@ -84,12 +86,13 @@ class TextMessageViewHolder(itemView: View, chatAdapter: ChatAdapter) : ChatMess
             sS.setSpan(ForegroundColorSpan(Color.CYAN), 0, sS.length, 0)
 
             msg.text = sS
-            //TODO:
-//            msg.setOnClickListener {
-//                val i = Intent(itemView.context, ChatActivity::class.java)
-//                i.putExtra(KEY_CHAT_INFO, ChatInfo(message.chatUUID.toUUID(), message.groupName, ChatType.GROUP, message.roleMap.keys.map { ChatReceiver(it, null, ChatReceiver.ReceiverType.USER) }))
-//                itemView.context.startActivity(i)
-//            }
         }
+
+        registerForEditModeLongPress(msg)
+        registerForEditModePress(msg)
+        registerForEditModeLongPress(bubbleLayout)
+        registerForEditModePress(bubbleLayout)
+        registerForEditModeLongPress(parentLayout)
+        registerForEditModePress(parentLayout)
     }
 }

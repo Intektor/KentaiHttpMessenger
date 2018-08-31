@@ -26,11 +26,13 @@ class NineGagViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessageViewH
     private val gifButton: TextView = view.findViewById(R.id.nineGagGifPlay)
     private val load: ProgressBar = view.findViewById(R.id.nineGagDownloadBar)
 
-    override fun setComponent(component: Any) {
-        component as ReferenceHolder
+    override fun bind(component: ChatAdapter.ChatAdapterWrapper) {
+        super.bind(component)
 
-        val gagTitle = component.chatMessageWrapper.message.text.substringBefore("https://9gag.com/gag/")
-        val gagId = getGagId(component.chatMessageWrapper.message.text)
+        val item = component.item as ReferenceHolder
+
+        val gagTitle = item.chatMessageWrapper.message.text.substringBefore("https://9gag.com/gag/")
+        val gagId = getGagId(item.chatMessageWrapper.message.text)
 
         gifButton.visibility = View.GONE
         video.visibility = View.GONE
@@ -45,29 +47,29 @@ class NineGagViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessageViewH
 
         thumbnail.visibility = View.VISIBLE
 
-        if (!component.isFinished) {
-            if (!component.isInternetInProgress) {
+        if (!item.isFinished) {
+            if (!item.isInternetInProgress) {
                 playButton.setImageResource(R.drawable.ic_file_download_white_24dp)
                 load.visibility = View.GONE
                 thumbnail.setImageResource(R.mipmap.ic_launcher)
                 playButton.visibility = View.VISIBLE
 
-                playButton.setOnClickListener {
-                    downloadNineGag(gagId, getGagUUID(component.chatMessageWrapper.message.text), chatAdapter.chatInfo.chatUUID, itemView.context)
-                    component.isInternetInProgress = true
-                    component.progress = 0
+                registerForEditModePress(playButton) {
+                    downloadNineGag(gagId, getGagUUID(item.chatMessageWrapper.message.text), chatAdapter.chatInfo.chatUUID, itemView.context)
+                    item.isInternetInProgress = true
+                    item.progress = 0
                     chatAdapter.notifyItemChanged(adapterPosition)
                 }
             } else {
                 playButton.setImageResource(R.drawable.ic_cancel_white_24dp)
                 load.visibility = View.VISIBLE
-                load.progress = component.progress
+                load.progress = item.progress
                 load.max = 100
                 thumbnail.setImageResource(R.mipmap.ic_launcher)
-                playButton.setOnClickListener {
-                    cancelReferenceDownload(getGagUUID(component.chatMessageWrapper.message.text), itemView.context)
-                    component.progress = 0
-                    component.isInternetInProgress = false
+                registerForEditModePress(playButton) {
+                    cancelReferenceDownload(getGagUUID(item.chatMessageWrapper.message.text), itemView.context)
+                    item.progress = 0
+                    item.isInternetInProgress = false
                     chatAdapter.notifyItemChanged(adapterPosition)
                 }
             }
@@ -81,11 +83,11 @@ class NineGagViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessageViewH
                 video.visibility = View.GONE
                 playButton.visibility = View.GONE
 
-                thumbnail.setOnClickListener {
+                registerForEditModePress(thumbnail) {
                     val i = Intent(itemView.context, ViewIndividualMediaActivity::class.java)
                     i.putExtra(KEY_FILE_URI, Uri.fromFile(imageFile))
                     i.putExtra(KEY_MEDIA_TYPE, FileType.IMAGE)
-                    i.putExtra(KEY_MESSAGE_UUID, component.chatMessageWrapper.message.id.toUUID())
+                    i.putExtra(KEY_MESSAGE_UUID, item.chatMessageWrapper.message.id.toUUID())
                     itemView.context.startActivity(i)
                 }
             } else if (videoFile.exists()) {
@@ -94,7 +96,7 @@ class NineGagViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessageViewH
                 video.visibility = View.GONE
                 playButton.visibility = View.VISIBLE
                 playButton.setImageResource(R.drawable.ic_play_arrow_white_24dp)
-                playButton.setOnClickListener {
+                registerForEditModePress(playButton) {
                     playButton.visibility = View.GONE
                     thumbnail.visibility = View.GONE
 
@@ -109,7 +111,7 @@ class NineGagViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessageViewH
                     val i = Intent(itemView.context, ViewIndividualMediaActivity::class.java)
                     i.putExtra(KEY_FILE_URI, Uri.fromFile(videoFile))
                     i.putExtra(KEY_MEDIA_TYPE, FileType.VIDEO)
-                    i.putExtra(KEY_MESSAGE_UUID, component.chatMessageWrapper.message.id.toUUID())
+                    i.putExtra(KEY_MESSAGE_UUID, item.chatMessageWrapper.message.id.toUUID())
                     itemView.context.startActivity(i)
                 }
 
@@ -130,10 +132,16 @@ class NineGagViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessageViewH
         }
 
         val layout = itemView.findViewById(R.id.bubble_layout) as LinearLayout
-        if (component.chatMessageWrapper.client) {
+        if (item.chatMessageWrapper.client) {
             layout.background = getAttrDrawable(itemView.context, R.attr.bubble_right)
         } else {
             layout.background = getAttrDrawable(itemView.context, R.attr.bubble_left)
         }
+
+        registerForEditModeLongPress(title)
+        registerForEditModePress(title)
+        registerForEditModeLongPress(playButton)
+        registerForEditModeLongPress(thumbnail)
+        registerForEditModeLongPress(gifButton)
     }
 }

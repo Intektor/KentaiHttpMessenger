@@ -18,8 +18,7 @@
     <item
         android:id="@+id/chatActivityEdit"
         android:icon="?attr/ic_edit"
-        android:title="@string/chat_activity_menu_edit"
-        app:showAsAction="ifRoom" />
+        android:title="@string/chat_activity_menu_edit" />
     <item
         android:id="@+id/chatActivitySetBackground"
         android:title="@string/chat_activity_menu_change_background"

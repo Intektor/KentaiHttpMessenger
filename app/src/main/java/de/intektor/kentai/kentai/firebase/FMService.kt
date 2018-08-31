@@ -195,7 +195,7 @@ class FMService : FirebaseMessagingService() {
 
                 val messageType = MessageType.values()[ChatMessageRegistry.getID(message.javaClass)]
                 when (messageType) {
-                    MessageType.TEXT_MESSAGE -> updateChatAndSendBroadcast(message, chatInfo, senderUsername, senderUUID, registryID, AdditionalInfoEmpty())
+                    MessageType.TEXT_MESSAGE -> updateChatAndSendBroadcast(message, chatInfo, senderUUID, registryID, AdditionalInfoEmpty())
                     MessageType.MESSAGE_STATUS_CHANGE -> {
                         message as ChatMessageStatusChange
                         val changeStatusIntent = Intent(ACTION_MESSAGE_STATUS_CHANGE)
@@ -210,7 +210,7 @@ class FMService : FirebaseMessagingService() {
 
                         sendBroadcast(changeStatusIntent)
 
-                        updateChatAndSendBroadcast(message, chatInfo, senderUsername, senderUUID, registryID, AdditionalInfoEmpty())
+                        updateChatAndSendBroadcast(message, chatInfo, senderUUID, registryID, AdditionalInfoEmpty())
                     }
                     MessageType.GROUP_INVITE -> {
                         message as ChatMessageGroupInvite
@@ -255,7 +255,7 @@ class FMService : FirebaseMessagingService() {
                             } else {
                                 addChatParticipant(groupInvite.chatUUID.toUUID(), userUUID!!, dataBase)
                             }
-                            updateChatAndSendBroadcast(message, chatInfo, senderUsername, senderUUID, registryID, AdditionalInfoGroupInviteMessage(senderUsername, groupInvite.groupName))
+                            updateChatAndSendBroadcast(message, chatInfo, senderUUID, registryID, AdditionalInfoGroupInviteMessage(senderUsername, groupInvite.groupName))
                         }
                     }
                     MessageType.GROUP_MODIFICATION -> {
@@ -267,7 +267,7 @@ class FMService : FirebaseMessagingService() {
                             if (chatInfo.chatType == ChatType.GROUP_DECENTRALIZED && senderRole == GroupRole.ADMIN) {
                                 handleGroupModification(groupModification, senderUUID, dataBase, kentaiClient.userUUID)
 
-                                updateChatAndSendBroadcast(message, chatInfo, senderUsername, senderUUID, registryID, AdditionalInfoGroupModification(groupModification))
+                                updateChatAndSendBroadcast(message, chatInfo, senderUUID, registryID, AdditionalInfoGroupModification(groupModification))
 
                                 sendGroupModificationBroadcast(this, groupModification)
 
@@ -283,17 +283,17 @@ class FMService : FirebaseMessagingService() {
                     MessageType.VOICE_MESSAGE -> {
                         message as ChatMessageVoiceMessage
                         downloadAudio(this, dataBase, chatInfo.chatUUID, message.referenceUUID, chatInfo.chatType, message.fileHash, privateMessageKey)
-                        updateChatAndSendBroadcast(message, chatInfo, senderUsername, senderUUID, registryID, AdditionalInfoVoiceMessage(message.durationSeconds.toInt()))
+                        updateChatAndSendBroadcast(message, chatInfo, senderUUID, registryID, AdditionalInfoVoiceMessage(message.durationSeconds.toInt()))
                     }
                     MessageType.IMAGE_MESSAGE -> {
                         message as ChatMessageImage
                         downloadImage(this, dataBase, chatInfo.chatUUID, message.referenceUUID, chatInfo.chatType, message.hash, privateMessageKey)
-                        updateChatAndSendBroadcast(message, chatInfo, senderUsername, senderUUID, registryID, AdditionalInfoEmpty())
+                        updateChatAndSendBroadcast(message, chatInfo, senderUUID, registryID, AdditionalInfoEmpty())
                     }
                     MessageType.VIDEO_MESSAGE -> {
                         message as ChatMessageVideo
                         downloadVideo(this, dataBase, chatInfo.chatUUID, message.referenceUUID, chatInfo.chatType, message.hash, privateMessageKey)
-                        updateChatAndSendBroadcast(message, chatInfo, senderUsername, senderUUID, registryID, AdditionalInfoVideoMessage(message.durationSeconds.toInt()))
+                        updateChatAndSendBroadcast(message, chatInfo, senderUUID, registryID, AdditionalInfoVideoMessage(message.durationSeconds.toInt()))
                     }
                     MessageType.TYPING_MESSAGE -> {
 
@@ -314,7 +314,7 @@ class FMService : FirebaseMessagingService() {
             val chatUUID = groupModification.chatUUID.toUUID()
             val pendingMessage = PendingMessage(ChatMessageWrapper(ChatMessageGroupModification(groupModification, kentaiClient.userUUID, System.currentTimeMillis()), MessageStatus.WAITING, true,
                     System.currentTimeMillis(), chatUUID), chatUUID,
-                    chatParticipantMap.getOrPut(chatUUID, { readChatParticipants(dataBase, chatUUID).filter { it.receiverUUID != kentaiClient.userUUID } }))
+                    chatParticipantMap.getOrPut(chatUUID) { readChatParticipants(dataBase, chatUUID).filter { it.receiverUUID != kentaiClient.userUUID } })
 
             sendMessageToServer(this, pendingMessage, dataBase)
 
@@ -345,7 +345,7 @@ class FMService : FirebaseMessagingService() {
         return finished
     }
 
-    private fun updateChatAndSendBroadcast(message: ChatMessage, chatInfo: ChatInfo, senderUsername: String, senderUUID: UUID, registryID: Int, additionalInformation: IAdditionalInfo) {
+    private fun updateChatAndSendBroadcast(message: ChatMessage, chatInfo: ChatInfo, senderUUID: UUID, registryID: Int, additionalInformation: IAdditionalInfo) {
         val kentaiClient = applicationContext as KentaiClient
         val dataBase = kentaiClient.dataBase
         dataBase.rawQuery("SELECT unread_messages, chat_name, type FROM chats WHERE chat_uuid = ? LIMIT 1", arrayOf(chatInfo.chatUUID.toString())).use { cursor ->

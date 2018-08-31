@@ -23,22 +23,20 @@ class DateViewHolder(itemView: View, chatAdapter: ChatAdapter) : AbstractViewHol
         private val calendar = Calendar.getInstance()
     }
 
-    override fun setComponent(component: Any) {
-        component as DateInfo
+    override fun bind(component: ChatAdapter.ChatAdapterWrapper) {
+        val item = component.item as DateInfo
 
         calendar.timeInMillis = System.currentTimeMillis()
         val dateNow = calendar.get(Calendar.DATE)
 
-        calendar.timeInMillis = component.time
+        calendar.timeInMillis = item.time
         val dateThen = calendar.get(Calendar.DATE)
 
         when {
-            DateUtils.isToday(component.time) -> timeLabel.text = itemView.context.getString(R.string.chat_activity_today_label)
+            DateUtils.isToday(item.time) -> timeLabel.text = itemView.context.getString(R.string.chat_activity_today_label)
             abs(dateNow - dateThen) == 1 -> timeLabel.text = itemView.context.getString(R.string.chat_activity_yesterday_label)
-            abs(dateNow - dateThen) < 4 -> timeLabel.text = weekday.format(Date(component.time))
-            else -> timeLabel.text = date.format(Date(component.time))
+            abs(dateNow - dateThen) < 4 -> timeLabel.text = weekday.format(Date(item.time))
+            else -> timeLabel.text = date.format(Date(item.time))
         }
     }
-
-    override fun registerForContextMenu(): Boolean = false
 }

@@ -9,7 +9,6 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import com.squareup.picasso.Picasso
-import de.intektor.kentai.KentaiClient
 import de.intektor.kentai.R
 import de.intektor.kentai.ViewIndividualMediaActivity
 import de.intektor.kentai.kentai.*
@@ -26,28 +25,28 @@ class VideoMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessage
     private val loadButton: ImageView = itemView.findViewById(R.id.chatMessageVideoPlayButton)
     private val text = itemView.findViewById<TextView>(R.id.chatMessageVideoViewText)
 
-    override fun setComponent(component: Any) {
-        component as ReferenceHolder
-        val wrapper = component.chatMessageWrapper
-        val message = wrapper.message as ChatMessageVideo
+    override fun bind(component: ChatAdapter.ChatAdapterWrapper) {
+        super.bind(component)
 
-        val kentaiClient = itemView.context.applicationContext as KentaiClient
+        val item = component.item as ReferenceHolder
+        val wrapper = item.chatMessageWrapper
+        val message = wrapper.message as ChatMessageVideo
 
         val referenceFile = getReferenceFile(message.referenceUUID, FileType.VIDEO, chatAdapter.activity.filesDir, chatAdapter.activity)
 
         loadBar.max = 100
 
-        loadBar.visibility = if (component.isInternetInProgress) View.VISIBLE else View.GONE
+        loadBar.visibility = if (item.isInternetInProgress) View.VISIBLE else View.GONE
 
-        if (component.isInternetInProgress) {
-            loadBar.progress = component.progress
+        if (item.isInternetInProgress) {
+            loadBar.progress = item.progress
             imageView.visibility = View.GONE
         } else {
             loadBar.progress = 0
             imageView.visibility = View.VISIBLE
         }
 
-        if (!component.isFinished && !component.isInternetInProgress) {
+        if (!item.isFinished && !item.isInternetInProgress) {
             loadButton.visibility = View.VISIBLE
         } else {
             loadButton.visibility = View.GONE
@@ -63,18 +62,18 @@ class VideoMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessage
             imageView.context.startActivity(viewImageIntent)
         }
 
-        if (!component.isFinished) {
+        if (!item.isFinished) {
             loadButton.setImageResource(if (wrapper.client) R.drawable.ic_file_upload_white_24dp else R.drawable.ic_file_download_white_24dp)
         } else {
-            val imageFileUri = if (component.isFinished) Uri.fromFile(referenceFile) else null
+            val imageFileUri = if (item.isFinished) Uri.fromFile(referenceFile) else null
             Picasso.with(itemView.context).load(imageFileUri).into(imageView)
         }
 
         loadButton.setOnClickListener {
-            chatAdapter.activity.startReferenceLoad(component, adapterPosition, FileType.VIDEO)
+            chatAdapter.activity.startReferenceLoad(item, adapterPosition, FileType.VIDEO)
         }
 
-        if (wrapper.client || component.isFinished) {
+        if (wrapper.client || item.isFinished) {
             videoPicasso(itemView.context).loadVideoThumbnailFull(referenceFile.path).into(imageView)
         }
 
@@ -84,7 +83,7 @@ class VideoMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessage
         val layout = itemView.findViewById(R.id.bubble_layout) as LinearLayout
         val parentLayout = itemView.findViewById(R.id.bubble_layout_parent) as LinearLayout
 
-        if (component.chatMessageWrapper.client) {
+        if (item.chatMessageWrapper.client) {
             layout.background = getAttrDrawable(itemView.context, R.attr.bubble_right)
             parentLayout.gravity = Gravity.END
         } else {

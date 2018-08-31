@@ -15,21 +15,19 @@ class TimeStatusViewHolder(itemView: View, chatAdapter: ChatAdapter) : AbstractV
     private val timeView: TextView = itemView.findViewById(R.id.chatTimeInfoTimeView)
     private val statusView: ImageView = itemView.findViewById(R.id.chatTimeInfoStatusView)
 
-    override fun setComponent(component: Any) {
-        component as TimeStatusChatInfo
+    override fun bind(component: ChatAdapter.ChatAdapterWrapper) {
+        val item = component.item as TimeStatusChatInfo
         val layout = itemView.findViewById<LinearLayout>(R.id.chatTimeInfoLayout)
-        layout.gravity = if (component.isClient) Gravity.END else Gravity.START
-        timeView.text = SimpleDateFormat.getTimeInstance(SimpleDateFormat.SHORT).format(Date(component.time))
+        layout.gravity = if (item.isClient) Gravity.END else Gravity.START
+        timeView.text = SimpleDateFormat.getTimeInstance(SimpleDateFormat.SHORT).format(Date(item.time))
 
-        statusView.visibility = if (component.isClient) View.VISIBLE else View.GONE
+        statusView.visibility = if (item.isClient) View.VISIBLE else View.GONE
 
-        when (component.status) {
+        when (item.status) {
             MessageStatus.WAITING -> statusView.setImageResource(R.drawable.waiting)
             MessageStatus.SENT -> statusView.setImageResource(R.drawable.sent)
             MessageStatus.RECEIVED -> statusView.setImageResource(R.drawable.received)
             MessageStatus.SEEN -> statusView.setImageResource(R.drawable.seen)
         }
     }
-
-    override fun registerForContextMenu(): Boolean = false
 }

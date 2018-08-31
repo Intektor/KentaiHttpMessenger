@@ -10,7 +10,6 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import com.squareup.picasso.Picasso
-import de.intektor.kentai.KentaiClient
 import de.intektor.kentai.R
 import de.intektor.kentai.ViewIndividualMediaActivity
 import de.intektor.kentai.kentai.KEY_FILE_URI
@@ -33,12 +32,12 @@ class ImageMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessage
 
     private lateinit var message: ChatMessage
 
-    override fun setComponent(component: Any) {
-        component as ReferenceHolder
+    override fun bind(component: ChatAdapter.ChatAdapterWrapper) {
+        super.bind(component)
 
-        val wrapper = component.chatMessageWrapper
+        val item = component.item as ReferenceHolder
 
-        val kentaiClient = itemView.context.applicationContext as KentaiClient
+        val wrapper = item.chatMessageWrapper
 
         message = wrapper.message as ChatMessageImage
 
@@ -48,13 +47,13 @@ class ImageMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessage
 
         loadBar.max = 100
 
-        if (component.isFinished) {
+        if (item.isFinished) {
             loadButton.visibility = View.GONE
             loadBar.visibility = View.GONE
         } else {
-            if (component.isInternetInProgress) {
+            if (item.isInternetInProgress) {
                 loadButton.visibility = View.GONE
-                loadBar.progress = component.progress
+                loadBar.progress = item.progress
             } else {
                 loadButton.visibility = View.VISIBLE
                 loadBar.visibility = View.GONE
@@ -63,7 +62,7 @@ class ImageMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessage
             }
         }
 
-        if (component.isFinished || wrapper.client) {
+        if (item.isFinished || wrapper.client) {
             Picasso.with(itemView.context).load(referenceFile).resize(800, 0).into(imageView)
         } else {
             val smallPreview = message.smallPreview
@@ -71,7 +70,7 @@ class ImageMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessage
             imageView.setImageBitmap(bitmap)
         }
 
-        imageView.setOnClickListener {
+        registerForEditModePress(imageView) {
             val viewImageIntent = Intent(imageView.context, ViewIndividualMediaActivity::class.java)
             viewImageIntent.putExtra(KEY_FILE_URI, Uri.fromFile(referenceFile))
             viewImageIntent.putExtra(KEY_MEDIA_TYPE, FileType.IMAGE)
@@ -79,8 +78,8 @@ class ImageMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessage
             imageView.context.startActivity(viewImageIntent)
         }
 
-        loadButton.setOnClickListener {
-            chatAdapter.activity.startReferenceLoad(component, adapterPosition, FileType.IMAGE)
+        registerForEditModePress(loadButton) {
+            chatAdapter.activity.startReferenceLoad(item, adapterPosition, FileType.IMAGE)
         }
 
         text.visibility = if (message.text.isBlank()) View.GONE else View.VISIBLE
@@ -90,12 +89,17 @@ class ImageMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessage
         val layout = itemView.findViewById(R.id.bubble_layout) as LinearLayout
         val parentLayout = itemView.findViewById(R.id.bubble_layout_parent) as LinearLayout
 
-        if (component.chatMessageWrapper.client) {
+        if (item.chatMessageWrapper.client) {
             layout.background = getAttrDrawable(itemView.context, R.attr.bubble_right)
             parentLayout.gravity = Gravity.END
         } else {
             layout.background = getAttrDrawable(itemView.context, R.attr.bubble_left)
             parentLayout.gravity = Gravity.START
         }
+
+        registerForEditModeLongPress(text)
+        registerForEditModePress(text)
+        registerForEditModeLongPress(imageView)
+        registerForEditModeLongPress(loadButton)
     }
 }

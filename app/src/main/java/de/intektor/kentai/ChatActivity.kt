@@ -73,16 +73,15 @@ class ChatActivity : AppCompatActivity() {
     private lateinit var directConnectedReceiver: BroadcastReceiver
     private lateinit var updateProfilePictureReceiver: BroadcastReceiver
 
-
     private var lastTimeSentTypingMessage = 0L
 
     private val userToUserInfo = mutableMapOf<UUID, UsernameChatInfo>()
 
-    private val messageObjects = mutableMapOf<UUID, List<Any>>()
+    private val messageObjects = mutableMapOf<UUID, List<ChatAdapter.ChatAdapterWrapper>>()
 
     private val referenceUUIDToMessageUUID = mutableMapOf<UUID, UUID>()
 
-    private val componentList = mutableListOf<Any>()
+    private val componentList = mutableListOf<ChatAdapter.ChatAdapterWrapper>()
 
     private lateinit var chatAdapter: ChatAdapter
 
@@ -111,10 +110,12 @@ class ChatActivity : AppCompatActivity() {
     lateinit var bubbleLeft: Drawable
     lateinit var bubbleRight: Drawable
 
-    private var takePicturePhotoUUID: UUID? = null
-
     private var actionModeEdit: ActionMode? = null
-    private var selectedItems: MutableList<ChatMessageWrapper> = mutableListOf()
+    private var selectedItems: MutableSet<ChatAdapter.ChatAdapterWrapper> = hashSetOf()
+
+    val isInEditMode: Boolean
+        get() = actionModeEdit != null
+
 
     private var selectedWithMedia = 0
 
@@ -218,7 +219,7 @@ class ChatActivity : AppCompatActivity() {
                 val lastVisibleIndex = lM.findLastVisibleItemPosition()
 
                 (Math.max(0, firstVisibleIndex)..Math.min(lastVisibleIndex, componentList.size))
-                        .map { componentList[it] }
+                        .map { componentList[it].item }
                         .filter { it is ChatMessageWrapper || it is ReferenceHolder }
                         .filter {
                             val wrapper = (it as? ReferenceHolder)?.chatMessageWrapper
@@ -282,8 +283,10 @@ class ChatActivity : AppCompatActivity() {
                 val referenceUUID = intent.getSerializableExtra(KEY_REFERENCE_UUID) as UUID
                 val messageUUID = referenceUUIDToMessageUUID[referenceUUID]
 
-                val holder = messageObjects[messageUUID]?.first { it is ReferenceHolder } as ReferenceHolder
-                holder.progress = (intent.getDoubleExtra(KEY_PROGRESS, 0.0) * 100).toInt()
+                val holder = messageObjects[messageUUID]?.first { it.item is ReferenceHolder }
+                        ?: return
+                val item = holder.item as ReferenceHolder
+                item.progress = (intent.getDoubleExtra(KEY_PROGRESS, 0.0) * 100).toInt()
 
                 chatAdapter.notifyItemChanged(componentList.indexOf(holder))
             }
@@ -295,10 +298,11 @@ class ChatActivity : AppCompatActivity() {
                 val successful = intent.getBooleanExtra(KEY_SUCCESSFUL, false)
                 val messageUUID = referenceUUIDToMessageUUID[referenceUUID]
 
-                val holder = (messageObjects[messageUUID]?.firstOrNull { it is ReferenceHolder }
-                        ?: return) as ReferenceHolder
-                holder.isInternetInProgress = false
-                holder.isFinished = successful
+                val holder = messageObjects[messageUUID]?.first { it.item is ReferenceHolder }
+                        ?: return
+                val item = holder.item as ReferenceHolder
+                item.isInternetInProgress = false
+                item.isFinished = successful
 
                 chatAdapter.notifyItemChanged(componentList.indexOf(holder))
             }
@@ -309,8 +313,10 @@ class ChatActivity : AppCompatActivity() {
                 val referenceUUID = intent.getSerializableExtra(KEY_REFERENCE_UUID) as UUID
                 val messageUUID = referenceUUIDToMessageUUID[referenceUUID]
 
-                val holder = messageObjects[messageUUID]?.first { it is ReferenceHolder } as ReferenceHolder
-                holder.progress = intent.getIntExtra(KEY_PROGRESS, 0)
+                val holder = messageObjects[messageUUID]?.first { it.item is ReferenceHolder }
+                        ?: return
+                val item = holder.item as ReferenceHolder
+                item.progress = intent.getIntExtra(KEY_PROGRESS, 0)
 
                 chatAdapter.notifyItemChanged(componentList.indexOf(holder))
             }
@@ -322,10 +328,11 @@ class ChatActivity : AppCompatActivity() {
                 val successful = intent.getBooleanExtra(KEY_SUCCESSFUL, false)
                 val messageUUID = referenceUUIDToMessageUUID[referenceUUID]
 
-                val holder = (messageObjects[messageUUID]?.firstOrNull { it is ReferenceHolder }
-                        ?: return) as ReferenceHolder
-                holder.isInternetInProgress = false
-                holder.isFinished = successful
+                val holder = messageObjects[messageUUID]?.first { it.item is ReferenceHolder }
+                        ?: return
+                val item = holder.item as ReferenceHolder
+                item.isInternetInProgress = false
+                item.isFinished = successful
 
                 chatAdapter.notifyItemChanged(componentList.indexOf(holder))
             }
@@ -381,10 +388,10 @@ class ChatActivity : AppCompatActivity() {
             }
         }
 
-        chatActivitySendMessage.setOnClickListener({
+        chatActivitySendMessage.setOnClickListener {
             sendMessage()
             chatActivityTextInput.text.clear()
-        })
+        }
 
         val handler = Handler()
         TypingUpdater(handler).run()
@@ -434,7 +441,7 @@ class ChatActivity : AppCompatActivity() {
                 DateViewHolder(header, chatAdapter).bind(componentList[headerPosition])
             }
 
-            override fun isHeader(itemPosition: Int): Boolean = componentList[itemPosition] is DateInfo
+            override fun isHeader(itemPosition: Int): Boolean = componentList[itemPosition].item is DateInfo
 
         }))
 
@@ -485,7 +492,7 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun addMessages(list: List<ChatMessageWrapper>, bottom: Boolean) {
-        val listToAdd = mutableListOf<Any>()
+        val listToAdd = mutableListOf<ChatAdapter.ChatAdapterWrapper>()
         for (wrapper in list) {
             val associated = createMessageObjects(wrapper)
             messageObjects[wrapper.message.id.toUUID()] = associated
@@ -494,8 +501,8 @@ class ChatActivity : AppCompatActivity() {
 
             if (!bottom) {
                 listToAdd.removeAll {
-                    if (it is DateInfo) {
-                        calendar.timeInMillis = it.time
+                    if (it.item is DateInfo) {
+                        calendar.timeInMillis = it.item.time
                         val dateThen = calendar.get(Calendar.DATE)
 
                         calendar.timeInMillis = dateInfo.time
@@ -508,8 +515,8 @@ class ChatActivity : AppCompatActivity() {
 
             if (bottom) {
                 if ((listToAdd + componentList).none {
-                            if (it is DateInfo) {
-                                calendar.timeInMillis = it.time
+                            if (it.item is DateInfo) {
+                                calendar.timeInMillis = it.item.time
                                 val dateThen = calendar.get(Calendar.DATE)
 
                                 calendar.timeInMillis = dateInfo.time
@@ -517,12 +524,12 @@ class ChatActivity : AppCompatActivity() {
                                 dateThen == dateNow
                             } else false
                         }) {
-                    listToAdd += dateInfo
+                    listToAdd += ChatAdapter.ChatAdapterWrapper(item = dateInfo)
                 }
                 listToAdd.addAll(associated)
             } else {
                 listToAdd.addAll(0, associated)
-                listToAdd.add(0, dateInfo)
+                listToAdd.add(0, ChatAdapter.ChatAdapterWrapper(item = dateInfo))
             }
 
             referenceUUIDToMessageUUID[wrapper.message.referenceUUID] = wrapper.message.id.toUUID()
@@ -535,14 +542,14 @@ class ChatActivity : AppCompatActivity() {
         val removed = mutableListOf<Int>()
 
         if (!bottom) {
-            listToAdd.filter { it is DateInfo }.forEach { c ->
-                c as DateInfo
+            listToAdd.filter { it.item is DateInfo }.forEach { c ->
+                c.item as DateInfo
                 componentList.filter {
-                    if (it is DateInfo) {
-                        calendar.timeInMillis = it.time
+                    if (it.item is DateInfo) {
+                        calendar.timeInMillis = it.item.time
                         val dateThen = calendar.get(Calendar.DATE)
 
-                        calendar.timeInMillis = c.time
+                        calendar.timeInMillis = c.item.time
                         val dateNow = calendar.get(Calendar.DATE)
                         dateThen == dateNow
                     } else false
@@ -572,13 +579,12 @@ class ChatActivity : AppCompatActivity() {
     /**
      * Returns the list of the list components that will be added, you have to add the list to the recycler view yourself
      */
-    private fun createMessageObjects(wrapper: ChatMessageWrapper): List<Any> {
+    private fun createMessageObjects(wrapper: ChatMessageWrapper): List<ChatAdapter.ChatAdapterWrapper> {
         val kentaiClient = applicationContext as KentaiClient
-
         val message = wrapper.message
         if (!message.shouldBeStored()) return emptyList()
 
-        val resultList = mutableListOf<Any>()
+        val resultList = mutableListOf<ChatAdapter.ChatAdapterWrapper>()
 
         if (message is ChatMessageGroupModification) {
             val groupModification = message.groupModification
@@ -588,42 +594,42 @@ class ChatActivity : AppCompatActivity() {
         }
 
         if (chatInfo.chatType.isGroup() && !wrapper.client) {
-            resultList += userToUserInfo[message.senderUUID]!!
+            resultList += ChatAdapter.ChatAdapterWrapper(item = userToUserInfo[message.senderUUID]!!)
         }
 
         resultList += if (wrapper.message.hasReference()) {
             val referenceState = getReferenceState(kentaiClient.dataBase, chatInfo.chatUUID, wrapper.message.referenceUUID)
 
             if (wrapper.message is ChatMessageVoiceMessage) {
-                VoiceReferenceHolder(wrapper, kentaiClient.currentLoadingTable.containsKey(message.referenceUUID), referenceState == UploadState.FINISHED)
+                ChatAdapter.ChatAdapterWrapper(item = VoiceReferenceHolder(wrapper, kentaiClient.currentLoadingTable.containsKey(message.referenceUUID), referenceState == UploadState.FINISHED))
             } else {
-                ReferenceHolder(wrapper, kentaiClient.currentLoadingTable.containsKey(message.referenceUUID), referenceState == UploadState.FINISHED)
+                ChatAdapter.ChatAdapterWrapper(item = ReferenceHolder(wrapper, kentaiClient.currentLoadingTable.containsKey(message.referenceUUID), referenceState == UploadState.FINISHED))
             }
         } else if (isNineGagMessage(wrapper.message.text)) {
             val gagUUID = getGagUUID(wrapper.message.text)
 
             val referenceState = getReferenceState(kentaiClient.dataBase, null, gagUUID)
 
-            ReferenceHolder(wrapper, kentaiClient.currentLoadingTable.containsKey(gagUUID), referenceState == UploadState.FINISHED)
+            ChatAdapter.ChatAdapterWrapper(item = ReferenceHolder(wrapper, kentaiClient.currentLoadingTable.containsKey(gagUUID), referenceState == UploadState.FINISHED))
         } else {
-            wrapper
+            ChatAdapter.ChatAdapterWrapper(item = wrapper)
         }
 
         val timeStatusInfo = TimeStatusChatInfo(message.timeSent, wrapper.status, wrapper.client)
-        resultList += timeStatusInfo
+        resultList += ChatAdapter.ChatAdapterWrapper(item = timeStatusInfo)
 
         return resultList
     }
 
     fun updateMessageStatus(messageUUID: UUID, status: MessageStatus) {
         val associatedObjects = messageObjects[messageUUID] ?: return
-        val first = associatedObjects.first { it is ChatMessageWrapper || it is ReferenceHolder }
-        val wrapper = (first as? ReferenceHolder)?.chatMessageWrapper ?: first as ChatMessageWrapper
+        val first = associatedObjects.first { it.item is ChatMessageWrapper || it.item is ReferenceHolder }
+        val wrapper = (first.item as? ReferenceHolder)?.chatMessageWrapper ?: first.item as ChatMessageWrapper
         wrapper.status = status
 
-        val timeStatusInfo = associatedObjects.first { it is TimeStatusChatInfo } as TimeStatusChatInfo
+        val timeStatusInfo = associatedObjects.first { it.item is TimeStatusChatInfo }.item as TimeStatusChatInfo
         timeStatusInfo.status = status
-        val index = componentList.indexOf(timeStatusInfo)
+        val index = componentList.indexOfFirst { it.item == timeStatusInfo }
         if (index == -1) throw IllegalStateException("TimeStatusInfo was not found!")
         chatAdapter.notifyItemChanged(index)
     }
@@ -732,54 +738,7 @@ class ChatActivity : AppCompatActivity() {
                 return true
             }
             R.id.chatActivityEdit -> {
-                startActionMode(object : ActionMode.Callback {
-                    override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
-                        when (item.itemId) {
-                            R.id.menuChatEditDelete -> {
-                                val dialog = AlertDialog.Builder(this@ChatActivity)
-                                        .setIcon(R.drawable.baseline_warning_white_24)
-                                        .setTitle(R.string.chat_activity_edit_chat_menu_delete_alert_title)
-                                        .setMessage(getString(R.string.chat_activity_edit_chat_menu_delete_alert_message, selectedItems.size))
-                                        .setNegativeButton(R.string.chat_activity_edit_chat_menu_delete_alert_negative, { _, _ -> })
-                                        .setPositiveButton(R.string.chat_activity_edit_chat_menu_delete_alert_positive, { _, _ ->
-                                            DeleteMessagesTask(selectedItems, chatInfo.chatUUID, kentaiClient, NotificationManagerCompat.from(this@ChatActivity)).execute()
-                                            selectedItems.map { componentList.indexOf(it) }.forEach { chatAdapter.notifyItemRemoved(it) }
-                                            componentList.removeAll(selectedItems)
-                                        })
-                                if (selectedWithMedia > 0) {
-                                    val deleteMediaCheckbox = CheckBox(this@ChatActivity)
-                                    deleteMediaCheckbox.isChecked = false
-                                    deleteMediaCheckbox.text = getString(R.string.chat_activity_edit_chat_menu_delete_alert_media)
-
-                                    dialog.setView(deleteMediaCheckbox)
-                                }
-
-                                dialog.create().show()
-                            }
-                            R.id.menuChatEditShare -> {
-
-                            }
-                            R.id.menuChatEditReply -> {
-
-                            }
-                        }
-                        return true
-                    }
-
-                    override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
-                        mode.menuInflater.inflate(R.menu.menu_chat_edit, menu)
-                        return true
-                    }
-
-                    override fun onPrepareActionMode(mode: ActionMode, menu: Menu): Boolean {
-                        actionModeEdit = mode
-                        return false
-                    }
-
-                    override fun onDestroyActionMode(mode: ActionMode) {
-                        actionModeEdit = null
-                    }
-                })
+                startActionMode(editActionMode)
             }
         }
         return false
@@ -913,8 +872,8 @@ class ChatActivity : AppCompatActivity() {
         val kentaiClient = applicationContext as KentaiClient
 
         if (componentList.isNotEmpty() && upToDate) {
-            val (_: Long, lastMessageUUID: UUID) = if (componentList.any { it is ChatMessageWrapper }) {
-                val message = (componentList.last { it is ChatMessageWrapper } as ChatMessageWrapper).message
+            val (_: Long, lastMessageUUID: UUID) = if (componentList.any { it.item is ChatMessageWrapper }) {
+                val message = (componentList.last { it.item is ChatMessageWrapper }.item as ChatMessageWrapper).message
                 message.timeSent to message.id.toUUID()
             } else 0L to UUID.randomUUID()
 
@@ -970,38 +929,6 @@ class ChatActivity : AppCompatActivity() {
         currentContextSelectedIndex = position
 
         super.onCreateContextMenu(menu, v, menuInfo)
-    }
-
-    override fun onContextItemSelected(item: MenuItem): Boolean {
-        val kentaiClient = applicationContext as KentaiClient
-
-        val index = currentContextSelectedIndex
-        when (item.itemId) {
-            R.id.menuChatBubbleDelete -> {
-                val temp = componentList[index]
-                val message = temp as? ChatMessageWrapper
-                        ?: ((temp as? ReferenceHolder)?.chatMessageWrapper
-                                ?: throw IllegalStateException())
-                deleteMessage(chatInfo.chatUUID, message.message.id.toUUID(), message.message.referenceUUID, kentaiClient.dataBase)
-
-                val messageComponentList = messageObjects[message.message.id.toUUID()]!!
-                componentList.removeAll(messageComponentList)
-                chatAdapter.notifyDataSetChanged()
-                return true
-            }
-            R.id.menuChatBubbleInfo -> {
-                return true
-            }
-            R.id.menuChatBubbleCopy -> {
-                val message = componentList[index] as ChatMessageWrapper
-
-                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                val clip = ClipData.newPlainText("Kentai", message.message.text)
-                clipboard.primaryClip = clip
-            }
-        }
-
-        return super.onContextItemSelected(item)
     }
 
     private fun startRecording() {
@@ -1169,7 +1096,7 @@ class ChatActivity : AppCompatActivity() {
 
         referenceHolder.maxPlayProgress = mediaPlayer.duration
 
-        chatAdapter.notifyItemChanged(componentList.indexOf(referenceHolder))
+        chatAdapter.notifyItemChanged(componentList.indexOfFirst { it.item == referenceHolder })
 
         mediaPlayer.setOnCompletionListener {
             stopAudio(referenceHolder)
@@ -1181,7 +1108,7 @@ class ChatActivity : AppCompatActivity() {
                 if (currentPlaying != referenceHolder) return
 
                 referenceHolder.playProgress = mediaPlayer.currentPosition
-                chatAdapter.notifyItemChanged(componentList.indexOf(referenceHolder))
+                chatAdapter.notifyItemChanged(componentList.indexOfFirst { it.item == referenceHolder })
 
                 handler.postDelayed(this, 1000L)
             }
@@ -1193,13 +1120,13 @@ class ChatActivity : AppCompatActivity() {
             mediaPlayer.seekTo(change)
         }
         referenceHolder.playProgress = change
-        chatAdapter.notifyItemChanged(componentList.indexOf(referenceHolder))
+        chatAdapter.notifyItemChanged(componentList.indexOfFirst { it.item == referenceHolder })
     }
 
     fun stopAudio(referenceHolder: VoiceReferenceHolder) {
         referenceHolder.isPlaying = false
         referenceHolder.playProgress = 0
-        chatAdapter.notifyItemChanged(componentList.indexOf(referenceHolder))
+        chatAdapter.notifyItemChanged(componentList.indexOfFirst { it.item == referenceHolder })
         mediaPlayer.stop()
         mediaPlayer.reset()
         currentPlaying = null
@@ -1275,5 +1202,125 @@ class ChatActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
         recreate()
+    }
+
+    fun select(item: ChatAdapter.ChatAdapterWrapper, selected: Boolean) {
+        item.selected = selected
+
+        if (selected) {
+            selectedItems.add(item)
+        } else {
+            selectedItems.remove(item)
+        }
+
+        val menu = actionModeEdit?.menu
+        if (menu != null) {
+            val reply = menu.findItem(R.id.menuChatEditReply)
+            val share = menu.findItem(R.id.menuChatEditShare)
+            val delete = menu.findItem(R.id.menuChatEditDelete)
+            val copy = menu.findItem(R.id.menuChatEditCopy)
+            val info = menu.findItem(R.id.menuChatEditInfo)
+            when {
+                selectedItems.isEmpty() -> {
+                    reply.isEnabled = false
+                    share.isEnabled = false
+                    delete.isEnabled = false
+                    copy.isEnabled = false
+                    info.isEnabled = false
+                }
+                selectedItems.size == 1 -> {
+                    reply.isEnabled = true
+                    share.isEnabled = true
+                    delete.isEnabled = true
+                    copy.isEnabled = true
+                    info.isEnabled = true
+                }
+                else -> {
+                    reply.isEnabled = false
+                    share.isEnabled = true
+                    delete.isEnabled = true
+                    copy.isEnabled = true
+                    info.isEnabled = false
+                }
+            }
+        }
+    }
+
+    fun activateEditMode() {
+        if (!isInEditMode) {
+            startActionMode(editActionMode)
+        }
+    }
+
+    private val editActionMode = object : ActionMode.Callback {
+        override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
+            when (item.itemId) {
+                R.id.menuChatEditDelete -> {
+                    val dialog = AlertDialog.Builder(this@ChatActivity)
+                            .setIcon(R.drawable.baseline_warning_white_24)
+                            .setTitle(R.string.chat_activity_edit_chat_menu_delete_alert_title)
+                            .setMessage(getString(R.string.chat_activity_edit_chat_menu_delete_alert_message, selectedItems.size))
+                            .setNegativeButton(R.string.chat_activity_edit_chat_menu_delete_alert_negative) { _, _ -> }
+                            .setPositiveButton(R.string.chat_activity_edit_chat_menu_delete_alert_positive) { _, _ ->
+                                DeleteMessagesTask(selectedItems.map { it.item as ChatMessageWrapper }, chatInfo.chatUUID, applicationContext as KentaiClient, NotificationManagerCompat.from(this@ChatActivity)).execute()
+                                selectedItems.map { componentList.indexOf(it) }.forEach { chatAdapter.notifyItemRemoved(it) }
+                                componentList.removeAll(selectedItems)
+                            }
+                    if (selectedWithMedia > 0) {
+                        val deleteMediaCheckbox = CheckBox(this@ChatActivity)
+                        deleteMediaCheckbox.isChecked = false
+                        deleteMediaCheckbox.text = getString(R.string.chat_activity_edit_chat_menu_delete_alert_media)
+
+                        dialog.setView(deleteMediaCheckbox)
+                    }
+
+                    dialog.create().show()
+                }
+                R.id.menuChatEditShare -> {
+
+                }
+                R.id.menuChatEditReply -> {
+
+                }
+                R.id.menuChatEditCopy -> {
+                    val text = if (selectedItems.size == 1) {
+                        val wrapper = selectedItems.first().item as ChatMessageWrapper
+                        wrapper.message.text
+                    } else {
+                        selectedItems.joinToString(separator = "\n") {
+                            val wrapper = it.item as ChatMessageWrapper
+                            "[${dateFormatAnytime.format(Date(wrapper.message.timeSent))}]: ${wrapper.message.text}"
+                        }
+                    }
+                    val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    val clip = ClipData.newPlainText(getString(R.string.app_name), text)
+                    clipboard.primaryClip = clip
+
+                    mode.finish()
+                }
+            }
+            return true
+        }
+
+        override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
+            menuInflater.inflate(R.menu.menu_chat_edit, menu)
+            return true
+        }
+
+        override fun onPrepareActionMode(mode: ActionMode, menu: Menu): Boolean {
+            actionModeEdit = mode
+
+            chatAdapter.notifyItemRangeChanged(0, componentList.size)
+            return false
+        }
+
+        override fun onDestroyActionMode(mode: ActionMode) {
+            actionModeEdit = null
+
+            chatAdapter.notifyItemRangeChanged(0, componentList.size)
+
+            selectedItems.forEach { it.selected = false }
+            selectedItems.clear()
+        }
     }
 }

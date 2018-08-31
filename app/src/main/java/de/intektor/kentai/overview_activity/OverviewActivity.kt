@@ -121,7 +121,7 @@ class OverviewActivity : AppCompatActivity() {
 
         tabs.setupWithViewPager(container)
 
-        searchAdapter = SearchAdapter(searchList, { item ->
+        searchAdapter = SearchAdapter(searchList) { item ->
             if (item is ChatListViewAdapter.ChatItem) {
                 val i = Intent(this@OverviewActivity, ChatActivity::class.java)
                 i.putExtra(KEY_CHAT_INFO, item.chatInfo)
@@ -132,7 +132,7 @@ class OverviewActivity : AppCompatActivity() {
                 i.putExtra(KEY_MESSAGE_UUID, item.message.message.id)
                 startActivity(i)
             }
-        })
+        }
 
         overviewActivitySearchList.adapter = searchAdapter
         overviewActivitySearchList.layoutManager = LinearLayoutManager(this)
@@ -156,7 +156,7 @@ class OverviewActivity : AppCompatActivity() {
         }))
 
         overviewActivitySearchList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-            override fun onScrolled(recyclerView: RecyclerView?, dx: Int, dy: Int) {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 val scrollPercent = (overviewActivitySearchList.computeVerticalScrollOffset().toFloat() + overviewActivitySearchList.height) / overviewActivitySearchList.computeVerticalScrollRange().toFloat()
 
                 if (scrollPercent >= 0.9f) {
@@ -283,7 +283,7 @@ class OverviewActivity : AppCompatActivity() {
         val fragment = supportFragmentManager.findFragmentByTag("android:switcher:" + R.id.container + ":0") as FragmentChatsOverview
         fragment.addChat(item)
         fragment.shownChatList.sortBy { it.lastChatMessage.message.timeSent }
-        fragment.list.adapter.notifyDataSetChanged()
+        fragment.list.adapter?.notifyDataSetChanged()
     }
 
     fun getCurrentChats(): List<ChatListViewAdapter.ChatItem> {
@@ -298,7 +298,7 @@ class OverviewActivity : AppCompatActivity() {
         chatItem.lastChatMessage = lastMessage
         chatItem.unreadMessages = unreadMessages
         fragment.shownChatList.sortByDescending { it.lastChatMessage.message.timeSent }
-        fragment.list.adapter.notifyDataSetChanged()
+        fragment.list.adapter?.notifyDataSetChanged()
     }
 
     fun updateLatestChatMessageStatus(chatUUID: UUID, status: MessageStatus, messageUUID: UUID) {
@@ -306,7 +306,7 @@ class OverviewActivity : AppCompatActivity() {
         val chatItem = fragment.chatMap[chatUUID]!!
         if (chatItem.lastChatMessage.message.id == messageUUID.toString()) {
             chatItem.lastChatMessage.status = status
-            fragment.list.adapter.notifyDataSetChanged()
+            fragment.list.adapter?.notifyDataSetChanged()
         }
     }
 
@@ -314,7 +314,7 @@ class OverviewActivity : AppCompatActivity() {
         val fragment = supportFragmentManager.findFragmentByTag("android:switcher:" + R.id.container + ":0") as FragmentChatsOverview
         val chatItem = fragment.chatMap[chatUUID]!!
         chatItem.chatInfo = chatItem.chatInfo.copy(chatName = name)
-        fragment.list.adapter.notifyDataSetChanged()
+        fragment.list.adapter?.notifyDataSetChanged()
     }
 
     fun updateInitChat(chatUUID: UUID, successful: Boolean) {
@@ -371,13 +371,13 @@ class OverviewActivity : AppCompatActivity() {
                 .setTitle(R.string.overview_activity_chat_backup_alert_title)
                 .setMessage(R.string.overview_activity_chat_backup_alert_message)
                 .setNegativeButton(R.string.overview_activity_chat_backup_alert_cancel, { _, _ -> })
-                .setPositiveButton(R.string.overview_activity_chat_backup_alert_proceed, { _, _ ->
+                .setPositiveButton(R.string.overview_activity_chat_backup_alert_proceed) { _, _ ->
                     val startServiceIntent = Intent(this, BackupService::class.java)
                     startService(startServiceIntent)
                     val i = Intent(Kentai.ACTION_BACKUP)
                     i.putExtra(BackupService.BACKUP_NAME_EXTRA, editText.text.toString())
                     sendBroadcast(i)
-                })
+                }
                 .show()
     }
 
@@ -434,7 +434,7 @@ class OverviewActivity : AppCompatActivity() {
                 AlertDialog.Builder(this)
                         .setTitle(R.string.overview_activity_chat_backup_use_install_alert_dialog_title)
                         .setMessage(R.string.overview_activity_chat_backup_use_install_alert_dialog_message)
-                        .setPositiveButton(R.string.overview_activity_chat_backup_use_install_alert_dialog_proceed, { _, _ ->
+                        .setPositiveButton(R.string.overview_activity_chat_backup_use_install_alert_dialog_proceed) { _, _ ->
                             val progressDialog = ProgressDialog.show(this, getString(R.string.overview_activity_chat_backup_use_install_progress_dialog_title),
                                     getString(R.string.overview_activity_chat_backup_use_install_progress_dialog_message), true)
                             thread {
@@ -447,8 +447,8 @@ class OverviewActivity : AppCompatActivity() {
                             }
 
 
-                        })
-                        .setNegativeButton(R.string.overview_activity_chat_backup_use_install_alert_dialog_cancel, { _, _ -> })
+                        }
+                        .setNegativeButton(R.string.overview_activity_chat_backup_use_install_alert_dialog_cancel) { _, _ -> }
                         .show()
             }
         }
@@ -585,15 +585,15 @@ class OverviewActivity : AppCompatActivity() {
             a as OverviewActivity
             return AlertDialog.Builder(activity)
                     .setTitle(R.string.overview_activity_chat_backup_pick_alert_title)
-                    .setItems(array, { _, index ->
+                    .setItems(array) { _, index ->
                         a.selectedBackup(index)
-                    })
+                    }
                     .create()
         }
 
         override fun setArguments(args: Bundle) {
             super.setArguments(args)
-            array = args.getStringArray("fileArray")
+            array = args.getStringArray("fileArray") ?: emptyArray()
         }
     }
 

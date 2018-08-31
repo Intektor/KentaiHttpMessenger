@@ -100,3 +100,9 @@ const val KEY_UNREAD_MESSAGES = "de.intektor.kentai.unread_messages.key"
 const val KEY_ADDITIONAL_INFO_REGISTRY_ID = "de.intektor.kentai.additional_info_registry_id.key"
 const val KEY_ADDITIONAL_INFO_CONTENT = "de.intektor.kentai.additional_info_content.key"
 const val KEY_MESSAGE_REGISTRY_ID = "de.intektor.kentai.message_registry_id.key"
+
+const val SP_CAMERA_SETTINGS = "de.intektor.kentai.camera_settings.sp"
+const val KEY_CAMERA_SETTINGS_FLASH_MODE = "de.intektor.kentai.camera_settings.flash_mode.key"
+const val CAMERA_SETTINGS_FLASH_OFF = 0
+const val CAMERA_SETTINGS_FLASH_AUTO = 1
+const val CAMERA_SETTINGS_FLASH_ON = 2

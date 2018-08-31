@@ -9,11 +9,9 @@ class UsernameChatInfoViewHolder(view: View, chatAdapter: ChatAdapter) : Abstrac
 
     val text: TextView = view.findViewById(R.id.chatSenderInfoText)
 
-    override fun setComponent(component: Any) {
-        component as UsernameChatInfo
-        text.text = component.username
-        text.setTextColor(Color.parseColor("#${component.color}"))
+    override fun bind(component: ChatAdapter.ChatAdapterWrapper) {
+        val item = component.item as UsernameChatInfo
+        text.text = item.username
+        text.setTextColor(Color.parseColor("#${item.color}"))
     }
-
-    override fun registerForContextMenu(): Boolean = false
 }

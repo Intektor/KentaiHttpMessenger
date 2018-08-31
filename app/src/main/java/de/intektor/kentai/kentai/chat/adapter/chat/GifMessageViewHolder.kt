@@ -33,12 +33,13 @@ class GifMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessageVi
     private val loadBar: ProgressBar = view.findViewById(R.id.messageGifLoadBar)
     private val webView: WebView = view.findViewById(R.id.messageGifWebView)
 
-    override fun setComponent(component: Any) {
-        component as ReferenceHolder
+    override fun bind(component: ChatAdapter.ChatAdapterWrapper) {
+        super.bind(component)
+        val item = component.item as ReferenceHolder
 
         val kentaiClient = text.context.applicationContext as KentaiClient
 
-        val message = component.chatMessageWrapper.message as ChatMessageVideo
+        val message = item.chatMessageWrapper.message as ChatMessageVideo
         val messageText = message.text
         text.visibility = if (messageText.isEmpty()) View.GONE else View.VISIBLE
         text.text = messageText
@@ -56,7 +57,7 @@ class GifMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessageVi
         videoView.visibility = View.GONE
         webView.visibility = View.GONE
 
-        if (component.isFinished) {
+        if (item.isFinished) {
             loadBar.visibility = View.GONE
             loadButton.visibility = View.GONE
             playButton.visibility = View.VISIBLE
@@ -126,13 +127,13 @@ class GifMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessageVi
             }
 
         } else {
-            if (component.isInternetInProgress) {
+            if (item.isInternetInProgress) {
                 loadBar.visibility = View.VISIBLE
-                loadBar.progress = component.progress
+                loadBar.progress = item.progress
                 playButton.visibility = View.GONE
             } else {
                 thumbnail.visibility = View.VISIBLE
-                if (component.chatMessageWrapper.client) {
+                if (item.chatMessageWrapper.client) {
                     thumbnail.setImageBitmap(ThumbnailUtils.createVideoThumbnail(referenceFile.path, MediaStore.Images.Thumbnails.MINI_KIND))
                 } else thumbnail.setImageResource(R.mipmap.ic_launcher)
 
@@ -141,9 +142,9 @@ class GifMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessageVi
 
                 playButton.visibility = View.GONE
 
-                loadButton.setImageResource(if (component.chatMessageWrapper.client) R.drawable.ic_file_upload_white_24dp else R.drawable.ic_file_download_white_24dp)
+                loadButton.setImageResource(if (item.chatMessageWrapper.client) R.drawable.ic_file_upload_white_24dp else R.drawable.ic_file_download_white_24dp)
                 loadButton.setOnClickListener {
-                    chatAdapter.activity.startReferenceLoad(component, adapterPosition, fileType)
+                    chatAdapter.activity.startReferenceLoad(item, adapterPosition, fileType)
                 }
             }
         }
@@ -151,13 +152,17 @@ class GifMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessageVi
         val layout = itemView.findViewById(R.id.bubble_layout) as LinearLayout
         val parentLayout = itemView.findViewById(R.id.bubble_layout_parent) as LinearLayout
         // if message is mine then align to right
-        if (component.chatMessageWrapper.client) {
+        if (item.chatMessageWrapper.client) {
             layout.background = getAttrDrawable(itemView.context, R.attr.bubble_right)
             parentLayout.gravity = Gravity.END
         } else {
             layout.background = getAttrDrawable(itemView.context, R.attr.bubble_left)
             parentLayout.gravity = Gravity.START
         }
-    }
 
+        registerForEditModeLongPress(text)
+        registerForEditModeLongPress(thumbnail)
+        registerForEditModeLongPress(playButton)
+        registerForEditModeLongPress(loadButton)
+    }
 }

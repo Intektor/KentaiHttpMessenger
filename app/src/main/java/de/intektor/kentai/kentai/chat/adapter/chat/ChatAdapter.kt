@@ -21,7 +21,7 @@ import java.util.*
 /**
  * @author Intektor
  */
-class ChatAdapter(private val componentList: MutableList<Any>, val chatInfo: ChatInfo, val contactMap: Map<UUID, Contact>, val activity: ChatActivity) : RecyclerView.Adapter<AbstractViewHolder>() {
+class ChatAdapter(private val componentList: MutableList<ChatAdapterWrapper>, val chatInfo: ChatInfo, val contactMap: Map<UUID, Contact>, val activity: ChatActivity) : RecyclerView.Adapter<AbstractViewHolder>() {
 
     companion object {
         const val TEXT_MESSAGE_ID = 0
@@ -40,12 +40,12 @@ class ChatAdapter(private val componentList: MutableList<Any>, val chatInfo: Cha
         const val DATE_INFO = 13
     }
 
-    fun add(any: Any) {
+    fun add(any: ChatAdapterWrapper) {
         componentList.add(any)
     }
 
     override fun getItemViewType(position: Int): Int {
-        val component = componentList[position]
+        val component = componentList[position].item
         return when (component) {
             is ChatMessageWrapper -> when (MessageType.values()[ChatMessageRegistry.getID(component.message.javaClass)]) {
                 MessageType.TEXT_MESSAGE -> TEXT_MESSAGE_ID
@@ -114,7 +114,7 @@ class ChatAdapter(private val componentList: MutableList<Any>, val chatInfo: Cha
 
     override fun onBindViewHolder(holder: AbstractViewHolder, position: Int) {
         try {
-            val wrapper: Any = componentList[position]
+            val wrapper = componentList[position]
             holder.itemView.tag = position
             holder.bind(wrapper)
         } catch (t: Throwable) {
@@ -124,5 +124,5 @@ class ChatAdapter(private val componentList: MutableList<Any>, val chatInfo: Cha
 
     override fun getItemCount(): Int = componentList.size
 
-//    class ChatAdapterWrapper(val selected: )
+    class ChatAdapterWrapper(var selected: Boolean = false, val item: Any)
 }

@@ -21,9 +21,11 @@ class VoiceMessageViewHolder(itemView: View, chatAdapter: ChatAdapter) : ChatMes
     private val timeDisplay: TextView = itemView.findViewById(R.id.chatMessageVoiceMessageText)
     private val watchBar: SeekBar = itemView.findViewById(R.id.chatMessageVoiceMessageWatchBar)
 
-    override fun setComponent(component: Any) {
-        component as VoiceReferenceHolder
-        val wrapper = component.chatMessageWrapper
+    override fun bind(component: ChatAdapter.ChatAdapterWrapper) {
+        super.bind(component)
+
+        val item = component.item as VoiceReferenceHolder
+        val wrapper = item.chatMessageWrapper
         val message = wrapper.message as ChatMessageVoiceMessage
 
         val context = itemView.context
@@ -32,7 +34,7 @@ class VoiceMessageViewHolder(itemView: View, chatAdapter: ChatAdapter) : ChatMes
         val layout = itemView.findViewById(R.id.bubble_layout) as ConstraintLayout
         val parentLayout = itemView.findViewById(R.id.bubble_layout_parent) as LinearLayout
 
-        if (component.chatMessageWrapper.client) {
+        if (item.chatMessageWrapper.client) {
             layout.background = getAttrDrawable(itemView.context, R.attr.bubble_right)
             parentLayout.gravity = Gravity.END
         } else {
@@ -43,11 +45,11 @@ class VoiceMessageViewHolder(itemView: View, chatAdapter: ChatAdapter) : ChatMes
         playButton.visibility = View.VISIBLE
 
         uploadBar.max = 100
-        watchBar.progress = component.playProgress
-        if (component.maxPlayProgress == 0) {
+        watchBar.progress = item.playProgress
+        if (item.maxPlayProgress == 0) {
             watchBar.max = 100
         } else {
-            watchBar.max = component.maxPlayProgress
+            watchBar.max = item.maxPlayProgress
         }
 
         watchBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -55,7 +57,7 @@ class VoiceMessageViewHolder(itemView: View, chatAdapter: ChatAdapter) : ChatMes
 
             override fun onProgressChanged(seekBar: SeekBar, p1: Int, fromUser: Boolean) {
                 if (fromUser) {
-                    chatAdapter.activity.seekAudioChange(component, p1)
+                    chatAdapter.activity.seekAudioChange(item, p1)
                 }
             }
 
@@ -68,29 +70,29 @@ class VoiceMessageViewHolder(itemView: View, chatAdapter: ChatAdapter) : ChatMes
             }
         })
 
-        if (component.isFinished) {
+        if (item.isFinished) {
             playButton.setImageDrawable(getAttrDrawable(context, R.attr.ic_play_arrow))
             uploadBar.visibility = View.GONE
         } else {
-            if (component.isInternetInProgress) {
+            if (item.isInternetInProgress) {
                 playButton.visibility = View.GONE
                 uploadBar.visibility = View.VISIBLE
-                uploadBar.progress = component.progress
+                uploadBar.progress = item.progress
             } else {
-                playButton.setImageDrawable(getAttrDrawable(context, if (component.chatMessageWrapper.client) R.attr.ic_file_upload else R.attr.ic_file_download))
+                playButton.setImageDrawable(getAttrDrawable(context, if (item.chatMessageWrapper.client) R.attr.ic_file_upload else R.attr.ic_file_download))
                 uploadBar.visibility = View.GONE
             }
         }
 
-        if (component.isFinished) {
-            playButton.setImageDrawable(getAttrDrawable(context, if (component.isPlaying) R.attr.ic_pause else R.attr.ic_play_arrow))
+        if (item.isFinished) {
+            playButton.setImageDrawable(getAttrDrawable(context, if (item.isPlaying) R.attr.ic_pause else R.attr.ic_play_arrow))
         }
 
-        timeDisplay.text = "${convertSeconds(component.playProgress / 1000)}-${convertSeconds(message.durationSeconds.toInt())}"
+        timeDisplay.text = "${convertSeconds(item.playProgress / 1000)}-${convertSeconds(message.durationSeconds.toInt())}"
 
-        playButton.setOnClickListener {
-            if (!component.isInternetInProgress && !component.isFinished) {
-                component.isInternetInProgress = true
+        registerForEditModePress(playButton) {
+            if (!item.isInternetInProgress && !item.isFinished) {
+                item.isInternetInProgress = true
 
                 if (!wrapper.client) {
                     downloadAudio(chatAdapter.activity, kentaiClient.dataBase, chatAdapter.chatInfo.chatUUID, message.referenceUUID, chatAdapter.chatInfo.chatType, message.fileHash, kentaiClient.privateMessageKey!!)
@@ -99,13 +101,16 @@ class VoiceMessageViewHolder(itemView: View, chatAdapter: ChatAdapter) : ChatMes
                             getReferenceFile(message.referenceUUID, FileType.AUDIO, chatAdapter.activity.filesDir, chatAdapter.activity))
                 }
             } else {
-                if (component.isPlaying) {
-                    chatAdapter.activity.stopAudio(component)
+                if (item.isPlaying) {
+                    chatAdapter.activity.stopAudio(item)
                 } else {
-                    chatAdapter.activity.playAudio(component, component.playProgress)
+                    chatAdapter.activity.playAudio(item, item.playProgress)
                 }
             }
         }
+
+        registerForEditModeLongPress(playButton)
+        registerForEditModeLongPress(watchBar)
     }
 
     private fun convertSeconds(seconds: Int): String {
