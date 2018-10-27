@@ -2,7 +2,7 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    tools:context="de.intektor.kentai.overview_activity.OverviewActivity">
+    tools:context=".ui.overview_activity.OverviewActivity">
     <item
         android:id="@+id/new_chat"
         android:icon="?attr/ic_message"
@@ -24,11 +24,11 @@
         app:showAsAction="ifRoom" />
 
     <item
-        android:id="@+id/search_chat"
+        android:id="@+id/menu_activity_overview_item_search"
         android:icon="?attr/ic_search"
         android:title="@string/overview_activity_search"
-        app:showAsAction="always|collapseActionView"
-        app:actionViewClass="android.support.v7.widget.SearchView" />
+        app:actionViewClass="android.support.v7.widget.SearchView"
+        app:showAsAction="always|collapseActionView" />
     <item
         android:id="@+id/chat_backup"
         android:title="@string/overview_activity_menu_chat_backup"

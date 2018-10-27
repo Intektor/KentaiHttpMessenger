@@ -48,7 +48,7 @@
                     android:layout_width="200dp"
                     android:layout_height="250dp"
                     android:padding="8dp"
-                    android:scaleType="fitCenter"
+                    android:scaleType="centerCrop"
                     app:srcCompat="@mipmap/ic_launcher" />
 
                 <ImageView

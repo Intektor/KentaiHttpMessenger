@@ -85,7 +85,7 @@
         app:layout_constraintEnd_toStartOf="@+id/chatActivitySendMessageParent"
         app:layout_constraintStart_toStartOf="parent">
 
-        <de.intektor.kentai.kentai.chat.RichEditText
+        <de.intektor.mercury.ui.view.RichEditText
             android:id="@+id/chatActivityTextInput"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

@@ -8,3 +8,6 @@
 /captures
 .externalNativeBuild
 /.idea/
+/app/release/
+app/src/androidTest/java/de/intektor/mercury/mercury/
+app/src/test/

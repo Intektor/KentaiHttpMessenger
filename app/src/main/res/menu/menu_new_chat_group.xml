@@ -2,7 +2,7 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    tools:context="de.intektor.kentai.NewChatGroupActivity">
+    tools:context="de.intektor.mercury.ui.NewChatGroupActivity">
     <item
         android:id="@+id/new_chat_group_action_search"
         android:icon="?attr/ic_search"

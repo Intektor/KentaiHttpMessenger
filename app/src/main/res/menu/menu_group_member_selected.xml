@@ -2,7 +2,7 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    tools:context="de.intektor.kentai.ChatActivity">
+    tools:context="de.intektor.mercury.ui.chat.ChatActivity">
     <item
         android:id="@+id/menuGroupMemberSendMessage"
         android:title="@string/menu_group_member_send_message" />

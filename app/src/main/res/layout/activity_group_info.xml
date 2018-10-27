@@ -6,7 +6,7 @@
     android:layout_height="fill_parent"
     android:gravity="end"
     android:orientation="vertical"
-    tools:context="de.intektor.kentai.group_info_activity.GroupInfoActivity">
+    tools:context=".ui.group_info_activity.GroupInfoActivity">
 
     <android.support.constraint.ConstraintLayout
         android:layout_width="match_parent"

@@ -2,7 +2,7 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    tools:context="de.intektor.kentai.ChatActivity">
+    tools:context="de.intektor.mercury.ui.chat.ChatActivity">
     <item
         android:id="@+id/menuChatBubbleInfo"
         android:title="@string/menu_chat_bubble_info_label" />

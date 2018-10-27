@@ -1,16 +1,16 @@
 {
   "project_info": {
     "project_number": "90527173109",
-    "firebase_url": "https://kentai-messenger.firebaseio.com",
-    "project_id": "kentai-messenger",
-    "storage_bucket": "kentai-messenger.appspot.com"
+    "firebase_url": "https://mercury-messenger.firebaseio.com",
+    "project_id": "mercury-messenger",
+    "storage_bucket": "mercury-messenger.appspot.com"
   },
   "client": [
     {
       "client_info": {
         "mobilesdk_app_id": "1:90527173109:android:9f69a194e83356c4",
         "android_client_info": {
-          "package_name": "de.intektor.kentai"
+          "package_name": "de.intektor.mercury"
         }
       },
       "oauth_client": [
@@ -18,7 +18,7 @@
           "client_id": "90527173109-4lt1djb166n75al9a6jqprao840ra1g4.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "de.intektor.kentai",
+            "package_name": "de.intektor.mercury",
             "certificate_hash": "7fec16b93ae291156753ea9aa59df072fce23e97"
           }
         },

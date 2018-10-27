@@ -7,7 +7,7 @@
     android:background="#e1e1e1"
     android:gravity="end"
     android:orientation="vertical"
-    tools:context="de.intektor.kentai.ChatMessageInfoTwoPeopleActivity">
+    tools:context="de.intektor.mercury.ui.ChatMessageInfoTwoPeopleActivity">
 
 
     <android.support.constraint.ConstraintLayout

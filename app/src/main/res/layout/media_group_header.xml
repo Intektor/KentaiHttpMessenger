@@ -3,13 +3,16 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+    android:background="@android:color/white">
 
     <TextView
         android:id="@+id/mediaItemTimeView"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:background="@color/colorAccentDarkTheme"
+        android:layout_marginStart="8dp"
+        android:layout_marginLeft="8dp"
+        android:singleLine="true"
         android:text="Time"
         android:textColor="@color/colorPrimaryDarkTheme"
         android:textSize="18sp"

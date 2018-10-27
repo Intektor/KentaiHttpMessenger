@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Kentai</string>
+    <string name="app_name">Mercury</string>
     <string name="action_settings">Settings</string>
     <string name="title_activity_register">Register</string>
 
@@ -67,20 +67,25 @@
     <string name="notification_video_message_name">%1$s: ▶ ️Voice message: (%2$ds)</string>
     <string name="notification_video_message">▶ ️Voice message: (%1$ds)</string>
 
+    <string name="notification_text_message_group_name">%1$s-%2$s: %3$s</string>
+    <string name="notification_text_message_name">%1$s: %2$s</string>
+    <string name="notification_text_message">%1$s</string>
+
     <string name="notification_upload_profile_picture_title">Uploading profile picture</string>
     <string name="notification_upload_profile_picture_text">Your profile picture is being uploaded</string>
     <string name="notification_upload_profile_picture_text_success">Your profile picture has been uploaded successfully.</string>
     <string name="notification_upload_profile_picture_text_failed">Your profile picture has not been uploaded.</string>
     <string name="notification_upload_profile_picture_cancel_upload">Cancel upload</string>
 
-    <string name="notification_upload_media_title">Uploading Media</string>
-    <string name="notification_upload_media_description">Uploading…</string>
-    <string name="notification_upload_media_description_failed">Uploading failed.</string>
-
     <string name="notification_download_media_title">Downloading Media</string>
-    <string name="notification_download_media_description">Downloading…</string>
+    <string name="notification_download_media_description">Downloading %1$d file(s)</string>
     <string name="notification_download_media_description_failed">Downloading failed.</string>
     <string name="notification_download_media_description_cancel">Cancel download</string>
+
+    <string name="notification_upload_media_title">Uploading Media</string>
+    <string name="notification_upload_media_description">Uploading %1$d file(s)</string>
+    <string name="notification_upload_media_description_failed">Upload failed.</string>
+    <string name="notification_upload_media_description_cancel">Cancel upload</string>
 
     <string name="notification_initialize_chat_title">Initializing chat</string>
     <string name="notification_initialize_chat_title_description">Please wait…</string>
@@ -230,10 +235,10 @@
     <string name="overview_activity_chat_backup_alert_progress_message">Please wait, this might take some time</string>
     <string name="overview_activity_chat_backup_alert_progress_upload_title">Uploading backup</string>
     <string name="overview_activity_chat_backup_alert_progress_upload_message">Please wait, this will be done shortly!</string>
-    <string name="overview_activity_request_google_accounts_permission_message">In order to upload your backup to google drive, kentai needs your Google account (via contacts). </string>
+    <string name="overview_activity_request_google_accounts_permission_message">In order to upload your backup to google drive, mercury needs your Google account (via contacts). </string>
     <string name="overview_activity_missing_google_play_service_alert_title">Google Play Services</string>
-    <string name="overview_activity_missing_google_play_service_alert_message">Kentai needs Google Play Services to be installed in order to upload your backup to Google Drive.
-    Please install Google Play Services on your device and relaunch kentai</string>
+    <string name="overview_activity_missing_google_play_service_alert_message">Mercury needs Google Play Services to be installed in order to upload your backup to Google Drive.
+    Please install Google Play Services on your device and relaunch mercury</string>
     <string name="overview_activity_chat_backup_alert_successful_upload_alert_title">Chat Backup</string>
     <string name="overview_activity_chat_backup_alert_successful_upload_alert_message">Successfully uploaded your chat backup to google drive</string>
     <string name="overview_activity_chat_backup_pick_alert_title">Pick a backup</string>
@@ -253,21 +258,21 @@
     <string name="overview_activity_search_label_messages">Messages</string>
 
     <!-- Strings related to Share Receive Activity -->
-    <string name="share_receive_label">Share with Kentai…</string>
+    <string name="share_receive_label">Share with Mercury…</string>
 
-    <!-- Strings related to the new version of kentai alert dialog -->
-    <string name="new_kentai_version_alert_title">A new version of kentai is available</string>
-    <string name="new_kentai_version_alert_dismiss">Dismiss</string>
-    <string name="new_kentai_version_alert_install">Install</string>
-    <string name="new_kentai_version_alert_addition">Additions:</string>
-    <string name="new_kentai_version_alert_removals">Removals:</string>
-    <string name="new_kentai_version_alert_tweaks">Tweaks:</string>
-    <string name="new_kentai_version_alert_fixes">Fixes:</string>
-    <string name="new_kentai_version_alert_change">- %1$s</string>
+    <!-- Strings related to the new version of mercury alert dialog -->
+    <string name="new_mercury_version_alert_title">A new version of mercury is available</string>
+    <string name="new_mercury_version_alert_dismiss">Dismiss</string>
+    <string name="new_mercury_version_alert_install">Install</string>
+    <string name="new_mercury_version_alert_addition">Additions:</string>
+    <string name="new_mercury_version_alert_removals">Removals:</string>
+    <string name="new_mercury_version_alert_tweaks">Tweaks:</string>
+    <string name="new_mercury_version_alert_fixes">Fixes:</string>
+    <string name="new_mercury_version_alert_change">- %1$s</string>
 
-    <!-- Strings related to kentai transport -->
+    <!-- Strings related to mercury transport -->
     <string name="transport_message_title">Warning!</string>
-    <string name="transport_message_message">You are about to give away your essential key pairs that is used for all authorization and messaging in kentai! Everyone with this key pair can send
+    <string name="transport_message_message">You are about to give away your essential key pairs that is used for all authorization and messaging in mercury! Everyone with this key pair can send
     messages in your name. Do NEVER do this in a public WLAN hotspot, do this at your home or another save place to avoid a possible loss. Are you really sure you want to do this?</string>
     <string name="transport_message_cancel">Cancel</string>
     <string name="transport_message_proceed">Proceed</string>
