@@ -13,7 +13,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
-import android.widget.MediaController
 import de.intektor.mercury.R
 import de.intektor.mercury.android.*
 import de.intektor.mercury.chat.ChatInfo
@@ -64,7 +63,7 @@ class SendMediaActivity : AppCompatActivity() {
             finish()
         }
 
-        smallMediaAdapter = SmallMediaAdapter(media, { item ->
+        smallMediaAdapter = SmallMediaAdapter(media) { item ->
             val old = media.first { it.selected }
             mediaMap[old] = MediaData(item.uri, item.file, activitySendMediaInput.text.toString(), activitySendMediaVideoGifButton.isChecked)
 
@@ -75,7 +74,7 @@ class SendMediaActivity : AppCompatActivity() {
             smallMediaAdapter.notifyItemChanged(media.indexOf(item))
 
             setCurrentMedia(item)
-        })
+        }
 
         activitySendMediaOther.adapter = smallMediaAdapter
         activitySendMediaOther.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
@@ -99,39 +98,40 @@ class SendMediaActivity : AppCompatActivity() {
 
         activitySendMediaVideoLayout.visibility = View.GONE
 
-        if (isImage(media.file)) {
-            activitySendMediaImage.setImageURI(Uri.fromFile(media.file))
-            activitySendMediaImage.visibility = View.VISIBLE
-
-        } else if (isVideo(media.file)) {
-            activitySendMediaImage.visibility = View.GONE
-            val mediaController = MediaController(this, true)
-            mediaController.setAnchorView(activitySendMediaVideo)
-            activitySendMediaVideo.setMediaController(mediaController)
-
-            activitySendMediaVideoLayout.visibility = View.VISIBLE
-
-            activitySendMediaVideoGifButton.visibility = View.VISIBLE
-
-            activitySendMediaVideo.setOnCompletionListener {
-                activitySendMediaVideoPlay.visibility = View.VISIBLE
-                activitySendMediaVideoPreview.visibility = View.VISIBLE
-
-                activitySendMediaVideo.visibility = View.GONE
-            }
-
-            loadThumbnail(media.file, this, activitySendMediaVideoPreview)
-
-            activitySendMediaVideoPlay.setOnClickListener {
-                activitySendMediaVideoPlay.visibility = View.GONE
-                activitySendMediaVideoPreview.visibility = View.GONE
-
-                activitySendMediaVideo.visibility = View.VISIBLE
-
-                activitySendMediaVideo.setVideoURI(Uri.fromFile(media.file))
-                activitySendMediaVideo.start()
-            }
-        }
+        //TODO
+//        if (isImage(media.file)) {
+//            activitySendMediaImage.setImageURI(Uri.fromFile(media.file))
+//            activitySendMediaImage.visibility = View.VISIBLE
+//
+//        } else if (isVideo(media.file)) {
+//            activitySendMediaImage.visibility = View.GONE
+//            val mediaController = MediaController(this, true)
+//            mediaController.setAnchorView(activitySendMediaVideo)
+//            activitySendMediaVideo.setMediaController(mediaController)
+//
+//            activitySendMediaVideoLayout.visibility = View.VISIBLE
+//
+//            activitySendMediaVideoGifButton.visibility = View.VISIBLE
+//
+//            activitySendMediaVideo.setOnCompletionListener {
+//                activitySendMediaVideoPlay.visibility = View.VISIBLE
+//                activitySendMediaVideoPreview.visibility = View.VISIBLE
+//
+//                activitySendMediaVideo.visibility = View.GONE
+//            }
+//
+//            loadThumbnail(media.file, this, activitySendMediaVideoPreview)
+//
+//            activitySendMediaVideoPlay.setOnClickListener {
+//                activitySendMediaVideoPlay.visibility = View.GONE
+//                activitySendMediaVideoPreview.visibility = View.GONE
+//
+//                activitySendMediaVideo.visibility = View.VISIBLE
+//
+//                activitySendMediaVideo.setVideoURI(Uri.fromFile(media.file))
+//                activitySendMediaVideo.start()
+//            }
+//        }
     }
 
     override fun onSupportNavigateUp(): Boolean {
@@ -150,10 +150,10 @@ class SendMediaActivity : AppCompatActivity() {
         override fun onBindViewHolder(holder: SmallMediaViewHolder, position: Int) {
             val item = componentList[position]
 
-            loadThumbnail(item.file, holder.itemView.context, holder.thumbnail)
-
-            holder.video.visibility = if (isVideo(item.file)) View.VISIBLE else View.GONE
-            holder.selected.visibility = if (item.selected) View.VISIBLE else View.GONE
+//            loadThumbnail(item.file, holder.itemView.context, holder.thumbnail)
+//
+//            holder.video.visibility = if (isVideo(item.file)) View.VISIBLE else View.GONE
+//            holder.selected.visibility = if (item.selected) View.VISIBLE else View.GONE
 
             val listener = View.OnClickListener { clickResponse.invoke(item) }
 

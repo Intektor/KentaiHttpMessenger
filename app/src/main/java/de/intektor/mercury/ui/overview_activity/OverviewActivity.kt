@@ -226,7 +226,6 @@ class OverviewActivity : AppCompatActivity() {
         menu.findItem(R.id.new_chat).icon = getAttrDrawable(this, R.attr.ic_message)
         menu.findItem(R.id.new_contact).icon = getAttrDrawable(this, R.attr.ic_person_add)
         val searchItem = menu.findItem(R.id.menu_activity_overview_item_search)
-        searchItem.icon = getAttrDrawable(this, R.attr.ic_search)
 
         val searchView = searchItem.actionView as SearchView
         searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
@@ -448,7 +447,7 @@ class OverviewActivity : AppCompatActivity() {
 
             do {
                 val result = driveService.files().list()
-                        .setQ("mimeType='application/mercury.backup.zip'")
+                        .setQ("mediaType='application/mercury.backup.zip'")
                         .setSpaces("drive")
                         .setFields("nextPageToken, files(id, name)")
                         .setPageToken(pageToken)

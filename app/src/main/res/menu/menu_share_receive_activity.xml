@@ -4,7 +4,7 @@
 
     <item
         android:id="@+id/menuShareReceiveActivitySearch"
-        android:icon="?attr/ic_search"
+        android:icon="@drawable/baseline_search_24"
         android:title="@string/new_chat_search_bar_hint"
         app:actionViewClass="android.support.v7.widget.SearchView"
         app:showAsAction="always|collapseActionView"/>

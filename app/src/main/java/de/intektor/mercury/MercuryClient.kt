@@ -21,6 +21,7 @@ import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.StyleSpan
 import android.util.Log
+import com.squareup.picasso.Picasso
 import de.intektor.mercury.client.ClientPreferences
 import de.intektor.mercury.connection.DirectConnectionManager
 import de.intektor.mercury.database.DbHelper
@@ -155,6 +156,8 @@ class MercuryClient : Application() {
             }
 
         }, IntentFilter("de.intektor.mercury.tcp_closed"))
+
+        Picasso.setSingletonInstance(PicassoUtil.buildPicasso(this))
     }
 
     fun launchTCPConnection() {
@@ -228,9 +231,7 @@ class MercuryClient : Application() {
                                 val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(mostRecent.downloadLink))
                                 mercuryClient.startActivity(browserIntent)
                             }
-                            .setNegativeButton(R.string.new_mercury_version_alert_dismiss, { _, _ ->
-
-                            })
+                            .setNegativeButton(R.string.new_mercury_version_alert_dismiss, null)
                             .show()
                 }
             }

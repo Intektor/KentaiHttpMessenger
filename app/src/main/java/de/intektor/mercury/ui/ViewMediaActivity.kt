@@ -64,7 +64,7 @@ class ViewMediaActivity : AppCompatActivity() {
 
         adapter = MediaAdapter(actList, { item, _ ->
             val viewMediaIntent = Intent(this, ViewIndividualMediaActivity::class.java)
-            viewMediaIntent.putExtra(KEY_FILE_URI, Uri.fromFile(item.file))
+//            viewMediaIntent.putExtra(KEY_FILE_URI, Uri.fromFile(item.file))
             viewMediaIntent.putExtra(KEY_MEDIA_TYPE, item.fileType)
             viewMediaIntent.putExtra(KEY_MESSAGE_UUID, item.messageUUID)
             startActivity(viewMediaIntent)
@@ -106,7 +106,7 @@ class ViewMediaActivity : AppCompatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
     }
 
-    class ReferenceFile(referenceFile: File, val fileType: FileType, time: Long, val messageUUID: UUID) : MediaAdapter.MediaFile(time, referenceFile)
+    class ReferenceFile(referenceFile: File, val fileType: FileType, time: Long, val messageUUID: UUID) : MediaAdapter.MediaFile(time, TODO())
 
     class CombinedReferences(val date: Date, val combined: MutableList<ReferenceFile>)
 

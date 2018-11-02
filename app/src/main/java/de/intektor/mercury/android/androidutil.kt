@@ -30,7 +30,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 
 
-fun checkStoragePermission(activity: Activity, actionKey: Int): Boolean = checkPermission(activity, actionKey, Manifest.permission.WRITE_EXTERNAL_STORAGE)
+fun checkWriteStoragePermission(activity: Activity, actionKey: Int): Boolean = checkPermission(activity, actionKey, Manifest.permission.WRITE_EXTERNAL_STORAGE)
 
 fun checkCameraPermission(activity: Activity, actionKey: Int): Boolean = checkPermission(activity, actionKey, Manifest.permission.CAMERA)
 
@@ -63,105 +63,6 @@ fun getRealImagePath(uri: Uri, context: Context): String {
             cursor.moveToNext()
             cursor.getString(columnIndex)
         } else ""
-    }
-}
-
-fun createSmallPreviewImage(referenceFile: File, fileType: FileType): ByteArray {
-    return when (fileType) {
-        FileType.AUDIO -> throw IllegalArgumentException()
-        FileType.IMAGE -> {
-            val byteOut = ByteArrayOutputStream()
-            val options = BitmapFactory.Options()
-            options.inMutable = true
-            val bitmap = BitmapFactory.decodeFile(referenceFile.path, options)
-
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 5, byteOut)
-
-            byteOut.toByteArray()
-        }
-        FileType.VIDEO -> {
-            TODO()
-        }
-        FileType.GIF -> {
-            TODO()
-        }
-    }
-}
-
-fun isImage(file: File): Boolean = when {
-    file.extension.equals("jpeg", true) -> true
-    file.extension.equals("jpg", true) -> true
-    file.extension.equals("png", true) -> true
-    file.extension.equals("bmp", true) -> true
-    else -> false
-}
-
-fun isGif(file: File): Boolean = file.extension.equals("gif", true)
-
-fun isVideo(file: File): Boolean = when {
-    file.extension.equals("3gp", true) -> true
-    file.extension.equals("mp4", true) -> true
-    file.extension.equals("webm", true) -> true
-    file.extension.equals("mkv", true) -> true
-    else -> false
-}
-
-fun loadThumbnail(file: File, context: Context, imageView: ImageView) {
-    val isImage = isImage(file)
-    val isGif = isGif(file)
-    val isVideo = isVideo(file)
-
-    Picasso.get().cancelRequest(imageView)
-
-    if (isImage) {
-        Picasso.get().load(file).resize(200, 0).into(imageView)
-    } else if (isGif || isVideo) {
-        videoPicasso(context).loadVideoThumbnailMini(file.path).into(imageView)
-    }
-}
-
-private class LoadThumbnail(private val callback: (Bitmap?) -> (Unit), val file: File, val contentResolver: ContentResolver, val mercuryClient: MercuryClient) : AsyncTask<Unit, Unit, Bitmap?>() {
-    override fun doInBackground(vararg args: Unit?): Bitmap? {
-        val isImage = isImage(file)
-
-        val isGif = isGif(file)
-
-        val isVideo = isVideo(file)
-
-        return if (isImage) {
-            val decoded = BitmapFactory.decodeFile(file.path) ?: return null
-            resize(decoded, 200, 200)
-        } else if (isGif || isVideo) {
-            val image = ThumbnailUtils.createVideoThumbnail(file.path, MediaStore.Images.Thumbnails.MINI_KIND)
-                    ?: return null
-            resize(image, 200, 200)
-        } else {
-            null
-        }
-    }
-
-    override fun onPostExecute(result: Bitmap?) {
-        callback.invoke(result)
-    }
-}
-
-private fun resize(image: Bitmap, maxWidth: Int, maxHeight: Int): Bitmap {
-    if (maxHeight > 0 && maxWidth > 0) {
-        val width = image.width
-        val height = image.height
-        val ratioBitmap = width.toFloat() / height.toFloat()
-        val ratioMax = maxWidth.toFloat() / maxHeight.toFloat()
-
-        var finalWidth = maxWidth
-        var finalHeight = maxHeight
-        if (ratioMax > ratioBitmap) {
-            finalWidth = (maxHeight.toFloat() * ratioBitmap).toInt()
-        } else {
-            finalHeight = (maxWidth.toFloat() / ratioBitmap).toInt()
-        }
-        return Bitmap.createScaledBitmap(image, finalWidth, finalHeight, true)
-    } else {
-        return image
     }
 }
 

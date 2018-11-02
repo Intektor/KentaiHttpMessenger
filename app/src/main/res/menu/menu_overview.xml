@@ -25,7 +25,7 @@
 
     <item
         android:id="@+id/menu_activity_overview_item_search"
-        android:icon="?attr/ic_search"
+        android:icon="@drawable/baseline_search_24"
         android:title="@string/overview_activity_search"
         app:actionViewClass="android.support.v7.widget.SearchView"
         app:showAsAction="always|collapseActionView" />

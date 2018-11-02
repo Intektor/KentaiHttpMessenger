@@ -3,5 +3,6 @@
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">intektor.com</domain>
         <domain includeSubdomains="true">192.168.178.46</domain>
+        <domain includeSubdomains="true">192.168.178.27</domain>
     </domain-config>
 </network-security-config>

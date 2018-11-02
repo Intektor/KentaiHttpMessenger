@@ -3,8 +3,9 @@
     xmlns:android="http://schemas.android.com/apk/res/android">
 
     <item
-        android:id="@+id/menuPickGallerySearch"
-        android:icon="?attr/ic_search"
+        android:id="@+id/menu_pick_gallery_search"
+        android:icon="@drawable/baseline_search_24"
         android:title="@string/pick_gallery_search"
-        app:actionViewClass="android.support.v7.widget.SearchView" />
+        app:actionViewClass="android.support.v7.widget.SearchView"
+        app:showAsAction="ifRoom|collapseActionView" />
 </menu>

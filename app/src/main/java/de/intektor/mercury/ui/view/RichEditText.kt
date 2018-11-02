@@ -12,13 +12,13 @@ import android.view.inputmethod.InputConnection
 import android.widget.EditText
 import com.google.common.hash.Hashing
 import de.intektor.mercury.MercuryClient
-import de.intektor.mercury.android.createSmallPreviewImage
 import de.intektor.mercury.chat.ChatMessageInfo
 import de.intektor.mercury.chat.ChatMessageWrapper
 import de.intektor.mercury.chat.PendingMessage
 import de.intektor.mercury.chat.sendMessageToServer
 import de.intektor.mercury.client.ClientPreferences
 import de.intektor.mercury.reference.ReferenceUtil
+import de.intektor.mercury.task.ThumbnailUtil
 import de.intektor.mercury.task.getVideoDimension
 import de.intektor.mercury.task.getVideoDuration
 import de.intektor.mercury.ui.chat.ChatActivity
@@ -74,7 +74,7 @@ class RichEditText(context: Context, attrs: AttributeSet) : EditText(context, at
 
                                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, referenceFile.outputStream())
 
-                                MessageImage(createSmallPreviewImage(referenceFile, FileType.IMAGE), "", bitmap.width, bitmap.height, aes, iV, referenceUUID, hash.toString())
+                                MessageImage(ThumbnailUtil.createThumbnail(referenceFile, FileType.IMAGE), "", bitmap.width, bitmap.height, aes, iV, referenceUUID, hash.toString())
                             }
                             FileType.GIF -> {
                                 context.contentResolver.openInputStream(inputContentInfo.contentUri).copyTo(referenceFile.outputStream(), 1024 * 1024)
@@ -86,7 +86,7 @@ class RichEditText(context: Context, attrs: AttributeSet) : EditText(context, at
                                         true,
                                         dimension.width,
                                         dimension.height,
-                                        createSmallPreviewImage(referenceFile, FileType.GIF), "", aes, iV, referenceUUID, hash.toString())
+                                        ThumbnailUtil.createThumbnail(referenceFile, FileType.GIF), "", aes, iV, referenceUUID, hash.toString())
                             }
                             else -> throw IllegalArgumentException()
                         }

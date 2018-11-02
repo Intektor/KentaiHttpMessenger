@@ -3,6 +3,7 @@ package de.intektor.mercury.ui.chat
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.*
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.drawable.BitmapDrawable
@@ -436,7 +437,7 @@ class ChatActivity : AppCompatActivity() {
         scrollToBottom()
 
         chatActivityButtonPickMedia.setOnClickListener {
-            if (checkStoragePermission(this, PERMISSION_REQUEST_EXTERNAL_STORAGE)) {
+            if (checkWriteStoragePermission(this, PERMISSION_REQUEST_EXTERNAL_STORAGE)) {
                 startActivityForResult(PickGalleryActivity.createIntent(this, chatInfo), ACTION_SEND_MEDIA)
             }
         }
@@ -742,7 +743,6 @@ class ChatActivity : AppCompatActivity() {
                     .memoryPolicy(MemoryPolicy.NO_CACHE)
                     .resize(80, 80)
                     .into(object : Target {
-
                         override fun onBitmapFailed(e: Exception?, errorDrawable: Drawable?) {
 
                         }
@@ -761,8 +761,6 @@ class ChatActivity : AppCompatActivity() {
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        val mercuryClient = applicationContext as MercuryClient
-
         val clientUUID = ClientPreferences.getClientUUID(this)
 
         when (item.itemId) {
@@ -806,601 +804,615 @@ class ChatActivity : AppCompatActivity() {
         when (requestCode) {
             ACTION_SEND_MEDIA -> {
                 if (resultCode == Activity.RESULT_OK && data != null) {
-                    val mediaData = data.getParcelableArrayListExtra<SendMediaActivity.MediaData>(KEY_MEDIA_DATA)
-                    if (mediaData == null || mediaData.isEmpty()) return
-                    for (mediaDatum in mediaData) {
-                        if (isImage(mediaDatum.file)) {
-                            sendPhoto(mediaDatum.uri, mediaDatum.text)
-                        } else if (isVideo(mediaDatum.file) || isGif(mediaDatum.file)) {
-                            sendVideo(mediaDatum.uri, mediaDatum.text, mediaDatum.gif)
-                        }
-                    }
-                }
-            }
-            ACTION_PICK_MEDIA -> {
-                if (resultCode == Activity.RESULT_OK && data != null) {
-                    val startMedia = Intent(this, SendMediaActivity::class.java)
-                    startMedia.putExtra(KEY_CHAT_INFO, chatInfo)
-                    startMedia.putParcelableArrayListExtra(KEY_MEDIA_URL, ArrayList(listOf(data.data)))
-                    startActivityForResult(startMedia, ACTION_SEND_MEDIA)
-                }
-            }
-            ACTION_PICK_BACKGROUND_IMAGE -> {
-                if (resultCode == Activity.RESULT_OK && data != null) {
-                    setBackgroundImage(this, data.data.toString(), chatInfo.chatUUID)
-                    applyBackgroundImage(getBackgroundChatFile(this, chatInfo.chatUUID))
-                }
-            }
-            ACTION_TAKE_IMAGE -> {
-                if (resultCode == Activity.RESULT_OK && data != null) {
-
-                    val i = Intent(this, SendMediaActivity::class.java)
-                    i.putParcelableArrayListExtra(KEY_MEDIA_URL, ArrayList(listOf(data.getParcelableExtra<Uri>(KEY_FILE_URI))))
-                    i.putExtra(KEY_CHAT_INFO, chatInfo)
-                    startActivityForResult(i, ACTION_SEND_MEDIA)
-                }
+                    //TODO
+//                    val mediaData = data.getParcelableArrayListExtra<SendMediaActivity.MediaData>(KEY_MEDIA_DATA)
+//                    if (mediaData == null || mediaData.isEmpty()) return
+//                    for (mediaDatum in mediaData) {
+//                        mediaDatum.
+//                        if (isImage(mediaDatum.file)) {
+//                            sendPhoto(mediaDatum.uri, mediaDatum.text)
+//                        } else if (isVideo(mediaDatum.file) || isGif(mediaDatum.file)) {
+//                            sendVideo(mediaDatum.uri, mediaDatum.text, mediaDatum.gif)
+//                        }
+//                }
             }
         }
-    }
-
-    private fun sendPhoto(uri: Uri, text: String) {
-        val mercuryClient = applicationContext as MercuryClient
-
-        SendPhotoTask({ result ->
-            val data = result.message.messageData as MessageReference
-            mercuryClient.currentLoadingTable[data.reference] = 0.0
-
-            addMessage(ChatMessageWrapper(result, MessageStatus.WAITING, System.currentTimeMillis()), true)
-
-            sendMessageToServer(this@ChatActivity, PendingMessage(result.message, chatInfo.chatUUID,
-                    chatInfo.getOthers(ClientPreferences.getClientUUID(this))), mercuryClient.dataBase)
-
-            IOService.ActionUploadReference.launch(this, data.reference, data.aesKey, data.initVector, FileType.IMAGE)
-
-            scrollToBottom()
-        }, mercuryClient, chatInfo.chatUUID, uri, text).execute()
-    }
-
-    private class SendPhotoTask(val execute: (ChatMessageInfo) -> (Unit), val mercuryClient: MercuryClient, val chatUUID: UUID, val uri: Uri, val text: String) : AsyncTask<Unit, Unit, ChatMessageInfo>() {
-        override fun doInBackground(vararg args: Unit): ChatMessageInfo {
-            val referenceUUID = UUID.randomUUID()
-
-            val clientUUID = ClientPreferences.getClientUUID(mercuryClient)
-
-            val bitmap = BitmapFactory.decodeStream(mercuryClient.contentResolver.openInputStream(uri))
-
-            val byteOut = ByteArrayOutputStream()
-
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 80, byteOut)
-
-            val referenceFile = ReferenceUtil.getFileForReference(mercuryClient, referenceUUID)
-            byteOut.writeTo(referenceFile.outputStream())
-
-            saveImageExternalMercury(referenceUUID.toString(), bitmap, mercuryClient)
-
-            val aes = generateAESKey()
-            val iV = generateInitVector()
-
-            ReferenceUtil.setReferenceKey(mercuryClient.dataBase, referenceUUID, aes, iV)
-            ReferenceUtil.addReferenceToChat(mercuryClient.dataBase, chatUUID, referenceUUID, clientUUID)
-
-            val hash = Hashing.sha512().hashBytes(byteOut.toByteArray()).toString()
-            val data = MessageImage(createSmallPreviewImage(referenceFile, FileType.IMAGE), text, bitmap.width, bitmap.height, aes, iV, referenceUUID, hash)
-            val core = MessageCore(clientUUID, System.currentTimeMillis(), UUID.randomUUID())
-
-            return ChatMessageInfo(ChatMessage(core, data), true, chatUUID)
-        }
-
-        override fun onPostExecute(result: ChatMessageInfo) {
-            execute.invoke(result)
-        }
-    }
-
-    private fun sendVideo(uri: Uri, text: String, isGif: Boolean) {
-        val mercuryClient = applicationContext as MercuryClient
-
-        SendVideoTask({ result ->
-            val data = result.message.messageData as MessageReference
-            mercuryClient.currentLoadingTable[data.reference] = 0.0
-
-            addMessage(ChatMessageWrapper(result, MessageStatus.WAITING, System.currentTimeMillis()), true)
-
-            sendMessageToServer(this@ChatActivity, PendingMessage(result.message, chatInfo.chatUUID,
-                    chatInfo.getOthers(ClientPreferences.getClientUUID(this))), mercuryClient.dataBase)
-
-            IOService.ActionUploadReference.launch(this, data.reference, data.aesKey, data.initVector, FileType.IMAGE)
-
-            scrollToBottom()
-        }, mercuryClient, uri, text, isGif, chatInfo.chatUUID).execute()
-    }
-
-    private class SendVideoTask(val execute: (ChatMessageInfo) -> Unit, val mercuryClient: MercuryClient, val uri: Uri, val text: String, val isGif: Boolean, val chatUUID: UUID) : AsyncTask<Unit, Unit, ChatMessageInfo>() {
-        override fun doInBackground(vararg args: Unit): ChatMessageInfo {
-            val referenceUUID = UUID.randomUUID()
-
-            val clientUUID = ClientPreferences.getClientUUID(mercuryClient)
-
-            val fileType = if (isGif) FileType.GIF else FileType.VIDEO
-            val referenceFile = saveMediaFileInAppStorage(referenceUUID, uri, mercuryClient, fileType)
-
-            val hash = Hashing.sha512().hashBytes(referenceFile.readBytes())
-
-            val dimension = getVideoDimension(mercuryClient, referenceFile)
-
-            val aesKey = generateAESKey()
-            val initVector = generateInitVector()
-
-            ReferenceUtil.setReferenceKey(mercuryClient.dataBase, referenceUUID, aesKey, initVector)
-            ReferenceUtil.addReferenceToChat(mercuryClient.dataBase, chatUUID, referenceUUID, clientUUID)
-
-            val data = MessageVideo(getVideoDuration(referenceFile, mercuryClient), isGif, dimension.width, dimension.height, byteArrayOf(), text, aesKey, initVector, referenceUUID, hash.toString())
-            val core = MessageCore(clientUUID, System.currentTimeMillis(), UUID.randomUUID())
-
-            val message = ChatMessage(core, data)
-
-            return ChatMessageInfo(message, true, chatUUID)
-        }
-
-        override fun onPostExecute(result: ChatMessageInfo) {
-            execute.invoke(result)
-        }
-    }
-
-    override fun onStop() {
-        super.onStop()
-        stopRecording(false)
-        addInterestedChatUsers(false)
-    }
-
-    override fun onResume() {
-        super.onResume()
-
-        val mercuryClient = applicationContext as MercuryClient
-
-        if (componentList.isNotEmpty() && upToDate) {
-            val (_: Long, lastMessageUUID: UUID) = if (componentList.any { it.item is ChatMessageWrapper }) {
-                val message = (componentList.last { it.item is ChatMessageWrapper }.item as ChatMessageWrapper).chatMessageInfo
-                message.message.messageCore.timeCreated to message.message.messageCore.messageUUID
-            } else 0L to UUID.randomUUID()
-
-            val newMessages = getChatMessages(this, mercuryClient.dataBase, "chat_uuid = '${chatInfo.chatUUID}' AND time_created > $firstMessageTime")
-
-            addMessages(newMessages.filter { it.chatMessageInfo.message.messageCore.messageUUID != lastMessageUUID }, true)
-
-            if (onBottom) scrollToBottom()
-        }
-
-        LocalBroadcastManager.getInstance(this).apply {
-            registerReceiver(uploadProgressReceiver, ActionUploadReferenceProgress.getFilter())
-            registerReceiver(uploadReferenceFinishedReceiver, ActionUploadReferenceFinished.getFilter())
-            registerReceiver(downloadProgressReceiver, ActionDownloadReferenceProgress.getFilter())
-            registerReceiver(downloadReferenceFinishedReceiver, ActionDownloadReferenceFinished.getFilter())
-            registerReceiver(uploadReferenceStartedReceiver, ActionUploadReferenceStarted.getFilter())
-            registerReceiver(userViewChatReceiver, IntentFilter(ACTION_USER_VIEW_CHAT))
-            registerReceiver(directConnectedReceiver, IntentFilter(ACTION_DIRECT_CONNECTION_CONNECTED))
-            registerReceiver(chatMessageReceiver, ActionChatMessageReceived.getFilter())
-            registerReceiver(messageStatusChangeReceiver, ActionMessageStatusChange.getFilter())
-            registerReceiver(groupModificationReceiver, ActionGroupModificationReceived.getFilter())
-            registerReceiver(typingReceiver, ActionTyping.getFilter())
-            registerReceiver(userStatusChangeReceiver, ActionUserStatusChange.getFilter())
-        }
-
-        viewChat(true)
-
-        addInterestedChatUsers(true)
-
-        setUnreadMessages(mercuryClient.dataBase, chatInfo.chatUUID, 0)
-
-        cancelChatNotifications(this, chatInfo.chatUUID)
-    }
-
-    override fun onPause() {
-        super.onPause()
-        val mercuryClient = applicationContext as MercuryClient
-
-        LocalBroadcastManager.getInstance(this).apply {
-            unregisterReceiver(uploadProgressReceiver)
-            unregisterReceiver(uploadReferenceFinishedReceiver)
-            unregisterReceiver(downloadProgressReceiver)
-            unregisterReceiver(downloadReferenceFinishedReceiver)
-            unregisterReceiver(uploadReferenceStartedReceiver)
-            unregisterReceiver(userViewChatReceiver)
-            unregisterReceiver(directConnectedReceiver)
-            unregisterReceiver(chatMessageReceiver)
-            unregisterReceiver(messageStatusChangeReceiver)
-            unregisterReceiver(groupModificationReceiver)
-            unregisterReceiver(typingReceiver)
-            unregisterReceiver(userStatusChangeReceiver)
-        }
-
-        viewChat(false)
-
-        addInterestedChatUsers(false)
-
-        setUnreadMessages(mercuryClient.dataBase, chatInfo.chatUUID, 0)
-    }
-
-    private var currentContextSelectedIndex = -1
-
-    override fun onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo?) {
-        menuInflater.inflate(R.menu.menu_chat_bubble, menu)
-
-        val position = v.tag as Int
-        currentContextSelectedIndex = position
-
-        super.onCreateContextMenu(menu, v, menuInfo)
-    }
-
-    private fun startRecording() {
-        if (checkRecordingPermission(this, PERMISSION_REQUEST_AUDIO)) {
-            isRecording = true
-            secondsRecording = -1
-
-            val reference = UUID.randomUUID()
-            currentAudioUUID = reference
-
-            val mediaRecorder = MediaRecorder()
-            this.mediaRecorder = mediaRecorder
-
-            mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC)
-            mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP)
-            File(filesDir.path + "/resources/${chatInfo.chatUUID}/").mkdirs()
-            mediaRecorder.setOutputFile(ReferenceUtil.getFileForReference(this, reference).path)
-            mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
-
-
-            try {
-                mediaRecorder.prepare()
-            } catch (t: Throwable) {
+        ACTION_PICK_MEDIA -> {
+            if (resultCode == Activity.RESULT_OK && data != null) {
+                val startMedia = Intent(this, SendMediaActivity::class.java)
+                startMedia.putExtra(KEY_CHAT_INFO, chatInfo)
+                startMedia.putParcelableArrayListExtra(KEY_MEDIA_URL, ArrayList(listOf(data.data)))
+                startActivityForResult(startMedia, ACTION_SEND_MEDIA)
             }
+        }
+        ACTION_PICK_BACKGROUND_IMAGE -> {
+            if (resultCode == Activity.RESULT_OK && data != null) {
+                setBackgroundImage(this, data.data.toString(), chatInfo.chatUUID)
+                applyBackgroundImage(getBackgroundChatFile(this, chatInfo.chatUUID))
+            }
+        }
+        ACTION_TAKE_IMAGE -> {
+            if (resultCode == Activity.RESULT_OK && data != null) {
 
-            chatActivityRecordingLayout.visibility = View.VISIBLE
-
-            val handler = Handler()
-            handler.post(object : Runnable {
-                override fun run() {
-                    if (!isRecording) return
-                    secondsRecording++
-
-                    var min = 0
-                    var seconds = secondsRecording
-                    while (seconds >= 60) {
-                        min++
-                        seconds -= 60
-                    }
-
-                    chatActivityRecordingText.text = getString(R.string.chat_activity_voice_record, min, seconds)
-
-                    handler.postDelayed(this, 1000L)
-                }
-            })
-
-            mediaRecorder.start()
+                val i = Intent(this, SendMediaActivity::class.java)
+                i.putParcelableArrayListExtra(KEY_MEDIA_URL, ArrayList(listOf(data.getParcelableExtra<Uri>(KEY_FILE_URI))))
+                i.putExtra(KEY_CHAT_INFO, chatInfo)
+                startActivityForResult(i, ACTION_SEND_MEDIA)
+            }
         }
     }
+}
 
-    private fun stopRecording(stillOnButton: Boolean) {
-        val mercuryClient = applicationContext as MercuryClient
-
-        if (isRecording) {
-            isRecording = false
-
-            chatActivityRecordingLayout.visibility = View.GONE
-
-            try {
-
-                val recorder = mediaRecorder ?: return
-
-                recorder.stop()
-                recorder.release()
-                mediaRecorder = null
-
-                if (secondsRecording > 1 && stillOnButton) {
-                    val reference = currentAudioUUID ?: return
-
-                    val audioFile = ReferenceUtil.getFileForReference(this, reference)
-                    val clientUUID = ClientPreferences.getClientUUID(this)
-
-                    val hash = Hashing.sha512().hashBytes(audioFile.readBytes())
-
-                    val aes = generateAESKey()
-                    val iV = generateInitVector()
-
-                    val core = MessageCore(clientUUID, System.currentTimeMillis(), UUID.randomUUID())
-                    val data = MessageVoiceMessage(secondsRecording, aes, iV, reference, hash.toString())
-
-                    val message = ChatMessageInfo(ChatMessage(core, data), true, chatInfo.chatUUID)
-
-                    sendMessageToServer(this, PendingMessage(message.message, chatInfo.chatUUID, chatInfo.getOthers(clientUUID)), mercuryClient.dataBase)
-
-                    addMessage(ChatMessageWrapper(message, MessageStatus.WAITING, System.currentTimeMillis()), true)
-
-                    IOService.ActionUploadReference.launch(this, reference, aes, iV, FileType.AUDIO)
-
-                    scrollToBottom()
-                }
-            } catch (t: Throwable) {
-
+override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+    when (requestCode) {
+        PERMISSION_REQUEST_EXTERNAL_STORAGE -> {
+            if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                startActivityForResult(PickGalleryActivity.createIntent(this, chatInfo), ACTION_SEND_MEDIA)
             }
         }
     }
 
-    fun userTyping(userUUID: UUID) {
-        val typingUser = viewingUsersList.firstOrNull { it.contact.userUUID == userUUID }
-                ?: return
-        typingUser.userState = UserState.TYPING
-        userTypingTime[userUUID] = System.currentTimeMillis()
+    super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+}
 
-        viewingUsersAdapter.notifyItemChanged(viewingUsersList.indexOf(typingUser))
+private fun sendPhoto(uri: Uri, text: String) {
+    val mercuryClient = applicationContext as MercuryClient
+
+    SendPhotoTask({ result ->
+        val data = result.message.messageData as MessageReference
+        mercuryClient.currentLoadingTable[data.reference] = 0.0
+
+        addMessage(ChatMessageWrapper(result, MessageStatus.WAITING, System.currentTimeMillis()), true)
+
+        sendMessageToServer(this@ChatActivity, PendingMessage(result.message, chatInfo.chatUUID,
+                chatInfo.getOthers(ClientPreferences.getClientUUID(this))), mercuryClient.dataBase)
+
+        IOService.ActionUploadReference.launch(this, data.reference, data.aesKey, data.initVector, FileType.IMAGE)
+
+        scrollToBottom()
+    }, mercuryClient, chatInfo.chatUUID, uri, text).execute()
+}
+
+private class SendPhotoTask(val execute: (ChatMessageInfo) -> (Unit), val mercuryClient: MercuryClient, val chatUUID: UUID, val uri: Uri, val text: String) : AsyncTask<Unit, Unit, ChatMessageInfo>() {
+    override fun doInBackground(vararg args: Unit): ChatMessageInfo {
+        val referenceUUID = UUID.randomUUID()
+
+        val clientUUID = ClientPreferences.getClientUUID(mercuryClient)
+
+        val bitmap = BitmapFactory.decodeStream(mercuryClient.contentResolver.openInputStream(uri))
+
+        val byteOut = ByteArrayOutputStream()
+
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 80, byteOut)
+
+        val referenceFile = ReferenceUtil.getFileForReference(mercuryClient, referenceUUID)
+        byteOut.writeTo(referenceFile.outputStream())
+
+        saveImageExternalMercury(referenceUUID.toString(), bitmap, mercuryClient)
+
+        val aes = generateAESKey()
+        val iV = generateInitVector()
+
+        ReferenceUtil.setReferenceKey(mercuryClient.dataBase, referenceUUID, aes, iV)
+        ReferenceUtil.addReferenceToChat(mercuryClient.dataBase, chatUUID, referenceUUID, clientUUID)
+
+        val hash = Hashing.sha512().hashBytes(byteOut.toByteArray()).toString()
+        val data = MessageImage(ThumbnailUtil.createThumbnail(referenceFile, FileType.IMAGE), text, bitmap.width, bitmap.height, aes, iV, referenceUUID, hash)
+        val core = MessageCore(clientUUID, System.currentTimeMillis(), UUID.randomUUID())
+
+        return ChatMessageInfo(ChatMessage(core, data), true, chatUUID)
     }
 
-    fun userStatusChange(userChange: UserChange) {
-        val mercuryClient = applicationContext as MercuryClient
+    override fun onPostExecute(result: ChatMessageInfo) {
+        execute.invoke(result)
+    }
+}
 
-        val client = ClientPreferences.getClientUUID(this)
+private fun sendVideo(uri: Uri, text: String, isGif: Boolean) {
+    val mercuryClient = applicationContext as MercuryClient
 
-        if (chatInfo.chatType == ChatType.TWO_PEOPLE) {
-            val partner = chatInfo.participants.first { it.receiverUUID != client }
-            if (partner.receiverUUID == userChange.userUUID) {
-                setDefaultSubtitle()
-            }
-        }
+    SendVideoTask({ result ->
+        val data = result.message.messageData as MessageReference
+        mercuryClient.currentLoadingTable[data.reference] = 0.0
+
+        addMessage(ChatMessageWrapper(result, MessageStatus.WAITING, System.currentTimeMillis()), true)
+
+        sendMessageToServer(this@ChatActivity, PendingMessage(result.message, chatInfo.chatUUID,
+                chatInfo.getOthers(ClientPreferences.getClientUUID(this))), mercuryClient.dataBase)
+
+        IOService.ActionUploadReference.launch(this, data.reference, data.aesKey, data.initVector, FileType.IMAGE)
+
+        scrollToBottom()
+    }, mercuryClient, uri, text, isGif, chatInfo.chatUUID).execute()
+}
+
+private class SendVideoTask(val execute: (ChatMessageInfo) -> Unit, val mercuryClient: MercuryClient, val uri: Uri, val text: String, val isGif: Boolean, val chatUUID: UUID) : AsyncTask<Unit, Unit, ChatMessageInfo>() {
+    override fun doInBackground(vararg args: Unit): ChatMessageInfo {
+        val referenceUUID = UUID.randomUUID()
+
+        val clientUUID = ClientPreferences.getClientUUID(mercuryClient)
+
+        val fileType = if (isGif) FileType.GIF else FileType.VIDEO
+        val referenceFile = saveMediaFileInAppStorage(referenceUUID, uri, mercuryClient, fileType)
+
+        val hash = Hashing.sha512().hashBytes(referenceFile.readBytes())
+
+        val dimension = getVideoDimension(mercuryClient, referenceFile)
+
+        val aesKey = generateAESKey()
+        val initVector = generateInitVector()
+
+        ReferenceUtil.setReferenceKey(mercuryClient.dataBase, referenceUUID, aesKey, initVector)
+        ReferenceUtil.addReferenceToChat(mercuryClient.dataBase, chatUUID, referenceUUID, clientUUID)
+
+        val data = MessageVideo(getVideoDuration(referenceFile, mercuryClient), isGif, dimension.width, dimension.height, byteArrayOf(), text, aesKey, initVector, referenceUUID, hash.toString())
+        val core = MessageCore(clientUUID, System.currentTimeMillis(), UUID.randomUUID())
+
+        val message = ChatMessage(core, data)
+
+        return ChatMessageInfo(message, true, chatUUID)
     }
 
-    fun connectionClosed() {
-        supportActionBar!!.subtitle = null
+    override fun onPostExecute(result: ChatMessageInfo) {
+        execute.invoke(result)
+    }
+}
+
+override fun onStop() {
+    super.onStop()
+    stopRecording(false)
+    addInterestedChatUsers(false)
+}
+
+override fun onResume() {
+    super.onResume()
+
+    val mercuryClient = applicationContext as MercuryClient
+
+    if (componentList.isNotEmpty() && upToDate) {
+        val (_: Long, lastMessageUUID: UUID) = if (componentList.any { it.item is ChatMessageWrapper }) {
+            val message = (componentList.last { it.item is ChatMessageWrapper }.item as ChatMessageWrapper).chatMessageInfo
+            message.message.messageCore.timeCreated to message.message.messageCore.messageUUID
+        } else 0L to UUID.randomUUID()
+
+        val newMessages = getChatMessages(this, mercuryClient.dataBase, "chat_uuid = '${chatInfo.chatUUID}' AND time_created > $firstMessageTime")
+
+        addMessages(newMessages.filter { it.chatMessageInfo.message.messageCore.messageUUID != lastMessageUUID }, true)
+
+        if (onBottom) scrollToBottom()
     }
 
-    private fun setDefaultSubtitle() {
-        val mercuryClient = applicationContext as MercuryClient
-
-        val client = ClientPreferences.getClientUUID(this)
-
-        if (chatInfo.chatType == ChatType.TWO_PEOPLE) {
-            val partner = chatInfo.participants.first { it.receiverUUID != client }
-            if (mercuryClient.userStatusMap.containsKey(partner.receiverUUID)) {
-                val userChange = mercuryClient.userStatusMap[partner.receiverUUID]!!
-                supportActionBar!!.subtitle = when (userChange.status) {
-                    Status.ONLINE -> getString(R.string.chat_user_online)
-                    Status.OFFLINE_CLOSED, Status.OFFLINE_EXCEPTION -> {
-                        if (DateUtils.isToday(userChange.time)) {
-                            getString(R.string.chat_user_offline_closed_today, dateFormatTY.format(Date(userChange.time)))
-                        } else {
-                            val statusTime = Calendar.getInstance()
-                            statusTime.timeInMillis = userChange.time
-
-                            val now = Calendar.getInstance()
-                            now.timeInMillis = System.currentTimeMillis()
-
-                            if (Math.abs(now.get(Calendar.DATE) - statusTime.get(Calendar.DATE)) == 1) {
-                                getString(R.string.chat_user_offline_closed_yesterday, dateFormatTY.format(Date(userChange.time)))
-                            } else {
-                                getString(R.string.chat_user_offline_closed_anytime, dateFormatAnytime.format(Date(userChange.time)))
-                            }
-                        }
-                    }
-                }
-            } else {
-                supportActionBar!!.subtitle = null
-            }
-        } else {
-            supportActionBar!!.subtitle = null
-        }
+    LocalBroadcastManager.getInstance(this).apply {
+        registerReceiver(uploadProgressReceiver, ActionUploadReferenceProgress.getFilter())
+        registerReceiver(uploadReferenceFinishedReceiver, ActionUploadReferenceFinished.getFilter())
+        registerReceiver(downloadProgressReceiver, ActionDownloadReferenceProgress.getFilter())
+        registerReceiver(downloadReferenceFinishedReceiver, ActionDownloadReferenceFinished.getFilter())
+        registerReceiver(uploadReferenceStartedReceiver, ActionUploadReferenceStarted.getFilter())
+        registerReceiver(userViewChatReceiver, IntentFilter(ACTION_USER_VIEW_CHAT))
+        registerReceiver(directConnectedReceiver, IntentFilter(ACTION_DIRECT_CONNECTION_CONNECTED))
+        registerReceiver(chatMessageReceiver, ActionChatMessageReceived.getFilter())
+        registerReceiver(messageStatusChangeReceiver, ActionMessageStatusChange.getFilter())
+        registerReceiver(groupModificationReceiver, ActionGroupModificationReceived.getFilter())
+        registerReceiver(typingReceiver, ActionTyping.getFilter())
+        registerReceiver(userStatusChangeReceiver, ActionUserStatusChange.getFilter())
     }
 
-    inner class TypingUpdater(private val handler: Handler) : Runnable {
-        override fun run() {
-            for (viewingUser in viewingUsersList.filter { it.userState == UserState.TYPING }) {
-                val lastTime = userTypingTime[viewingUser.contact.userUUID]!!
-                if (System.currentTimeMillis() - 5000 >= lastTime) {
-                    viewingUser.userState = UserState.VIEWING
-                    viewingUsersAdapter.notifyItemChanged(viewingUsersList.indexOf(viewingUser))
-                }
-            }
-            handler.postDelayed(this, 7000)
-        }
+    viewChat(true)
+
+    addInterestedChatUsers(true)
+
+    setUnreadMessages(mercuryClient.dataBase, chatInfo.chatUUID, 0)
+
+    cancelChatNotifications(this, chatInfo.chatUUID)
+}
+
+override fun onPause() {
+    super.onPause()
+    val mercuryClient = applicationContext as MercuryClient
+
+    LocalBroadcastManager.getInstance(this).apply {
+        unregisterReceiver(uploadProgressReceiver)
+        unregisterReceiver(uploadReferenceFinishedReceiver)
+        unregisterReceiver(downloadProgressReceiver)
+        unregisterReceiver(downloadReferenceFinishedReceiver)
+        unregisterReceiver(uploadReferenceStartedReceiver)
+        unregisterReceiver(userViewChatReceiver)
+        unregisterReceiver(directConnectedReceiver)
+        unregisterReceiver(chatMessageReceiver)
+        unregisterReceiver(messageStatusChangeReceiver)
+        unregisterReceiver(groupModificationReceiver)
+        unregisterReceiver(typingReceiver)
+        unregisterReceiver(userStatusChangeReceiver)
     }
 
-    fun playAudio(referenceHolder: VoiceReferenceHolder, progress: Int) {
-        val previous = currentPlaying
-        if (previous != null) {
-            stopAudio(referenceHolder)
+    viewChat(false)
+
+    addInterestedChatUsers(false)
+
+    setUnreadMessages(mercuryClient.dataBase, chatInfo.chatUUID, 0)
+}
+
+private var currentContextSelectedIndex = -1
+
+override fun onCreateContextMenu(menu: ContextMenu, v: View, menuInfo: ContextMenu.ContextMenuInfo?) {
+    menuInflater.inflate(R.menu.menu_chat_bubble, menu)
+
+    val position = v.tag as Int
+    currentContextSelectedIndex = position
+
+    super.onCreateContextMenu(menu, v, menuInfo)
+}
+
+private fun startRecording() {
+    if (checkRecordingPermission(this, PERMISSION_REQUEST_AUDIO)) {
+        isRecording = true
+        secondsRecording = -1
+
+        val reference = UUID.randomUUID()
+        currentAudioUUID = reference
+
+        val mediaRecorder = MediaRecorder()
+        this.mediaRecorder = mediaRecorder
+
+        mediaRecorder.setAudioSource(MediaRecorder.AudioSource.MIC)
+        mediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.THREE_GPP)
+        File(filesDir.path + "/resources/${chatInfo.chatUUID}/").mkdirs()
+        mediaRecorder.setOutputFile(ReferenceUtil.getFileForReference(this, reference).path)
+        mediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.AMR_NB)
+
+
+        try {
+            mediaRecorder.prepare()
+        } catch (t: Throwable) {
         }
 
-        currentPlaying = referenceHolder
-        referenceHolder.isPlaying = true
-        referenceHolder.progress = progress
-
-        val reference = (referenceHolder.chatMessageInfo.chatMessageInfo.message.messageData as MessageReference).reference
-
-        mediaPlayer.setDataSource(this, Uri.fromFile(ReferenceUtil.getFileForReference(this, reference)))
-        mediaPlayer.prepare()
-        mediaPlayer.seekTo(progress)
-        mediaPlayer.start()
-
-        referenceHolder.maxPlayProgress = mediaPlayer.duration
-
-        chatAdapter.notifyItemChanged(componentList.indexOfFirst { it.item == referenceHolder })
-
-        mediaPlayer.setOnCompletionListener {
-            stopAudio(referenceHolder)
-        }
+        chatActivityRecordingLayout.visibility = View.VISIBLE
 
         val handler = Handler()
         handler.post(object : Runnable {
             override fun run() {
-                if (currentPlaying != referenceHolder) return
+                if (!isRecording) return
+                secondsRecording++
 
-                referenceHolder.playProgress = mediaPlayer.currentPosition
-                chatAdapter.notifyItemChanged(componentList.indexOfFirst { it.item == referenceHolder })
+                var min = 0
+                var seconds = secondsRecording
+                while (seconds >= 60) {
+                    min++
+                    seconds -= 60
+                }
+
+                chatActivityRecordingText.text = getString(R.string.chat_activity_voice_record, min, seconds)
 
                 handler.postDelayed(this, 1000L)
             }
         })
+
+        mediaRecorder.start()
     }
+}
 
-    fun seekAudioChange(referenceHolder: VoiceReferenceHolder, change: Int) {
-        if (currentPlaying == referenceHolder) {
-            mediaPlayer.seekTo(change)
-        }
-        referenceHolder.playProgress = change
-        chatAdapter.notifyItemChanged(componentList.indexOfFirst { it.item == referenceHolder })
-    }
+private fun stopRecording(stillOnButton: Boolean) {
+    val mercuryClient = applicationContext as MercuryClient
 
-    fun stopAudio(referenceHolder: VoiceReferenceHolder) {
-        referenceHolder.isPlaying = false
-        referenceHolder.playProgress = 0
-        chatAdapter.notifyItemChanged(componentList.indexOfFirst { it.item == referenceHolder })
-        mediaPlayer.stop()
-        mediaPlayer.reset()
-        currentPlaying = null
-    }
+    if (isRecording) {
+        isRecording = false
 
-    fun startReferenceLoad(holder: ReferenceHolder, adapterPosition: Int, fileType: FileType) {
-        val mercuryClient = applicationContext as MercuryClient
+        chatActivityRecordingLayout.visibility = View.GONE
 
-        if (!checkStoragePermission(this, PERMISSION_REQUEST_EXTERNAL_STORAGE)) {
-            return
-        }
+        try {
 
-        holder.referenceState = ReferenceState.IN_PROGRESS
-        holder.progress = 0
+            val recorder = mediaRecorder ?: return
 
-        val upload = holder.chatMessageInfo.chatMessageInfo.client
+            recorder.stop()
+            recorder.release()
+            mediaRecorder = null
 
-        val data = holder.chatMessageInfo.chatMessageInfo.message.messageData as MessageReference
+            if (secondsRecording > 1 && stillOnButton) {
+                val reference = currentAudioUUID ?: return
 
-        val referenceUUID = data.reference
+                val audioFile = ReferenceUtil.getFileForReference(this, reference)
+                val clientUUID = ClientPreferences.getClientUUID(this)
 
-        if (upload) {
-            IOService.ActionUploadReference.launch(this, referenceUUID, data.aesKey, data.initVector, fileType)
-        } else {
-            IOService.ActionDownloadReference.launch(this, referenceUUID, data.aesKey, data.initVector, fileType)
-        }
+                val hash = Hashing.sha512().hashBytes(audioFile.readBytes())
 
-        chatAdapter.notifyItemChanged(adapterPosition)
-    }
+                val aes = generateAESKey()
+                val iV = generateInitVector()
 
-    private fun addInterestedChatUsers(add: Boolean) {
-        val mercuryClient = applicationContext as MercuryClient
-        chatInfo.participants.filter { it.type == ChatReceiver.ReceiverType.USER }.forEach {
-            if (add) {
-                mercuryClient.addInterestedUser(it.receiverUUID)
-            } else {
-                mercuryClient.removeInterestedUser(it.receiverUUID)
+                val core = MessageCore(clientUUID, System.currentTimeMillis(), UUID.randomUUID())
+                val data = MessageVoiceMessage(secondsRecording, aes, iV, reference, hash.toString())
+
+                val message = ChatMessageInfo(ChatMessage(core, data), true, chatInfo.chatUUID)
+
+                sendMessageToServer(this, PendingMessage(message.message, chatInfo.chatUUID, chatInfo.getOthers(clientUUID)), mercuryClient.dataBase)
+
+                addMessage(ChatMessageWrapper(message, MessageStatus.WAITING, System.currentTimeMillis()), true)
+
+                IOService.ActionUploadReference.launch(this, reference, aes, iV, FileType.AUDIO)
+
+                scrollToBottom()
             }
+        } catch (t: Throwable) {
+
         }
     }
+}
 
-    private fun viewChat(view: Boolean) {
-        val mercuryClient = applicationContext as MercuryClient
-        mercuryClient.directConnectionManager.sendPacket(ViewChatPacketToServer(chatInfo.chatUUID, view))
-    }
+fun userTyping(userUUID: UUID) {
+    val typingUser = viewingUsersList.firstOrNull { it.contact.userUUID == userUUID }
+            ?: return
+    typingUser.userState = UserState.TYPING
+    userTypingTime[userUUID] = System.currentTimeMillis()
 
-    override fun onSupportNavigateUp(): Boolean {
-        finish()
-        return true
-    }
+    viewingUsersAdapter.notifyItemChanged(viewingUsersList.indexOf(typingUser))
+}
 
-    private fun applyBackgroundImage(backgroundFile: File) {
-        if (backgroundFile.exists()) {
-            val drawable = BitmapDrawable(resources, BitmapFactory.decodeStream(backgroundFile.inputStream()))
-            drawable.gravity = Gravity.FILL
-            chatActivityBackgroundImage.setImageDrawable(drawable)
+fun userStatusChange(userChange: UserChange) {
+    val mercuryClient = applicationContext as MercuryClient
+
+    val client = ClientPreferences.getClientUUID(this)
+
+    if (chatInfo.chatType == ChatType.TWO_PEOPLE) {
+        val partner = chatInfo.participants.first { it.receiverUUID != client }
+        if (partner.receiverUUID == userChange.userUUID) {
+            setDefaultSubtitle()
         }
     }
+}
 
-    fun updateChatName(chatUUID: UUID, newName: String) {
-        if (chatUUID != chatInfo.chatUUID) return
-        supportActionBar?.title = newName
-        chatInfo = chatInfo.copy(chatName = newName)
-    }
+fun connectionClosed() {
+    supportActionBar!!.subtitle = null
+}
 
-    override fun onNewIntent(intent: Intent?) {
-        super.onNewIntent(intent)
-        recreate()
-    }
+private fun setDefaultSubtitle() {
+    val mercuryClient = applicationContext as MercuryClient
 
-    fun select(item: ChatAdapter.ChatAdapterWrapper<*>, selected: Boolean) {
-        item.selected = selected
+    val client = ClientPreferences.getClientUUID(this)
 
-        if (selected) {
-            selectedItems.add(item)
-        } else {
-            selectedItems.remove(item)
-        }
+    if (chatInfo.chatType == ChatType.TWO_PEOPLE) {
+        val partner = chatInfo.participants.first { it.receiverUUID != client }
+        if (mercuryClient.userStatusMap.containsKey(partner.receiverUUID)) {
+            val userChange = mercuryClient.userStatusMap[partner.receiverUUID]!!
+            supportActionBar!!.subtitle = when (userChange.status) {
+                Status.ONLINE -> getString(R.string.chat_user_online)
+                Status.OFFLINE_CLOSED, Status.OFFLINE_EXCEPTION -> {
+                    if (DateUtils.isToday(userChange.time)) {
+                        getString(R.string.chat_user_offline_closed_today, dateFormatTY.format(Date(userChange.time)))
+                    } else {
+                        val statusTime = Calendar.getInstance()
+                        statusTime.timeInMillis = userChange.time
 
-        val menu = actionModeEdit?.menu
-        if (menu != null) {
-            val reply = menu.findItem(R.id.menuChatEditReply)
-            val share = menu.findItem(R.id.menuChatEditShare)
-            val delete = menu.findItem(R.id.menuChatEditDelete)
-            val copy = menu.findItem(R.id.menuChatEditCopy)
-            val info = menu.findItem(R.id.menuChatEditInfo)
-            when {
-                selectedItems.isEmpty() -> {
-                    reply.isEnabled = false
-                    share.isEnabled = false
-                    delete.isEnabled = false
-                    copy.isEnabled = false
-                    info.isEnabled = false
-                }
-                selectedItems.size == 1 -> {
-                    reply.isEnabled = true
-                    share.isEnabled = true
-                    delete.isEnabled = true
-                    copy.isEnabled = true
-                    info.isEnabled = true
-                }
-                else -> {
-                    reply.isEnabled = false
-                    share.isEnabled = true
-                    delete.isEnabled = true
-                    copy.isEnabled = true
-                    info.isEnabled = false
-                }
-            }
-        }
-    }
+                        val now = Calendar.getInstance()
+                        now.timeInMillis = System.currentTimeMillis()
 
-    fun activateEditMode() {
-        if (!isInEditMode) {
-            startActionMode(editActionMode)
-        }
-    }
-
-    private val editActionMode = object : ActionMode.Callback {
-        override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
-            when (item.itemId) {
-                R.id.menuChatEditDelete -> {
-                    val dialog = AlertDialog.Builder(this@ChatActivity)
-                            .setIcon(R.drawable.baseline_warning_white_24)
-                            .setTitle(R.string.chat_activity_edit_chat_menu_delete_alert_title)
-                            .setMessage(getString(R.string.chat_activity_edit_chat_menu_delete_alert_message, selectedItems.size))
-                            .setNegativeButton(R.string.chat_activity_edit_chat_menu_delete_alert_negative) { _, _ -> }
-                            .setPositiveButton(R.string.chat_activity_edit_chat_menu_delete_alert_positive) { _, _ ->
-                                DeleteMessagesTask(selectedItems.map { it.item as ChatMessageInfo }, chatInfo.chatUUID, applicationContext as MercuryClient, NotificationManagerCompat.from(this@ChatActivity)).execute()
-                                selectedItems.map { componentList.indexOf(it) }.forEach { chatAdapter.notifyItemRemoved(it) }
-                                componentList.removeAll(selectedItems)
-                            }
-                    if (selectedWithMedia > 0) {
-                        val deleteMediaCheckbox = CheckBox(this@ChatActivity)
-                        deleteMediaCheckbox.isChecked = false
-                        deleteMediaCheckbox.text = getString(R.string.chat_activity_edit_chat_menu_delete_alert_media)
-
-                        dialog.setView(deleteMediaCheckbox)
+                        if (Math.abs(now.get(Calendar.DATE) - statusTime.get(Calendar.DATE)) == 1) {
+                            getString(R.string.chat_user_offline_closed_yesterday, dateFormatTY.format(Date(userChange.time)))
+                        } else {
+                            getString(R.string.chat_user_offline_closed_anytime, dateFormatAnytime.format(Date(userChange.time)))
+                        }
                     }
-
-                    dialog.create().show()
                 }
-                R.id.menuChatEditShare -> {
+            }
+        } else {
+            supportActionBar!!.subtitle = null
+        }
+    } else {
+        supportActionBar!!.subtitle = null
+    }
+}
 
-                }
-                R.id.menuChatEditReply -> {
+inner class TypingUpdater(private val handler: Handler) : Runnable {
+    override fun run() {
+        for (viewingUser in viewingUsersList.filter { it.userState == UserState.TYPING }) {
+            val lastTime = userTypingTime[viewingUser.contact.userUUID]!!
+            if (System.currentTimeMillis() - 5000 >= lastTime) {
+                viewingUser.userState = UserState.VIEWING
+                viewingUsersAdapter.notifyItemChanged(viewingUsersList.indexOf(viewingUser))
+            }
+        }
+        handler.postDelayed(this, 7000)
+    }
+}
 
+fun playAudio(referenceHolder: VoiceReferenceHolder, progress: Int) {
+    val previous = currentPlaying
+    if (previous != null) {
+        stopAudio(referenceHolder)
+    }
+
+    currentPlaying = referenceHolder
+    referenceHolder.isPlaying = true
+    referenceHolder.progress = progress
+
+    val reference = (referenceHolder.chatMessageInfo.chatMessageInfo.message.messageData as MessageReference).reference
+
+    mediaPlayer.setDataSource(this, Uri.fromFile(ReferenceUtil.getFileForReference(this, reference)))
+    mediaPlayer.prepare()
+    mediaPlayer.seekTo(progress)
+    mediaPlayer.start()
+
+    referenceHolder.maxPlayProgress = mediaPlayer.duration
+
+    chatAdapter.notifyItemChanged(componentList.indexOfFirst { it.item == referenceHolder })
+
+    mediaPlayer.setOnCompletionListener {
+        stopAudio(referenceHolder)
+    }
+
+    val handler = Handler()
+    handler.post(object : Runnable {
+        override fun run() {
+            if (currentPlaying != referenceHolder) return
+
+            referenceHolder.playProgress = mediaPlayer.currentPosition
+            chatAdapter.notifyItemChanged(componentList.indexOfFirst { it.item == referenceHolder })
+
+            handler.postDelayed(this, 1000L)
+        }
+    })
+}
+
+fun seekAudioChange(referenceHolder: VoiceReferenceHolder, change: Int) {
+    if (currentPlaying == referenceHolder) {
+        mediaPlayer.seekTo(change)
+    }
+    referenceHolder.playProgress = change
+    chatAdapter.notifyItemChanged(componentList.indexOfFirst { it.item == referenceHolder })
+}
+
+fun stopAudio(referenceHolder: VoiceReferenceHolder) {
+    referenceHolder.isPlaying = false
+    referenceHolder.playProgress = 0
+    chatAdapter.notifyItemChanged(componentList.indexOfFirst { it.item == referenceHolder })
+    mediaPlayer.stop()
+    mediaPlayer.reset()
+    currentPlaying = null
+}
+
+fun startReferenceLoad(holder: ReferenceHolder, adapterPosition: Int, fileType: FileType) {
+    val mercuryClient = applicationContext as MercuryClient
+
+    if (!checkWriteStoragePermission(this, PERMISSION_REQUEST_EXTERNAL_STORAGE)) {
+        return
+    }
+
+    holder.referenceState = ReferenceState.IN_PROGRESS
+    holder.progress = 0
+
+    val upload = holder.chatMessageInfo.chatMessageInfo.client
+
+    val data = holder.chatMessageInfo.chatMessageInfo.message.messageData as MessageReference
+
+    val referenceUUID = data.reference
+
+    if (upload) {
+        IOService.ActionUploadReference.launch(this, referenceUUID, data.aesKey, data.initVector, fileType)
+    } else {
+        IOService.ActionDownloadReference.launch(this, referenceUUID, data.aesKey, data.initVector, fileType)
+    }
+
+    chatAdapter.notifyItemChanged(adapterPosition)
+}
+
+private fun addInterestedChatUsers(add: Boolean) {
+    val mercuryClient = applicationContext as MercuryClient
+    chatInfo.participants.filter { it.type == ChatReceiver.ReceiverType.USER }.forEach {
+        if (add) {
+            mercuryClient.addInterestedUser(it.receiverUUID)
+        } else {
+            mercuryClient.removeInterestedUser(it.receiverUUID)
+        }
+    }
+}
+
+private fun viewChat(view: Boolean) {
+    val mercuryClient = applicationContext as MercuryClient
+    mercuryClient.directConnectionManager.sendPacket(ViewChatPacketToServer(chatInfo.chatUUID, view))
+}
+
+override fun onSupportNavigateUp(): Boolean {
+    finish()
+    return true
+}
+
+private fun applyBackgroundImage(backgroundFile: File) {
+    if (backgroundFile.exists()) {
+        val drawable = BitmapDrawable(resources, BitmapFactory.decodeStream(backgroundFile.inputStream()))
+        drawable.gravity = Gravity.FILL
+        chatActivityBackgroundImage.setImageDrawable(drawable)
+    }
+}
+
+fun updateChatName(chatUUID: UUID, newName: String) {
+    if (chatUUID != chatInfo.chatUUID) return
+    supportActionBar?.title = newName
+    chatInfo = chatInfo.copy(chatName = newName)
+}
+
+override fun onNewIntent(intent: Intent?) {
+    super.onNewIntent(intent)
+    recreate()
+}
+
+fun select(item: ChatAdapter.ChatAdapterWrapper<*>, selected: Boolean) {
+    item.selected = selected
+
+    if (selected) {
+        selectedItems.add(item)
+    } else {
+        selectedItems.remove(item)
+    }
+
+    val menu = actionModeEdit?.menu
+    if (menu != null) {
+        val reply = menu.findItem(R.id.menuChatEditReply)
+        val share = menu.findItem(R.id.menuChatEditShare)
+        val delete = menu.findItem(R.id.menuChatEditDelete)
+        val copy = menu.findItem(R.id.menuChatEditCopy)
+        val info = menu.findItem(R.id.menuChatEditInfo)
+        when {
+            selectedItems.isEmpty() -> {
+                reply.isEnabled = false
+                share.isEnabled = false
+                delete.isEnabled = false
+                copy.isEnabled = false
+                info.isEnabled = false
+            }
+            selectedItems.size == 1 -> {
+                reply.isEnabled = true
+                share.isEnabled = true
+                delete.isEnabled = true
+                copy.isEnabled = true
+                info.isEnabled = true
+            }
+            else -> {
+                reply.isEnabled = false
+                share.isEnabled = true
+                delete.isEnabled = true
+                copy.isEnabled = true
+                info.isEnabled = false
+            }
+        }
+    }
+}
+
+fun activateEditMode() {
+    if (!isInEditMode) {
+        startActionMode(editActionMode)
+    }
+}
+
+private val editActionMode = object : ActionMode.Callback {
+    override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
+        when (item.itemId) {
+            R.id.menuChatEditDelete -> {
+                val dialog = AlertDialog.Builder(this@ChatActivity)
+                        .setIcon(R.drawable.baseline_warning_white_24)
+                        .setTitle(R.string.chat_activity_edit_chat_menu_delete_alert_title)
+                        .setMessage(getString(R.string.chat_activity_edit_chat_menu_delete_alert_message, selectedItems.size))
+                        .setNegativeButton(R.string.chat_activity_edit_chat_menu_delete_alert_negative) { _, _ -> }
+                        .setPositiveButton(R.string.chat_activity_edit_chat_menu_delete_alert_positive) { _, _ ->
+                            DeleteMessagesTask(selectedItems.map { it.item as ChatMessageInfo }, chatInfo.chatUUID, applicationContext as MercuryClient, NotificationManagerCompat.from(this@ChatActivity)).execute()
+                            selectedItems.map { componentList.indexOf(it) }.forEach { chatAdapter.notifyItemRemoved(it) }
+                            componentList.removeAll(selectedItems)
+                        }
+                if (selectedWithMedia > 0) {
+                    val deleteMediaCheckbox = CheckBox(this@ChatActivity)
+                    deleteMediaCheckbox.isChecked = false
+                    deleteMediaCheckbox.text = getString(R.string.chat_activity_edit_chat_menu_delete_alert_media)
+
+                    dialog.setView(deleteMediaCheckbox)
                 }
-                R.id.menuChatEditCopy -> {
-                    //TODO()
+
+                dialog.create().show()
+            }
+            R.id.menuChatEditShare -> {
+
+            }
+            R.id.menuChatEditReply -> {
+
+            }
+            R.id.menuChatEditCopy -> {
+                //TODO()
 //                    val text = if (selectedItems.size == 1) {
 //                        val wrapper = selectedItems.first().item as ChatMessageWrapper
 //                        wrapper.message.text
@@ -1415,116 +1427,116 @@ class ChatActivity : AppCompatActivity() {
 //                    clipboard.primaryClip = clip
 //
 //                    mode.finish()
+            }
+        }
+        return true
+    }
+
+    override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.menu_chat_edit, menu)
+        return true
+    }
+
+    override fun onPrepareActionMode(mode: ActionMode, menu: Menu): Boolean {
+        actionModeEdit = mode
+
+        chatAdapter.notifyItemRangeChanged(0, componentList.size)
+        return false
+    }
+
+    override fun onDestroyActionMode(mode: ActionMode) {
+        actionModeEdit = null
+
+        chatAdapter.notifyItemRangeChanged(0, componentList.size)
+
+        selectedItems.forEach { it.selected = false }
+        selectedItems.clear()
+    }
+}
+
+private inner class ChatListScrollListener : RecyclerView.OnScrollListener() {
+    override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+        onTop = !recyclerView.canScrollVertically(-1)
+        onBottom = !recyclerView.canScrollVertically(1)
+
+        val layoutManager = recyclerView.layoutManager as LinearLayoutManager
+
+        val firstVisibleIndex = layoutManager.findFirstVisibleItemPosition()
+        val lastVisibleIndex = layoutManager.findLastVisibleItemPosition()
+
+        val client = ClientPreferences.getClientUUID(this@ChatActivity)
+
+        (Math.max(0, firstVisibleIndex)..Math.min(lastVisibleIndex, componentList.size))
+                .map { componentList[it].item }
+                .filter { it is ChatMessageWrapper || it is ReferenceHolder }
+                .filter {
+                    val wrapper = (it as? ReferenceHolder)?.chatMessageInfo
+                            ?: it as ChatMessageWrapper
+                    wrapper.latestStatus != MessageStatus.SEEN
                 }
-            }
-            return true
-        }
+                .forEach {
+                    val wrapper = (it as? ReferenceHolder)?.chatMessageInfo
+                            ?: it as ChatMessageWrapper
+                    if (!wrapper.chatMessageInfo.client) {
+                        wrapper.latestStatus = MessageStatus.SEEN
 
-        override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
-            menuInflater.inflate(R.menu.menu_chat_edit, menu)
-            return true
-        }
+                        val mercuryClient = mercuryClient()
 
-        override fun onPrepareActionMode(mode: ActionMode, menu: Menu): Boolean {
-            actionModeEdit = mode
+                        val core = wrapper.chatMessageInfo.message.messageCore
 
-            chatAdapter.notifyItemRangeChanged(0, componentList.size)
-            return false
-        }
+                        val messageUUID = core.messageUUID
 
-        override fun onDestroyActionMode(mode: ActionMode) {
-            actionModeEdit = null
+                        updateMessageStatus(mercuryClient.dataBase, messageUUID, MessageStatus.SEEN, System.currentTimeMillis())
 
-            chatAdapter.notifyItemRangeChanged(0, componentList.size)
+                        for (s in chatInfo.getOthers(client)) {
+                            val changeCore = MessageCore(client, System.currentTimeMillis(), UUID.randomUUID())
+                            val changeData = MessageStatusUpdate(messageUUID, MessageStatus.SEEN, System.currentTimeMillis())
 
-            selectedItems.forEach { it.selected = false }
-            selectedItems.clear()
-        }
-    }
-
-    private inner class ChatListScrollListener : RecyclerView.OnScrollListener() {
-        override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-            onTop = !recyclerView.canScrollVertically(-1)
-            onBottom = !recyclerView.canScrollVertically(1)
-
-            val layoutManager = recyclerView.layoutManager as LinearLayoutManager
-
-            val firstVisibleIndex = layoutManager.findFirstVisibleItemPosition()
-            val lastVisibleIndex = layoutManager.findLastVisibleItemPosition()
-
-            val client = ClientPreferences.getClientUUID(this@ChatActivity)
-
-            (Math.max(0, firstVisibleIndex)..Math.min(lastVisibleIndex, componentList.size))
-                    .map { componentList[it].item }
-                    .filter { it is ChatMessageWrapper || it is ReferenceHolder }
-                    .filter {
-                        val wrapper = (it as? ReferenceHolder)?.chatMessageInfo
-                                ?: it as ChatMessageWrapper
-                        wrapper.latestStatus != MessageStatus.SEEN
-                    }
-                    .forEach {
-                        val wrapper = (it as? ReferenceHolder)?.chatMessageInfo
-                                ?: it as ChatMessageWrapper
-                        if (!wrapper.chatMessageInfo.client) {
-                            wrapper.latestStatus = MessageStatus.SEEN
-
-                            val mercuryClient = mercuryClient()
-
-                            val core = wrapper.chatMessageInfo.message.messageCore
-
-                            val messageUUID = core.messageUUID
-
-                            updateMessageStatus(mercuryClient.dataBase, messageUUID, MessageStatus.SEEN, System.currentTimeMillis())
-
-                            for (s in chatInfo.getOthers(client)) {
-                                val changeCore = MessageCore(client, System.currentTimeMillis(), UUID.randomUUID())
-                                val changeData = MessageStatusUpdate(messageUUID, MessageStatus.SEEN, System.currentTimeMillis())
-
-                                sendMessageToServer(this@ChatActivity, PendingMessage(ChatMessage(changeCore, changeData), chatInfo.chatUUID, chatInfo.getOthers(client)), mercuryClient.dataBase)
-                            }
-                            recyclerView.adapter?.notifyItemChanged(componentList.indexOf(it))
+                            sendMessageToServer(this@ChatActivity, PendingMessage(ChatMessage(changeCore, changeData), chatInfo.chatUUID, chatInfo.getOthers(client)), mercuryClient.dataBase)
                         }
+                        recyclerView.adapter?.notifyItemChanged(componentList.indexOf(it))
                     }
+                }
 
-            if (firstVisibleIndex <= 10 && !currentlyLoadingMore) {
-                loadMore(true)
-            }
+        if (firstVisibleIndex <= 10 && !currentlyLoadingMore) {
+            loadMore(true)
+        }
 
-            if (lastVisibleIndex >= componentList.size - 10 && !currentlyLoadingMore && !upToDate) {
-                loadMore(false)
-            }
+        if (lastVisibleIndex >= componentList.size - 10 && !currentlyLoadingMore && !upToDate) {
+            loadMore(false)
+        }
 
-            if (onBottom) {
-                upToDate = true
-            }
+        if (onBottom) {
+            upToDate = true
         }
     }
+}
 
-    private inner class GroupModificationReceiver : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            val (chatUuid, modification) = ActionGroupModificationReceived.getData(intent)
+private inner class GroupModificationReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val (chatUuid, modification) = ActionGroupModificationReceived.getData(intent)
 
-            if (chatInfo.chatUUID == chatUuid && modification is GroupModificationChangeName) {
-                updateChatName(chatUuid, modification.newName)
-            }
+        if (chatInfo.chatUUID == chatUuid && modification is GroupModificationChangeName) {
+            updateChatName(chatUuid, modification.newName)
         }
     }
+}
 
-    private inner class TypingReceiver : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            val (chatUuid, userUuid) = ActionTyping.getData(intent)
+private inner class TypingReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val (chatUuid, userUuid) = ActionTyping.getData(intent)
 
-            if (chatUuid == this@ChatActivity.chatInfo.chatUUID) {
-                userTyping(userUuid)
-            }
+        if (chatUuid == this@ChatActivity.chatInfo.chatUUID) {
+            userTyping(userUuid)
         }
     }
+}
 
-    private inner class UserStatusChangeReceiver : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            val (userUuid, status, time) = ActionUserStatusChange.getData(intent)
+private inner class UserStatusChangeReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        val (userUuid, status, time) = ActionUserStatusChange.getData(intent)
 
-            userStatusChange(UserChange(userUuid, status, time))
-        }
+        userStatusChange(UserChange(userUuid, status, time))
     }
+}
 }

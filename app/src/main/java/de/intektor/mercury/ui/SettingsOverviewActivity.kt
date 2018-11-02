@@ -14,7 +14,7 @@ import com.squareup.picasso.Picasso
 import com.theartofdev.edmodo.cropper.CropImage
 import de.intektor.mercury.MercuryClient
 import de.intektor.mercury.R
-import de.intektor.mercury.android.checkStoragePermission
+import de.intektor.mercury.android.checkWriteStoragePermission
 import de.intektor.mercury.android.getSelectedTheme
 import de.intektor.mercury.android.isUsingLightTheme
 import de.intektor.mercury.android.setSelectedTheme
@@ -79,7 +79,7 @@ class SettingsOverviewActivity : AppCompatActivity() {
     }
 
     private fun changeProfilePicture() {
-        if (checkStoragePermission(this, /*TODO: */0)) {
+        if (checkWriteStoragePermission(this, /*TODO: */0)) {
             val pickPhoto = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
             startActivityForResult(pickPhoto, ACTION_PICK_PROFILE_PICTURE)
         }

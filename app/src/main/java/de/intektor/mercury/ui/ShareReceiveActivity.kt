@@ -18,7 +18,6 @@ import com.squareup.picasso.MemoryPolicy
 import com.squareup.picasso.Picasso
 import de.intektor.mercury.MercuryClient
 import de.intektor.mercury.R
-import de.intektor.mercury.android.createSmallPreviewImage
 import de.intektor.mercury.android.getRealImagePath
 import de.intektor.mercury.android.getRealVideoPath
 import de.intektor.mercury.android.getSelectedTheme
@@ -27,6 +26,7 @@ import de.intektor.mercury.chat.readChats
 import de.intektor.mercury.chat.sendMessageToServer
 import de.intektor.mercury.client.ClientPreferences
 import de.intektor.mercury.io.download.IOService
+import de.intektor.mercury.task.ThumbnailUtil
 import de.intektor.mercury.task.getVideoDimension
 import de.intektor.mercury.task.getVideoDuration
 import de.intektor.mercury.task.saveMediaFileInAppStorage
@@ -179,7 +179,7 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
                         val bitmap = BitmapFactory.decodeStream(contentResolver.openInputStream(uri))
 
                         val core = MessageCore(client, System.currentTimeMillis(), UUID.randomUUID())
-                        val data = MessageImage(createSmallPreviewImage(File(path), FileType.IMAGE),
+                        val data = MessageImage(ThumbnailUtil.createThumbnail(File(path), FileType.IMAGE),
                                 "",
                                 bitmap.width,
                                 bitmap.height,
@@ -226,7 +226,8 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
                                 false,
                                 dimension.width,
                                 dimension.height,
-                                createSmallPreviewImage(referenceFile, FileType.VIDEO),
+                                ThumbnailUtil.createThumbnail(referenceFile, FileType.VIDEO),
+//                                createSmallPreviewImage(referenceFile, FileType.VIDEO),
                                 "",
                                 generateAESKey(),
                                 generateInitVector(),

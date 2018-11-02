@@ -16,11 +16,12 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import com.squareup.picasso.Picasso
 import de.intektor.mercury.R
 import de.intektor.mercury.android.getChatInfoExtra
 import de.intektor.mercury.android.getSelectedTheme
-import de.intektor.mercury.android.loadThumbnail
 import de.intektor.mercury.chat.ChatInfo
+import de.intektor.mercury.task.ThumbnailUtil
 import de.intektor.mercury.util.KEY_CHAT_INFO
 import de.intektor.mercury.util.KEY_FOLDER
 import kotlinx.android.synthetic.main.activity_pick_gallery.*
@@ -54,7 +55,7 @@ class PickGalleryActivity : AppCompatActivity(), SearchView.OnQueryTextListener 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        setTheme(getSelectedTheme(this))
+        setTheme(getSelectedTheme(this, false))
 
         setContentView(R.layout.activity_pick_gallery)
 
@@ -62,8 +63,10 @@ class PickGalleryActivity : AppCompatActivity(), SearchView.OnQueryTextListener 
 
         adapter = GalleryFolderAdapter(currentList, this, chatInfo)
 
-        activityPickGalleryFolderList.adapter = adapter
-        activityPickGalleryFolderList.layoutManager = GridLayoutManager(this, 2)
+        activity_pick_gallery_rv_content.adapter = adapter
+        activity_pick_gallery_rv_content.layoutManager = GridLayoutManager(this, 2)
+
+        setSupportActionBar(activity_pick_gallery_tb)
 
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
     }
@@ -105,13 +108,18 @@ class PickGalleryActivity : AppCompatActivity(), SearchView.OnQueryTextListener 
 
                 val parentDirectory = cursor.getString(0)
 
-                val previewPath = contentResolver.query(fileUri, arrayOf(MediaStore.MediaColumns.DATA), "${MediaStore.MediaColumns.DATA} LIKE ?", arrayOf("$parentDirectory%"), "${MediaStore.MediaColumns.DATE_ADDED} DESC LIMIT 1").use firstItem@ { firstItemCursor ->
-                    if (firstItemCursor == null || !firstItemCursor.moveToNext()) return@firstItem ""
+                val previewFile: ThumbnailUtil.PreviewFile? = contentResolver.query(fileUri, arrayOf(MediaStore.MediaColumns._ID, MediaStore.Files.FileColumns.MEDIA_TYPE), "${MediaStore.Files.FileColumns.PARENT} = ?", arrayOf("$galleryFolder"), "${MediaStore.MediaColumns.DATE_ADDED} DESC LIMIT 1").use firstItem@{ firstItemCursor ->
+                    if (firstItemCursor == null || !firstItemCursor.moveToNext()) return@firstItem null
 
-                    firstItemCursor.getString(0)
+                    val id = firstItemCursor.getLong(0)
+                    val mimeType = firstItemCursor.getString(1).toInt()
+
+                    ThumbnailUtil.PreviewFile(id, mimeType)
                 }
 
-                totalList += GalleryFolder(previewPath, parentDirectory.substringAfterLast('/'), File(parentDirectory))
+                if (previewFile != null) {
+                    totalList += GalleryFolder(previewFile, parentDirectory.substringAfterLast('/'),  galleryFolder)
+                }
             }
         }
 
@@ -122,7 +130,7 @@ class PickGalleryActivity : AppCompatActivity(), SearchView.OnQueryTextListener 
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_pick_gallery, menu)
-        val searchItem = menu.findItem(R.id.menuPickGallerySearch)
+        val searchItem = menu.findItem(R.id.menu_pick_gallery_search)
         val searchView = searchItem.actionView as SearchView
         searchView.setOnQueryTextListener(this)
         return true
@@ -169,27 +177,27 @@ class PickGalleryActivity : AppCompatActivity(), SearchView.OnQueryTextListener 
         override fun onBindViewHolder(holder: GalleryFolderViewHolder, position: Int) {
             val item = folders[position]
 
+            val context = holder.itemView.context
+
             holder.label.text = item.label
-            if (item.previewPath.isNotEmpty()) {
-                loadThumbnail(File(item.previewPath), activity, holder.image)
-            }
+
+            Picasso.get().cancelRequest(holder.image)
+
+            ThumbnailUtil.loadThumbnail(item.previewFile, holder.image, MediaStore.Images.Thumbnails.MINI_KIND)
+
             val clickListener = View.OnClickListener {
-                val viewMediaFolderActivity = Intent(activity, PickGalleryFolderActivity::class.java)
-                viewMediaFolderActivity.putExtra(KEY_FOLDER, item.folder)
-                viewMediaFolderActivity.putExtra(KEY_CHAT_INFO, chatInfo)
-                activity.startActivityForResult(viewMediaFolderActivity, ACTION_PICK_FROM_GALLERY_FOLDER)
+                activity.startActivityForResult(PickGalleryFolderActivity.createIntent(context, item.folderId, chatInfo, item.label), ACTION_PICK_FROM_GALLERY_FOLDER)
             }
 
             holder.itemView.setOnClickListener(clickListener)
-            holder.image.setOnClickListener(clickListener)
-            holder.label.setOnClickListener(clickListener)
         }
     }
 
     private class GalleryFolderViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        val image: ImageView = view.findViewById(R.id.galleryFolderPreview)
-        val label: TextView = view.findViewById(R.id.galleryFolderLabel)
+        val image: ImageView = view.findViewById(R.id.item_gallery_folder_iv_content)
+        val label: TextView = view.findViewById(R.id.item_gallery_folder_tv_label)
     }
 
-    private data class GalleryFolder(val previewPath: String, val label: String, val folder: File)
+    private data class GalleryFolder(val previewFile: ThumbnailUtil.PreviewFile, val label: String, val folderId: Long)
+
 }

@@ -1,16 +1,17 @@
 package de.intektor.mercury.ui.util
 
+import android.provider.MediaStore
 import android.support.v7.widget.RecyclerView
+import android.text.format.DateUtils
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
+import com.squareup.picasso.Picasso
 import de.intektor.mercury.R
-import de.intektor.mercury.android.isVideo
-import de.intektor.mercury.android.loadThumbnail
-import java.io.File
+import de.intektor.mercury.task.ThumbnailUtil
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -50,14 +51,14 @@ class MediaAdapter<T : MediaAdapter.MediaFile>(
         private val timeView: TextView = itemView.findViewById(R.id.mediaItemTimeView)
 
         override fun bind(item: MediaFileHeader) {
-            val dataFormat = SimpleDateFormat("MMM yyyy", Locale.US)
+            val dataFormat = SimpleDateFormat("MMM yyyy", Locale.getDefault())
 
-            timeView.text = dataFormat.format(item.time)
+            timeView.text = dataFormat.format(item.time * 1000)
         }
     }
 
     class MediaViewHolder<T : MediaFile>(view: View, private val clickCallback: (T, MediaViewHolder<T>) -> Unit, private val longClickCallback: (T, MediaViewHolder<T>) -> Unit) : BindableViewHolder<T>(view) {
-        private val image: ImageView = view.findViewById(R.id.fragment_image_item_iv_content)
+        private val content: ImageView = view.findViewById(R.id.fragment_image_item_iv_content)
         private val videoOverlay: ImageView = view.findViewById(R.id.fragment_image_item_iv_video_overlay)
         private val checked: ImageView = view.findViewById(R.id.fragment_image_item_iv_check)
         private val checkedOverlay: ImageView = view.findViewById(R.id.fragment_image_item_iv_check)
@@ -69,19 +70,17 @@ class MediaAdapter<T : MediaAdapter.MediaFile>(
 
         override fun bind(item: T) {
             try {
-                image.setImageDrawable(null)
+                ThumbnailUtil.loadThumbnail(item.file, content, MediaStore.Images.Thumbnails.MICRO_KIND)
 
-                loadThumbnail(item.file, itemView.context, image)
-
-                videoOverlay.visibility = if (isVideo(item.file)) View.VISIBLE else View.GONE
+                videoOverlay.visibility = if (item.file.mediaType == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO) View.VISIBLE else View.GONE
 
                 setSelected(item.selected)
 
-                image.setOnClickListener {
+                content.setOnClickListener {
                     clickCallback.invoke(item, this)
                 }
 
-                image.setOnLongClickListener {
+                content.setOnLongClickListener {
                     longClickCallback.invoke(item, this)
                     return@setOnLongClickListener true
                 }
@@ -91,7 +90,7 @@ class MediaAdapter<T : MediaAdapter.MediaFile>(
         }
     }
 
-    open class MediaFile(val time: Long, val file: File, var selected: Boolean = false)
+    open class MediaFile(val time: Long, val file: ThumbnailUtil.PreviewFile, var selected: Boolean = false)
 
     class MediaFileHeader(val time: Long)
 }

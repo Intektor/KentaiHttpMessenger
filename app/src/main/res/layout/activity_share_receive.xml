@@ -13,9 +13,10 @@
         android:layout_marginBottom="16dp"
         android:layout_marginEnd="16dp"
         android:clickable="true"
+        android:focusable="true"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:srcCompat="@drawable/ic_send_white_24dp" />
+        app:srcCompat="@drawable/baseline_send_24" />
 
     <android.support.v7.widget.RecyclerView
         android:id="@+id/shareReceiveList"

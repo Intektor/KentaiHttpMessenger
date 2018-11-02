@@ -5,7 +5,7 @@
     tools:context="de.intektor.mercury.ui.NewChatGroupActivity">
     <item
         android:id="@+id/addGroupMemberActionSearch"
-        android:icon="?attr/ic_search"
+        android:icon="@drawable/baseline_search_24"
         android:title="@string/new_chat_action_search"
         app:actionViewClass="android.support.v7.widget.SearchView"
         app:showAsAction="always|collapseActionView" />
