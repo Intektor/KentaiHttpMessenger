@@ -1,6 +1,6 @@
 package de.intektor.mercury.ui.chat.adapter.chat
 
-import android.support.constraint.ConstraintLayout
+import androidx.constraintlayout.widget.ConstraintLayout
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup

@@ -3,7 +3,7 @@ package de.intektor.mercury.action
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.support.v4.content.LocalBroadcastManager
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import de.intektor.mercury.android.getUUIDExtra
 import de.intektor.mercury_common.chat.MessageStatus
 import java.util.*
@@ -31,7 +31,7 @@ object ActionMessageStatusChange {
                     .putExtra(EXTRA_MESSAGE_STATUS, messageStatus)
 
     fun launch(context: Context, chatUuid: UUID, messageUuid: UUID, messageStatus: MessageStatus) {
-        LocalBroadcastManager.getInstance(context).sendBroadcast(createIntent(context, chatUuid, messageUuid, messageStatus))
+        androidx.localbroadcastmanager.content.LocalBroadcastManager.getInstance(context).sendBroadcast(createIntent(context, chatUuid, messageUuid, messageStatus))
     }
 
     fun getData(intent: Intent): Holder {

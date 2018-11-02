@@ -6,10 +6,9 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.provider.MediaStore
-import android.support.v7.app.AppCompatActivity
-import android.support.v7.widget.GridLayoutManager
-import android.support.v7.widget.RecyclerView
-import android.support.v7.widget.SearchView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.appcompat.widget.SearchView
 import android.view.LayoutInflater
 import android.view.Menu
 import android.view.View
@@ -22,10 +21,7 @@ import de.intektor.mercury.android.getChatInfoExtra
 import de.intektor.mercury.android.getSelectedTheme
 import de.intektor.mercury.chat.ChatInfo
 import de.intektor.mercury.task.ThumbnailUtil
-import de.intektor.mercury.util.KEY_CHAT_INFO
-import de.intektor.mercury.util.KEY_FOLDER
 import kotlinx.android.synthetic.main.activity_pick_gallery.*
-import java.io.File
 
 class PickGalleryActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
 
@@ -101,14 +97,23 @@ class PickGalleryActivity : AppCompatActivity(), SearchView.OnQueryTextListener 
         }
 
         for (galleryFolder in parentDirectories) {
-            contentResolver.query(ContentUris.withAppendedId(fileUri, galleryFolder), arrayOf(MediaStore.MediaColumns.DATA, MediaStore.MediaColumns.TITLE), null, null, null).use { cursor ->
+            contentResolver.query(ContentUris.withAppendedId(fileUri, galleryFolder),
+                    arrayOf(MediaStore.MediaColumns.DATA, MediaStore.MediaColumns.TITLE),
+                    null,
+                    null,
+                    null).use { cursor ->
                 if (cursor == null) return@use
 
                 cursor.moveToNext()
 
                 val parentDirectory = cursor.getString(0)
 
-                val previewFile: ThumbnailUtil.PreviewFile? = contentResolver.query(fileUri, arrayOf(MediaStore.MediaColumns._ID, MediaStore.Files.FileColumns.MEDIA_TYPE), "${MediaStore.Files.FileColumns.PARENT} = ?", arrayOf("$galleryFolder"), "${MediaStore.MediaColumns.DATE_ADDED} DESC LIMIT 1").use firstItem@{ firstItemCursor ->
+                val previewFile: ThumbnailUtil.PreviewFile? = contentResolver.query(fileUri,
+                        arrayOf(MediaStore.MediaColumns._ID, MediaStore.Files.FileColumns.MEDIA_TYPE),
+                        "${MediaStore.Files.FileColumns.PARENT} = ? " +
+                                "AND ${MediaStore.Files.FileColumns.MEDIA_TYPE} IN (${MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE}, ${MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO})",
+                        arrayOf("$galleryFolder"),
+                        "${MediaStore.MediaColumns.DATE_ADDED} DESC LIMIT 1").use firstItem@{ firstItemCursor ->
                     if (firstItemCursor == null || !firstItemCursor.moveToNext()) return@firstItem null
 
                     val id = firstItemCursor.getLong(0)
@@ -118,7 +123,7 @@ class PickGalleryActivity : AppCompatActivity(), SearchView.OnQueryTextListener 
                 }
 
                 if (previewFile != null) {
-                    totalList += GalleryFolder(previewFile, parentDirectory.substringAfterLast('/'),  galleryFolder)
+                    totalList += GalleryFolder(previewFile, parentDirectory.substringAfterLast('/'), galleryFolder)
                 }
             }
         }
@@ -166,7 +171,7 @@ class PickGalleryActivity : AppCompatActivity(), SearchView.OnQueryTextListener 
         return true
     }
 
-    private class GalleryFolderAdapter(private val folders: List<GalleryFolder>, private val activity: Activity, private val chatInfo: ChatInfo) : RecyclerView.Adapter<GalleryFolderViewHolder>() {
+    private class GalleryFolderAdapter(private val folders: List<GalleryFolder>, private val activity: Activity, private val chatInfo: ChatInfo) : androidx.recyclerview.widget.RecyclerView.Adapter<GalleryFolderViewHolder>() {
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): GalleryFolderViewHolder {
             val view = LayoutInflater.from(parent.context).inflate(R.layout.gallery_folder_item, parent, false)
             return GalleryFolderViewHolder(view)
@@ -193,7 +198,7 @@ class PickGalleryActivity : AppCompatActivity(), SearchView.OnQueryTextListener 
         }
     }
 
-    private class GalleryFolderViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+    private class GalleryFolderViewHolder(view: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {
         val image: ImageView = view.findViewById(R.id.item_gallery_folder_iv_content)
         val label: TextView = view.findViewById(R.id.item_gallery_folder_tv_label)
     }

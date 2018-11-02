@@ -9,10 +9,10 @@ import android.graphics.Color
 import android.graphics.Typeface
 import android.media.RingtoneManager
 import android.os.Build
-import android.support.annotation.RequiresApi
-import android.support.v4.app.NotificationCompat
-import android.support.v4.app.NotificationManagerCompat
-import android.support.v4.app.TaskStackBuilder
+import androidx.annotation.RequiresApi
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.app.TaskStackBuilder
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.StyleSpan
@@ -156,7 +156,7 @@ fun popNotificationSDK24(context: Context, list: List<NotificationHolder>, notif
 
         val replyPendingIntent = PendingIntent.getBroadcast(context, 100, ActionNotificationReply.createIntent(context, chatUUID, id), PendingIntent.FLAG_UPDATE_CURRENT)
 
-        val remoteInput = android.support.v4.app.RemoteInput.Builder(KEY_NOTIFICATION_REPLY)
+        val remoteInput = androidx.core.app.RemoteInput.Builder(KEY_NOTIFICATION_REPLY)
                 .setLabel(label)
                 .build()
 

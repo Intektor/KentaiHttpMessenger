@@ -4,8 +4,8 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.*
 import android.os.IBinder
-import android.support.v4.app.NotificationCompat
-import android.support.v4.app.NotificationManagerCompat
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import de.intektor.mercury.MercuryClient
 import de.intektor.mercury.R
 import de.intektor.mercury.action.reference.ActionDownloadReferenceFinished

@@ -1,7 +1,7 @@
 package de.intektor.mercury.chat
 
 import android.database.sqlite.SQLiteDatabase
-import android.support.test.InstrumentationRegistry
+import androidx.test.InstrumentationRegistry
 import de.intektor.mercury_common.chat.ChatMessage
 import de.intektor.mercury_common.chat.ChatType
 import de.intektor.mercury_common.chat.MessageCore

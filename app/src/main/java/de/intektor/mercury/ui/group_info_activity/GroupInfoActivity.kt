@@ -8,9 +8,9 @@ import android.content.IntentFilter
 import android.database.sqlite.SQLiteDatabase
 import android.graphics.Color
 import android.os.Bundle
-import android.support.v7.app.AlertDialog
-import android.support.v7.app.AppCompatActivity
-import android.support.v7.widget.LinearLayoutManager
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
 import android.view.ContextMenu
 import android.view.MenuItem
 import android.view.View
@@ -111,7 +111,7 @@ class GroupInfoActivity : AppCompatActivity() {
                 { contact -> contact.userUUID != clientRole })
 
         groupInfoMemberList.adapter = groupMemberAdapter
-        groupInfoMemberList.layoutManager = LinearLayoutManager(this)
+        groupInfoMemberList.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
 
         groupInfoEditGroup.setOnClickListener {
             val dialogBuilder = AlertDialog.Builder(this@GroupInfoActivity)

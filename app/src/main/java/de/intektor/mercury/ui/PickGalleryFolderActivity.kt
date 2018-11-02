@@ -6,10 +6,10 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.provider.MediaStore
-import android.support.v7.app.AppCompatActivity
-import android.support.v7.view.ActionMode
-import android.support.v7.widget.GridLayoutManager
-import android.support.v7.widget.RecyclerView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.view.ActionMode
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -23,6 +23,7 @@ import de.intektor.mercury.ui.chat.adapter.chat.HeaderItemDecoration
 import de.intektor.mercury.ui.util.MediaAdapter
 import de.intektor.mercury.util.KEY_CHAT_INFO
 import kotlinx.android.synthetic.main.activity_pick_gallery_folder.*
+import kotlinx.android.synthetic.main.chat_item.*
 import org.threeten.bp.*
 
 class PickGalleryFolderActivity : AppCompatActivity() {
@@ -83,10 +84,7 @@ class PickGalleryFolderActivity : AppCompatActivity() {
 
         val clickCallback: (GalleryMediaFile, MediaAdapter.MediaViewHolder<GalleryMediaFile>) -> Unit = { item, holder ->
             if (!selectingMore) {
-                val startMedia = Intent(this, SendMediaActivity::class.java)
-                startMedia.putExtra(KEY_CHAT_INFO, chatInfo)
-//                startMedia.putParcelableArrayListExtra(KEY_MEDIA_URL, ArrayList(listOf(Uri.fromFile(item.file))))
-                startActivityForResult(startMedia, ACTION_SEND_MEDIA)
+                startActivityForResult(SendMediaActivity.createIntent(this, chatInfo, folderId, listOf(item.file)), ACTION_SEND_MEDIA)
             } else {
                 holder.setSelected(!item.selected)
 
@@ -121,8 +119,8 @@ class PickGalleryFolderActivity : AppCompatActivity() {
 
         pickGalleryFolderList.adapter = adapter
 
-        val layoutManager = GridLayoutManager(this, 5)
-        layoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+        val layoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 5)
+        layoutManager.spanSizeLookup = object : androidx.recyclerview.widget.GridLayoutManager.SpanSizeLookup() {
             override fun getSpanSize(position: Int): Int {
                 return when (loadedListItems[position]) {
                     is MediaAdapter.MediaFileHeader -> 5
@@ -156,10 +154,7 @@ class PickGalleryFolderActivity : AppCompatActivity() {
             override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
                 when (item.itemId) {
                     R.id.menuPickGalleryActionModeSend -> {
-                        val startMedia = Intent(this@PickGalleryFolderActivity, SendMediaActivity::class.java)
-                        startMedia.putExtra(KEY_CHAT_INFO, chatInfo)
-//                        startMedia.putParcelableArrayListExtra(KEY_MEDIA_URL, ArrayList(selectedFiles.map { Uri.fromFile(it.file) }))
-                        startActivityForResult(startMedia, ACTION_SEND_MEDIA)
+                        startActivityForResult(SendMediaActivity.createIntent(this@PickGalleryFolderActivity, chatInfo, folderId, selectedFiles.map { it.file }), ACTION_SEND_MEDIA)
                         return true
                     }
                 }
@@ -189,6 +184,8 @@ class PickGalleryFolderActivity : AppCompatActivity() {
 
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
+        supportActionBar?.title = folderName
+
         val lastTime = contentResolver.query(
                 MediaStore.Files.getContentUri("external"),
                 arrayOf(MediaStore.MediaColumns.DATE_ADDED), "${MediaStore.Files.FileColumns.PARENT} = ?",
@@ -199,8 +196,8 @@ class PickGalleryFolderActivity : AppCompatActivity() {
             cursor.getLong(0)
         }
 
-        pickGalleryFolderList.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+        pickGalleryFolderList.addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: androidx.recyclerview.widget.RecyclerView, dx: Int, dy: Int) {
                 val lastVisible = layoutManager.findLastVisibleItemPosition()
 
                 if (lastVisible > loadedListItems.size - 15 && !hasReachedLimit) {
@@ -250,7 +247,8 @@ class PickGalleryFolderActivity : AppCompatActivity() {
         return contentResolver.query(
                 MediaStore.Files.getContentUri("external"),
                 arrayOf(MediaStore.MediaColumns._ID, MediaStore.Files.FileColumns.MEDIA_TYPE, MediaStore.MediaColumns.DATE_ADDED),
-                "${MediaStore.Files.FileColumns.PARENT} = ? AND ${MediaStore.Files.FileColumns.DATE_ADDED} > ? AND ${MediaStore.Files.FileColumns.DATE_ADDED} < ?",
+                "${MediaStore.Files.FileColumns.PARENT} = ? AND ${MediaStore.Files.FileColumns.DATE_ADDED} > ? AND ${MediaStore.Files.FileColumns.DATE_ADDED} < ? " +
+                        "AND ${MediaStore.Files.FileColumns.MEDIA_TYPE} IN (${MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE}, ${MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO})",
                 arrayOf("$folderId", "$minimum", "$maximum"),
                 "${MediaStore.MediaColumns.DATE_ADDED} DESC").use { cursor ->
 

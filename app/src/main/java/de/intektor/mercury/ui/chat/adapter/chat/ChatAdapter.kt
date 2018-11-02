@@ -1,6 +1,6 @@
 package de.intektor.mercury.ui.chat.adapter.chat
 
-import android.support.v7.widget.RecyclerView
+import androidx.recyclerview.widget.RecyclerView
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.Toast
@@ -20,7 +20,7 @@ import java.util.*
 class ChatAdapter(private val componentList: MutableList<ChatAdapterWrapper<*>>,
                   val chatInfo: ChatInfo,
                   val contactMap: Map<UUID, Contact>,
-                  val activity: ChatActivity) : RecyclerView.Adapter<AbstractViewHolder<out Any>>() {
+                  val activity: ChatActivity) : androidx.recyclerview.widget.RecyclerView.Adapter<AbstractViewHolder<out Any>>() {
 
     companion object {
         const val TEXT_MESSAGE_ID = 0

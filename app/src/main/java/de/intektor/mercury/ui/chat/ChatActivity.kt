@@ -14,11 +14,11 @@ import android.net.Uri
 import android.os.AsyncTask
 import android.os.Bundle
 import android.os.Handler
-import android.support.v4.app.NotificationManagerCompat
-import android.support.v4.content.LocalBroadcastManager
-import android.support.v7.app.AppCompatActivity
-import android.support.v7.widget.LinearLayoutManager
-import android.support.v7.widget.RecyclerView
+import androidx.core.app.NotificationManagerCompat
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import android.text.Editable
 import android.text.TextWatcher
 import android.text.format.DateUtils
@@ -205,7 +205,7 @@ class ChatActivity : AppCompatActivity() {
             upToDate = false
         }
 
-        val lM = LinearLayoutManager(this)
+        val lM = androidx.recyclerview.widget.LinearLayoutManager(this)
         chatActivityMessageList.layoutManager = lM
         lM.stackFromEnd = true
 
@@ -253,7 +253,7 @@ class ChatActivity : AppCompatActivity() {
 
         viewingUsersAdapter = ViewingAdapter(viewingUsersList)
         chatActivityViewingUsersList.adapter = viewingUsersAdapter
-        chatActivityViewingUsersList.layoutManager = LinearLayoutManager(this)
+        chatActivityViewingUsersList.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
 
         val messages = load20Messages(this, mercuryClient.dataBase, true, chatInfo.chatUUID, firstMessageTime)
 
@@ -982,7 +982,7 @@ override fun onResume() {
         if (onBottom) scrollToBottom()
     }
 
-    LocalBroadcastManager.getInstance(this).apply {
+    androidx.localbroadcastmanager.content.LocalBroadcastManager.getInstance(this).apply {
         registerReceiver(uploadProgressReceiver, ActionUploadReferenceProgress.getFilter())
         registerReceiver(uploadReferenceFinishedReceiver, ActionUploadReferenceFinished.getFilter())
         registerReceiver(downloadProgressReceiver, ActionDownloadReferenceProgress.getFilter())
@@ -1010,7 +1010,7 @@ override fun onPause() {
     super.onPause()
     val mercuryClient = applicationContext as MercuryClient
 
-    LocalBroadcastManager.getInstance(this).apply {
+    androidx.localbroadcastmanager.content.LocalBroadcastManager.getInstance(this).apply {
         unregisterReceiver(uploadProgressReceiver)
         unregisterReceiver(uploadReferenceFinishedReceiver)
         unregisterReceiver(downloadProgressReceiver)
@@ -1454,12 +1454,12 @@ private val editActionMode = object : ActionMode.Callback {
     }
 }
 
-private inner class ChatListScrollListener : RecyclerView.OnScrollListener() {
-    override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+private inner class ChatListScrollListener : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
+    override fun onScrolled(recyclerView: androidx.recyclerview.widget.RecyclerView, dx: Int, dy: Int) {
         onTop = !recyclerView.canScrollVertically(-1)
         onBottom = !recyclerView.canScrollVertically(1)
 
-        val layoutManager = recyclerView.layoutManager as LinearLayoutManager
+        val layoutManager = recyclerView.layoutManager as androidx.recyclerview.widget.LinearLayoutManager
 
         val firstVisibleIndex = layoutManager.findFirstVisibleItemPosition()
         val lastVisibleIndex = layoutManager.findLastVisibleItemPosition()

@@ -11,7 +11,6 @@
     <attr name="ic_perm_media" format="reference" />
     <attr name="ic_person_add" format="reference" />
     <attr name="ic_photo" format="reference" />
-    <attr name="ic_play_arrow" format="reference" />
     <attr name="ic_settings" format="reference" />
     <attr name="ic_share" format="reference" />
     <attr name="ic_pause" format="reference" />
@@ -42,7 +41,6 @@
         <item name="ic_perm_media">@drawable/ic_perm_media_white_24dp</item>
         <item name="ic_person_add">@drawable/ic_person_add_white_24dp</item>
         <item name="ic_photo">@drawable/ic_photo_white_24dp</item>
-        <item name="ic_play_arrow">@drawable/ic_play_arrow_white_24dp</item>
         <item name="ic_settings">@drawable/ic_settings_white_24dp</item>
         <item name="ic_share">@drawable/ic_share_white_24dp</item>
         <item name="ic_pause">@drawable/ic_pause_white_24dp</item>
@@ -71,7 +69,6 @@
         <item name="ic_perm_media">@drawable/ic_perm_media_black_24dp</item>
         <item name="ic_person_add">@drawable/ic_person_add_black_24dp</item>
         <item name="ic_photo">@drawable/ic_photo_black_24dp</item>
-        <item name="ic_play_arrow">@drawable/ic_play_arrow_black_24dp</item>
         <item name="ic_settings">@drawable/ic_settings_black_24dp</item>
         <item name="ic_share">@drawable/ic_share_black_24dp</item>
         <item name="ic_pause">@drawable/ic_pause_black_24dp</item>

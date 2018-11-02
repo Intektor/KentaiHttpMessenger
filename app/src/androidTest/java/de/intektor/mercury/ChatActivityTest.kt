@@ -1,8 +1,8 @@
 package de.intektor.mercury
 
 import android.database.sqlite.SQLiteDatabase
-import android.support.test.InstrumentationRegistry
-import android.support.test.filters.LargeTest
+import androidx.test.InstrumentationRegistry
+import androidx.test.filters.LargeTest
 import de.intektor.mercury.android.mercuryClient
 import de.intektor.mercury.chat.ChatInfo
 import de.intektor.mercury.contacts.Contact

@@ -1,7 +1,7 @@
 package de.intektor.mercury.ui.util
 
 import android.provider.MediaStore
-import android.support.v7.widget.RecyclerView
+import androidx.recyclerview.widget.RecyclerView
 import android.text.format.DateUtils
 import android.view.LayoutInflater
 import android.view.View
@@ -17,7 +17,7 @@ import java.util.*
 
 class MediaAdapter<T : MediaAdapter.MediaFile>(
         private val componentList: List<Any>, private val clickCallback: (T, MediaViewHolder<T>) -> Unit,
-        private val longClickCallback: (T, MediaViewHolder<T>) -> Unit) : RecyclerView.Adapter<BindableViewHolder<Any>>() {
+        private val longClickCallback: (T, MediaViewHolder<T>) -> Unit) : androidx.recyclerview.widget.RecyclerView.Adapter<BindableViewHolder<Any>>() {
 
     companion object {
         private const val MEDIA_FILE_ITEM = 0

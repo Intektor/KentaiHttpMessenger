@@ -4,7 +4,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.support.v4.content.LocalBroadcastManager
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import de.intektor.mercury.android.getUUIDExtra
 import de.intektor.mercury.io.ChatMessageService
 import java.util.*
@@ -31,7 +31,7 @@ object ActionUploadReferenceFinished {
                     .putExtra(EXTRA_SUCCESSFUL, successful)
 
     fun launch(context: Context, referenceUuid: UUID, successful: Boolean) {
-        LocalBroadcastManager.getInstance(context).sendBroadcast(createIntent(context, referenceUuid, successful))
+        androidx.localbroadcastmanager.content.LocalBroadcastManager.getInstance(context).sendBroadcast(createIntent(context, referenceUuid, successful))
     }
 
     fun getData(intent: Intent): Holder {

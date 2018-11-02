@@ -2,13 +2,13 @@ package de.intektor.mercury
 
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
-import android.support.test.espresso.Espresso
-import android.support.test.espresso.ViewAssertion
-import android.support.test.espresso.action.ViewActions
-import android.support.test.espresso.assertion.ViewAssertions
-import android.support.test.espresso.intent.matcher.IntentMatchers
-import android.support.test.espresso.matcher.ViewMatchers
-import android.support.v7.widget.RecyclerView
+import androidx.test.espresso.Espresso
+import androidx.test.espresso.ViewAssertion
+import androidx.test.espresso.action.ViewActions
+import androidx.test.espresso.assertion.ViewAssertions
+import androidx.test.espresso.intent.matcher.IntentMatchers
+import androidx.test.espresso.matcher.ViewMatchers
+import androidx.recyclerview.widget.RecyclerView
 import android.view.View
 import de.intektor.mercury.chat.*
 import de.intektor.mercury.contacts.Contact
@@ -49,7 +49,7 @@ fun hasAction(action: String) = IntentMatchers.hasAction(action)
 fun <T> hasExtra(key: String, value: T) = IntentMatchers.hasExtra(key, value)
 
 fun hasNChildren(amount: Int) = ViewAssertion { view, noViewFoundException ->
-    if (view !is RecyclerView) throw noViewFoundException
+    if (view !is androidx.recyclerview.widget.RecyclerView) throw noViewFoundException
 
     val adapter = view.adapter ?: error("no adapter set")
     assertThat(adapter.itemCount, `is`(amount))

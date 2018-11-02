@@ -1,9 +1,9 @@
 package de.intektor.mercury.ui.overview_activity
 
 import android.os.Bundle
-import android.support.v4.app.Fragment
-import android.support.v7.app.AlertDialog
-import android.support.v7.widget.LinearLayoutManager
+import androidx.fragment.app.Fragment
+import androidx.appcompat.app.AlertDialog
+import androidx.recyclerview.widget.LinearLayoutManager
 import android.view.*
 import de.intektor.mercury.R
 import de.intektor.mercury.android.mercuryClient
@@ -19,7 +19,7 @@ import java.util.*
 import kotlin.collections.HashMap
 
 
-class FragmentChatsOverview : Fragment() {
+class FragmentChatsOverview : androidx.fragment.app.Fragment() {
 
     val shownChatList: MutableList<ChatListViewAdapter.ChatItem> = mutableListOf()
     val chatMap: HashMap<UUID, ChatItem> = HashMap()
@@ -51,7 +51,7 @@ class FragmentChatsOverview : Fragment() {
             }
         }, this@FragmentChatsOverview)
 
-        fragment_chat_list_rv_chats.layoutManager = LinearLayoutManager(context)
+        fragment_chat_list_rv_chats.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(context)
         fragment_chat_list_rv_chats.adapter = chatsAdapter
 
         super.onViewCreated(view, savedInstanceState)

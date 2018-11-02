@@ -3,7 +3,7 @@ package de.intektor.mercury.action.group
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.support.v4.content.LocalBroadcastManager
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import de.intektor.mercury.android.getGroupModificationExtra
 import de.intektor.mercury.android.getUUIDExtra
 import de.intektor.mercury.android.putExtra
@@ -31,7 +31,7 @@ object ActionGroupModificationReceived {
                     .putExtra(EXTRA_MODIFICATION, modification)
 
     fun launch(context: Context, chatUuid: UUID, modification: GroupModification) {
-        LocalBroadcastManager.getInstance(context).sendBroadcast(createIntent(context, chatUuid, modification))
+        androidx.localbroadcastmanager.content.LocalBroadcastManager.getInstance(context).sendBroadcast(createIntent(context, chatUuid, modification))
     }
 
     fun getData(intent: Intent): Holder {

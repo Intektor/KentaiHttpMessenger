@@ -3,7 +3,7 @@ package de.intektor.mercury.action.user
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.support.v4.content.LocalBroadcastManager
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import de.intektor.mercury.android.getEnumExtra
 import de.intektor.mercury.android.getUUIDExtra
 import de.intektor.mercury.android.putEnumExtra
@@ -33,7 +33,7 @@ object ActionUserStatusChange {
                     .putExtra(EXTRA_TIME, time)
 
     fun launch(context: Context, userUuid: UUID, status: Status, time: Long) {
-        LocalBroadcastManager.getInstance(context).sendBroadcast(createIntent(context, userUuid, status, time))
+        androidx.localbroadcastmanager.content.LocalBroadcastManager.getInstance(context).sendBroadcast(createIntent(context, userUuid, status, time))
     }
 
     fun getData(intent: Intent): Holder {

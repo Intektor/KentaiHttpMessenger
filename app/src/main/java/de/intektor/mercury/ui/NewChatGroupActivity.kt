@@ -1,11 +1,11 @@
 package de.intektor.mercury.ui
 
 import android.os.Bundle
-import android.support.v7.app.AlertDialog
-import android.support.v7.app.AppCompatActivity
-import android.support.v7.widget.LinearLayoutManager
-import android.support.v7.widget.RecyclerView
-import android.support.v7.widget.SearchView
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import androidx.appcompat.widget.SearchView
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.*
@@ -35,7 +35,7 @@ import java.util.*
 import javax.crypto.SecretKey
 import kotlin.collections.HashMap
 
-class NewChatGroupActivity : AppCompatActivity(), android.support.v7.widget.SearchView.OnQueryTextListener {
+class NewChatGroupActivity : AppCompatActivity(), androidx.appcompat.widget.SearchView.OnQueryTextListener {
 
     private val contactList = mutableListOf<ContactAdapter.ContactWrapper>()
     private val shownContactList = mutableListOf<ContactAdapter.ContactWrapper>()
@@ -53,7 +53,7 @@ class NewChatGroupActivity : AppCompatActivity(), android.support.v7.widget.Sear
 
         val mercuryClient = applicationContext as MercuryClient
 
-        contactListView.layoutManager = LinearLayoutManager(this)
+        contactListView.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
 
         val contactList = mutableListOf<Contact>()
         val cursor = mercuryClient.dataBase.rawQuery("SELECT username, alias, user_uuid, message_key FROM contacts;", null)
@@ -102,7 +102,7 @@ class NewChatGroupActivity : AppCompatActivity(), android.support.v7.widget.Sear
         }
         selectedContacts.adapter = selectedAdapter
 
-        selectedContacts.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        selectedContacts.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this, androidx.recyclerview.widget.LinearLayoutManager.HORIZONTAL, false)
 
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
     }
@@ -204,7 +204,7 @@ class NewChatGroupActivity : AppCompatActivity(), android.support.v7.widget.Sear
         return true
     }
 
-    private class SelectedContactsAdapter(val selectedList: List<ContactAdapter.ContactWrapper>, val onClick: (ContactAdapter.ContactWrapper) -> Unit) : RecyclerView.Adapter<SelectedViewHolder>() {
+    private class SelectedContactsAdapter(val selectedList: List<ContactAdapter.ContactWrapper>, val onClick: (ContactAdapter.ContactWrapper) -> Unit) : androidx.recyclerview.widget.RecyclerView.Adapter<SelectedViewHolder>() {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SelectedViewHolder {
             val view = LayoutInflater.from(parent.context).inflate(R.layout.chat_item_small, parent, false)
@@ -230,7 +230,7 @@ class NewChatGroupActivity : AppCompatActivity(), android.support.v7.widget.Sear
         }
     }
 
-    private class SelectedViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+    private class SelectedViewHolder(view: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {
         val image: ImageView = view.findViewById(R.id.chatItemSmallProfilePicture)
     }
 

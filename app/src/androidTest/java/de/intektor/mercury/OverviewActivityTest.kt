@@ -2,13 +2,13 @@ package de.intektor.mercury
 
 import android.content.Intent
 import android.database.sqlite.SQLiteDatabase
-import android.support.test.InstrumentationRegistry
-import android.support.test.espresso.action.ViewActions
-import android.support.test.espresso.contrib.RecyclerViewActions
-import android.support.test.espresso.intent.Intents
-import android.support.test.filters.LargeTest
-import android.support.test.runner.AndroidJUnit4
-import android.support.v7.widget.RecyclerView
+import androidx.test.InstrumentationRegistry
+import androidx.test.espresso.action.ViewActions
+import androidx.test.espresso.contrib.RecyclerViewActions
+import androidx.test.espresso.intent.Intents
+import androidx.test.filters.LargeTest
+import androidx.test.runner.AndroidJUnit4
+import androidx.recyclerview.widget.RecyclerView
 import de.intektor.mercury.android.mercuryClient
 import de.intektor.mercury.chat.ChatInfo
 import de.intektor.mercury.client.ClientPreferences
@@ -117,7 +117,7 @@ class OverviewActivityTest {
     fun performSearchForUser0Chat() {
         openSearchBox()
 
-        onView(withId(android.support.design.R.id.search_src_text)).perform(typeText("User 0"))
+        onView(withId(com.google.android.material.R.id.search_src_text)).perform(typeText("User 0"))
 
         onView(withId(R.id.activity_overview_rv_search_layout)).check(matches(isDisplayed()))
     }
@@ -126,7 +126,7 @@ class OverviewActivityTest {
     fun performSearchForMessagesContainingHello() {
         openSearchBox()
 
-        onView(withId(android.support.design.R.id.search_src_text)).perform(typeText("Hello"))
+        onView(withId(com.google.android.material.R.id.search_src_text)).perform(typeText("Hello"))
 
         onView(withId(R.id.activity_overview_rv_search_layout)).check(matches(isDisplayed()))
 
@@ -147,8 +147,8 @@ class OverviewActivityTest {
     @Test
     fun clickOnThirdChat() {
         onView(withId(R.id.fragment_chat_list_rv_chats))
-                .perform(RecyclerViewActions.scrollToPosition<RecyclerView.ViewHolder>(2))
-                .perform(RecyclerViewActions.actionOnItemAtPosition<RecyclerView.ViewHolder>(2, click()))
+                .perform(RecyclerViewActions.scrollToPosition<androidx.recyclerview.widget.RecyclerView.ViewHolder>(2))
+                .perform(RecyclerViewActions.actionOnItemAtPosition<androidx.recyclerview.widget.RecyclerView.ViewHolder>(2, click()))
 
         Intents.intending(Matchers.allOf(hasComponent(ChatActivity::class.java), hasExtra(KEY_CHAT_INFO, chats[2])))
     }

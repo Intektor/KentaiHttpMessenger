@@ -1,7 +1,7 @@
 package de.intektor.mercury.ui.overview_activity.fragment
 
-import android.support.v4.app.Fragment
-import android.support.v7.widget.RecyclerView
+import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.RecyclerView
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -22,7 +22,7 @@ import de.intektor.mercury_common.chat.ChatType
 import de.intektor.mercury_common.chat.MessageStatus
 import java.text.SimpleDateFormat
 
-class ChatListViewAdapter(private val chats: List<ChatItem>, private val clickResponse: (ChatItem) -> (Unit), val fragment: Fragment? = null) : RecyclerView.Adapter<ChatListViewAdapter.ChatItemViewHolder>() {
+class ChatListViewAdapter(private val chats: List<ChatItem>, private val clickResponse: (ChatItem) -> (Unit), val fragment: androidx.fragment.app.Fragment? = null) : androidx.recyclerview.widget.RecyclerView.Adapter<ChatListViewAdapter.ChatItemViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ChatItemViewHolder {
         val view = LayoutInflater.from(parent.context)

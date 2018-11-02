@@ -1,7 +1,7 @@
 package de.intektor.mercury.ui.chat.adapter.viewing
 
 import android.content.Intent
-import android.support.v7.widget.RecyclerView
+import androidx.recyclerview.widget.RecyclerView
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -14,7 +14,7 @@ import de.intektor.mercury.util.KEY_USER_UUID
 import de.intektor.mercury.contacts.Contact
 import de.intektor.mercury.util.getProfilePicture
 
-class ViewingAdapter(private val viewingUsers: List<ViewingUser>) : RecyclerView.Adapter<ViewingViewHolder>() {
+class ViewingAdapter(private val viewingUsers: List<ViewingUser>) : androidx.recyclerview.widget.RecyclerView.Adapter<ViewingViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewingViewHolder {
         val view = LayoutInflater.from(parent.context).inflate(R.layout.viewing_user_item, parent, false)
@@ -53,7 +53,7 @@ enum class UserState {
     TYPING,
 }
 
-class ViewingViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+class ViewingViewHolder(view: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {
     val profilePicture: ImageView = view.findViewById(R.id.viewingUserAccount)
     val username: TextView = view.findViewById(R.id.viewingUserState)
 }

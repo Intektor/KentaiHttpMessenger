@@ -42,7 +42,7 @@ class VoiceMessageViewHolder(itemView: View, chatAdapter: ChatAdapter) : ChatMes
             ReferenceState.FINISHED -> {
                 uploadBar.setGone()
 
-                playButton.setImageResource(if(item.isPlaying) R.drawable.baseline_pause_24 else R.drawable.baseline_play_arrow_24)
+                playButton.setImageResource(R.drawable.baseline_play_arrow_24)
             }
             ReferenceState.IN_PROGRESS -> {
                 playButton.setGone()

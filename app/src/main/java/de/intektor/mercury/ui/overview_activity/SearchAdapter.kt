@@ -1,6 +1,6 @@
 package de.intektor.mercury.ui.overview_activity
 
-import android.support.v7.widget.RecyclerView
+import androidx.recyclerview.widget.RecyclerView
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -17,7 +17,7 @@ import java.util.*
 /**
  * @author Intektor
  */
-class SearchAdapter(private val list: List<Any>, private val clickResponse: (Any) -> Unit) : RecyclerView.Adapter<BindableViewHolder<Any>>() {
+class SearchAdapter(private val list: List<Any>, private val clickResponse: (Any) -> Unit) : androidx.recyclerview.widget.RecyclerView.Adapter<BindableViewHolder<Any>>() {
 
     companion object {
         private const val CHAT_ID = 0

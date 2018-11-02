@@ -1,10 +1,10 @@
 package de.intektor.mercury.ui
 
 import android.os.Bundle
-import android.support.v7.app.AlertDialog
-import android.support.v7.app.AppCompatActivity
-import android.support.v7.widget.LinearLayoutManager
-import android.support.v7.widget.SearchView
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.appcompat.widget.SearchView
 import android.view.Menu
 import de.intektor.mercury.MercuryClient
 import de.intektor.mercury.R
@@ -22,7 +22,7 @@ import de.intektor.mercury_common.util.toKey
 import kotlinx.android.synthetic.main.activity_new_chat.*
 import java.util.*
 
-class NewChatUserActivity : AppCompatActivity(), android.support.v7.widget.SearchView.OnQueryTextListener {
+class NewChatUserActivity : AppCompatActivity(), androidx.appcompat.widget.SearchView.OnQueryTextListener {
 
     private val contactList = mutableListOf<ContactAdapter.ContactWrapper>()
     private val shownContactsList = mutableListOf<ContactAdapter.ContactWrapper>()
@@ -38,7 +38,7 @@ class NewChatUserActivity : AppCompatActivity(), android.support.v7.widget.Searc
 
         val mercuryClient = applicationContext as MercuryClient
 
-        new_chat_list.layoutManager = LinearLayoutManager(this)
+        new_chat_list.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
 
         val contactList = mutableListOf<ContactAdapter.ContactWrapper>()
         val cursor = mercuryClient.dataBase.rawQuery("SELECT username, alias, user_uuid, message_key FROM contacts;", null)

@@ -4,10 +4,10 @@ import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
-import android.support.v7.app.AppCompatActivity
-import android.support.v7.widget.LinearLayoutManager
-import android.support.v7.widget.RecyclerView
-import android.support.v7.widget.SearchView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import androidx.appcompat.widget.SearchView
 import android.view.LayoutInflater
 import android.view.Menu
 import android.view.View
@@ -67,7 +67,7 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
 
         val mercuryClient = applicationContext as MercuryClient
 
-        shareReceiveList.layoutManager = LinearLayoutManager(this)
+        shareReceiveList.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
 
         totalList += readChats(mercuryClient.dataBase, this).sortedByDescending {
             it.lastChatMessage?.chatMessageInfo?.message?.messageCore?.timeCreated ?: 0L
@@ -101,7 +101,7 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
         }
 
         shareReceiveSelected.adapter = selectedAdapter
-        shareReceiveSelected.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        shareReceiveSelected.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this, androidx.recyclerview.widget.LinearLayoutManager.HORIZONTAL, false)
 
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
@@ -283,7 +283,7 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
         finish()
     }
 
-    private class SelectedChatsAdapter(val selectedList: MutableList<ChatListViewAdapter.ChatItem>, val onClick: (ChatListViewAdapter.ChatItem) -> (Unit)) : RecyclerView.Adapter<SelectedViewHolder>() {
+    private class SelectedChatsAdapter(val selectedList: MutableList<ChatListViewAdapter.ChatItem>, val onClick: (ChatListViewAdapter.ChatItem) -> (Unit)) : androidx.recyclerview.widget.RecyclerView.Adapter<SelectedViewHolder>() {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SelectedViewHolder {
             val view = LayoutInflater.from(parent.context).inflate(R.layout.chat_item_small, parent, false)
@@ -314,7 +314,7 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
         }
     }
 
-    private class SelectedViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+    private class SelectedViewHolder(view: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {
         val image: ImageView = view.findViewById(R.id.chatItemSmallProfilePicture)
     }
 }

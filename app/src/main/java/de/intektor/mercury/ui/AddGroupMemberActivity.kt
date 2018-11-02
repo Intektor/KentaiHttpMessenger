@@ -3,11 +3,11 @@ package de.intektor.mercury.ui
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import android.support.v4.view.MenuItemCompat
-import android.support.v7.app.AlertDialog
-import android.support.v7.app.AppCompatActivity
-import android.support.v7.widget.LinearLayoutManager
-import android.support.v7.widget.SearchView
+import androidx.core.view.MenuItemCompat
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.appcompat.widget.SearchView
 import android.view.Menu
 import de.intektor.mercury.MercuryClient
 import de.intektor.mercury.R
@@ -19,7 +19,7 @@ import de.intektor.mercury.util.KEY_CHAT_INFO
 import de.intektor.mercury.util.KEY_USER_UUID
 import kotlinx.android.synthetic.main.activity_add_group_member.*
 
-class AddGroupMemberActivity : AppCompatActivity(), android.support.v7.widget.SearchView.OnQueryTextListener {
+class AddGroupMemberActivity : AppCompatActivity(), androidx.appcompat.widget.SearchView.OnQueryTextListener {
 
     private val contactList = mutableListOf<ContactAdapter.ContactWrapper>()
     private val shownContactsList = mutableListOf<ContactAdapter.ContactWrapper>()
@@ -55,7 +55,7 @@ class AddGroupMemberActivity : AppCompatActivity(), android.support.v7.widget.Se
                     .create().show()
         }, false, { _, _ -> }, { _ -> false })
 
-        addGroupMemberContacts.layoutManager = LinearLayoutManager(this)
+        addGroupMemberContacts.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
 
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
     }

@@ -3,7 +3,7 @@ package de.intektor.mercury.action.reference
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.support.v4.content.LocalBroadcastManager
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import de.intektor.mercury.android.getUUIDExtra
 import java.util.*
 
@@ -28,7 +28,7 @@ object ActionDownloadReferenceProgress {
                     .putExtra(EXTRA_PROGRESS, progress)
 
     fun launch(context: Context, referenceUuid: UUID, progress: Double) {
-        LocalBroadcastManager.getInstance(context).sendBroadcast(createIntent(context, referenceUuid, progress))
+        androidx.localbroadcastmanager.content.LocalBroadcastManager.getInstance(context).sendBroadcast(createIntent(context, referenceUuid, progress))
     }
 
     fun getData(intent: Intent): Holder {

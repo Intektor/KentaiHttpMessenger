@@ -1,7 +1,7 @@
 package de.intektor.mercury.ui.overview_activity.fragment
 
 import android.app.Activity
-import android.support.v7.widget.RecyclerView
+import androidx.recyclerview.widget.RecyclerView
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -16,7 +16,7 @@ import de.intektor.mercury.contacts.Contact
 import de.intektor.mercury.util.getName
 import de.intektor.mercury.util.getProfilePicture
 
-class ContactAdapter(val contacts: List<ContactWrapper>, private val callbackClickView: (ContactWrapper, ViewHolder) -> Unit, private val showCheckBox: Boolean = false, val callbackClickCheckBox: (ContactWrapper, ViewHolder) -> Unit, private val registerForContextMenu: (Contact) -> Boolean) : RecyclerView.Adapter<ContactAdapter.ViewHolder>() {
+class ContactAdapter(val contacts: List<ContactWrapper>, private val callbackClickView: (ContactWrapper, ViewHolder) -> Unit, private val showCheckBox: Boolean = false, val callbackClickCheckBox: (ContactWrapper, ViewHolder) -> Unit, private val registerForContextMenu: (Contact) -> Boolean) : androidx.recyclerview.widget.RecyclerView.Adapter<ContactAdapter.ViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         val view = LayoutInflater.from(parent.context).inflate(R.layout.contact_item, parent, false)
@@ -76,7 +76,7 @@ class ContactAdapter(val contacts: List<ContactWrapper>, private val callbackCli
 
     override fun getItemCount(): Int = contacts.size
 
-    inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+    inner class ViewHolder(view: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {
         val text: TextView = view.findViewById(R.id.contactName)
         val checkBox: CheckBox = view.findViewById(R.id.contact_selected)
         val profilePicture: ImageView = view.findViewById(R.id.profilePicture)

@@ -1,32 +1,62 @@
 package de.intektor.mercury.ui
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.os.Parcel
 import android.os.Parcelable
-import android.support.v7.app.AppCompatActivity
-import android.support.v7.widget.LinearLayoutManager
-import android.support.v7.widget.RecyclerView
+import android.provider.MediaStore
+import androidx.appcompat.app.AppCompatActivity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
+import androidx.fragment.app.Fragment
+import androidx.fragment.app.FragmentPagerAdapter
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import androidx.viewpager.widget.ViewPager
 import de.intektor.mercury.R
 import de.intektor.mercury.android.*
 import de.intektor.mercury.chat.ChatInfo
-import de.intektor.mercury.util.KEY_CHAT_INFO
-import de.intektor.mercury.util.KEY_MEDIA_DATA
-import de.intektor.mercury.util.KEY_MEDIA_URL
+import de.intektor.mercury.task.ThumbnailUtil
+import de.intektor.mercury.ui.support.FragmentViewImage
 import kotlinx.android.synthetic.main.activity_send_media.*
 import java.io.File
+import java.lang.IllegalStateException
 
 class SendMediaActivity : AppCompatActivity() {
 
     private lateinit var smallMediaAdapter: SmallMediaAdapter
 
     private var mediaMap = mutableMapOf<MediaPreview, MediaData>()
+
+    private var currentlySelected: Int = 0
+
+    companion object {
+        private const val EXTRA_CHAT_INFO = "de.intektor.mercury.EXTRA_CHAT_INFO"
+        private const val EXTRA_FOLDER_ID = "de.intektor.mercury.EXTRA_FOLDER_ID"
+        private const val EXTRA_FILES = "de.intektor.mercury.EXTRA_FILES"
+
+        fun createIntent(context: Context, chatInfo: ChatInfo, folderId: Long, files: List<ThumbnailUtil.PreviewFile>): Intent {
+            return Intent(context, SendMediaActivity::class.java)
+                    .putExtra(EXTRA_CHAT_INFO, chatInfo)
+                    .putExtra(EXTRA_FOLDER_ID, folderId)
+                    .putExtra(EXTRA_FILES, ArrayList(files))
+        }
+
+
+        fun getData(intent: Intent): Holder {
+            val chatInfo = intent.getChatInfoExtra(EXTRA_CHAT_INFO)
+            val folderId = intent.getLongExtra(EXTRA_FOLDER_ID, 0)
+            val files = intent.getParcelableArrayListExtra<ThumbnailUtil.PreviewFile>(EXTRA_FILES)
+            return Holder(chatInfo, folderId, files)
+        }
+
+        data class Holder(val chatInfo: ChatInfo, val folderId: Long, val itemIds: List<ThumbnailUtil.PreviewFile>)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,45 +65,33 @@ class SendMediaActivity : AppCompatActivity() {
 
         setContentView(R.layout.activity_send_media)
 
-        val chatInfo: ChatInfo = intent.getParcelableExtra(KEY_CHAT_INFO)
-
-        val mediaUri = intent.getParcelableArrayListExtra<Uri>(KEY_MEDIA_URL)
+        val (chatInfo, _, files) = getData(intent)
 
         supportActionBar?.title = getString(R.string.send_media_activity_title, chatInfo.chatName)
 
-        val media: List<MediaPreview> = mediaUri.map {
-            val file = if (File(it.path).exists()) File(it.path) else {
-                val imagePath = getRealImagePath(it, this)
-                if (imagePath.isNotBlank()) File(imagePath)
-                val videoPath = getRealVideoPath(it, this)
-                File(videoPath)
-            }
-            MediaPreview(it, file, false, false)
-        }
+        val media = files.map { MediaPreview(it, false) }.sortedByDescending { it.file.id }
+
+        media.forEach { mediaMap[it] = MediaData(it.file, "", false) }
 
         media[0].selected = true
 
-        activitySendMediaButton.setOnClickListener {
+        activity_send_media_iv_send.setOnClickListener {
             val selected = media.first { it.selected }
-            mediaMap[selected] = MediaData(selected.uri, selected.file, activitySendMediaInput.text.toString(), activitySendMediaVideoGifButton.isChecked)
+            mediaMap[selected]?.text = activitySendMediaInput.text.toString()
+            mediaMap[selected]?.gif = activitySendMediaVideoGifButton.isSelected
 
-            val resultData = Intent()
-            resultData.putParcelableArrayListExtra(KEY_MEDIA_DATA, ArrayList(mediaMap.values))
-            setResult(Activity.RESULT_OK, resultData)
-            finish()
+            //TODO
+//            val resultData = Intent()
+//            resultData.putParcelableArrayListExtra(KEY_MEDIA_DATA, ArrayList(mediaMap.values))
+//            setResult(Activity.RESULT_OK, resultData)
+//            finish()
         }
 
         smallMediaAdapter = SmallMediaAdapter(media) { item ->
-            val old = media.first { it.selected }
-            mediaMap[old] = MediaData(item.uri, item.file, activitySendMediaInput.text.toString(), activitySendMediaVideoGifButton.isChecked)
+            val index = media.indexOf(item)
+            setCurrentMedia(index, media)
 
-            old.selected = false
-            smallMediaAdapter.notifyItemChanged(media.indexOf(old))
-
-            item.selected = true
-            smallMediaAdapter.notifyItemChanged(media.indexOf(item))
-
-            setCurrentMedia(item)
+            activity_send_media_vp_content.setCurrentItem(index, true)
         }
 
         activitySendMediaOther.adapter = smallMediaAdapter
@@ -83,55 +101,47 @@ class SendMediaActivity : AppCompatActivity() {
             activitySendMediaOther.visibility = View.GONE
         }
 
-        setCurrentMedia(media[0])
+        val pagerAdapter = object : FragmentPagerAdapter(supportFragmentManager) {
+            override fun getItem(position: Int): Fragment = FragmentViewImage.create(media[position].file)
+
+            override fun getCount(): Int = files.size
+        }
+        activity_send_media_vp_content.adapter = pagerAdapter
+
+        activity_send_media_vp_content.addOnPageChangeListener(object : ViewPager.OnPageChangeListener {
+            override fun onPageScrollStateChanged(state: Int) = Unit
+
+            override fun onPageScrolled(position: Int, positionOffset: Float, positionOffsetPixels: Int) = Unit
+
+            override fun onPageSelected(position: Int) {
+                setCurrentMedia(position, media)
+            }
+        })
+
+        setCurrentMedia(0, media)
 
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
     }
 
-    private fun setCurrentMedia(media: MediaPreview) {
-        activitySendMediaVideo.visibility = View.GONE
+    private fun setCurrentMedia(index: Int, media: List<MediaPreview>) {
+        val previousSelection = media[currentlySelected]
+        previousSelection.selected = false
+        mediaMap[previousSelection]?.text = activitySendMediaInput.text.toString()
+        mediaMap[previousSelection]?.gif = activitySendMediaVideoGifButton.isSelected
+        smallMediaAdapter.notifyItemChanged(currentlySelected)
+
         activitySendMediaVideoGifButton.visibility = View.GONE
 
-        activitySendMediaInput.setText(mediaMap[media]?.text ?: "")
+        activitySendMediaInput.setText(mediaMap[media[index]]?.text ?: "")
 
-        activitySendMediaVideoGifButton.isChecked = mediaMap[media]?.gif ?: false
+        activitySendMediaVideoGifButton.isChecked = mediaMap[media[index]]?.gif ?: false
 
-        activitySendMediaVideoLayout.visibility = View.GONE
+        media[index].selected = true
+        smallMediaAdapter.notifyItemChanged(index)
 
-        //TODO
-//        if (isImage(media.file)) {
-//            activitySendMediaImage.setImageURI(Uri.fromFile(media.file))
-//            activitySendMediaImage.visibility = View.VISIBLE
-//
-//        } else if (isVideo(media.file)) {
-//            activitySendMediaImage.visibility = View.GONE
-//            val mediaController = MediaController(this, true)
-//            mediaController.setAnchorView(activitySendMediaVideo)
-//            activitySendMediaVideo.setMediaController(mediaController)
-//
-//            activitySendMediaVideoLayout.visibility = View.VISIBLE
-//
-//            activitySendMediaVideoGifButton.visibility = View.VISIBLE
-//
-//            activitySendMediaVideo.setOnCompletionListener {
-//                activitySendMediaVideoPlay.visibility = View.VISIBLE
-//                activitySendMediaVideoPreview.visibility = View.VISIBLE
-//
-//                activitySendMediaVideo.visibility = View.GONE
-//            }
-//
-//            loadThumbnail(media.file, this, activitySendMediaVideoPreview)
-//
-//            activitySendMediaVideoPlay.setOnClickListener {
-//                activitySendMediaVideoPlay.visibility = View.GONE
-//                activitySendMediaVideoPreview.visibility = View.GONE
-//
-//                activitySendMediaVideo.visibility = View.VISIBLE
-//
-//                activitySendMediaVideo.setVideoURI(Uri.fromFile(media.file))
-//                activitySendMediaVideo.start()
-//            }
-//        }
+        currentlySelected = index
+
+        activitySendMediaInput.clearFocus()
     }
 
     override fun onSupportNavigateUp(): Boolean {
@@ -150,10 +160,11 @@ class SendMediaActivity : AppCompatActivity() {
         override fun onBindViewHolder(holder: SmallMediaViewHolder, position: Int) {
             val item = componentList[position]
 
-//            loadThumbnail(item.file, holder.itemView.context, holder.thumbnail)
-//
-//            holder.video.visibility = if (isVideo(item.file)) View.VISIBLE else View.GONE
-//            holder.selected.visibility = if (item.selected) View.VISIBLE else View.GONE
+            ThumbnailUtil.loadThumbnail(item.file, holder.thumbnail, MediaStore.Images.Thumbnails.MICRO_KIND)
+
+            holder.video.visibility = if (item.file.mediaType == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO) View.VISIBLE else View.GONE
+
+            holder.selected.visibility = if (item.selected) View.VISIBLE else View.GONE
 
             val listener = View.OnClickListener { clickResponse.invoke(item) }
 
@@ -163,24 +174,23 @@ class SendMediaActivity : AppCompatActivity() {
         }
     }
 
-    private class SmallMediaViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+    private class SmallMediaViewHolder(view: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {
         val thumbnail: ImageView = view.findViewById(R.id.mediaItemSmallThumbnail)
         val video: ImageView = view.findViewById(R.id.mediaItemSmallVideo)
         val selected: ImageView = view.findViewById(R.id.mediaItemSmallSelected)
     }
 
-    private data class MediaPreview(val uri: Uri, val file: File, var selected: Boolean, var isGif: Boolean)
+    private data class MediaPreview(val file: ThumbnailUtil.PreviewFile, var selected: Boolean)
 
-    class MediaData(val uri: Uri, val file: File, val text: String, val gif: Boolean) : Parcelable {
+    class MediaData(val previewFile: ThumbnailUtil.PreviewFile, var text: String, var gif: Boolean) : Parcelable {
         constructor(parcel: Parcel) : this(
-                parcel.readParcelable(Uri::class.java.classLoader),
-                parcel.readSerializable() as File,
-                parcel.readString(),
+                parcel.readParcelable(ThumbnailUtil.PreviewFile::class.java.classLoader)
+                        ?: throw IllegalStateException(),
+                parcel.readString() ?: throw IllegalStateException(),
                 parcel.readByte() != 0.toByte())
 
         override fun writeToParcel(parcel: Parcel, flags: Int) {
-            parcel.writeParcelable(uri, flags)
-            parcel.writeSerializable(file)
+            parcel.writeParcelable(previewFile, flags)
             parcel.writeString(text)
             parcel.writeByte(if (gif) 1 else 0)
         }

@@ -15,8 +15,8 @@ import android.net.ConnectivityManager
 import android.net.NetworkInfo
 import android.net.Uri
 import android.os.*
-import android.support.v4.app.NotificationManagerCompat
-import android.support.v7.app.AlertDialog
+import androidx.core.app.NotificationManagerCompat
+import androidx.appcompat.app.AlertDialog
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.StyleSpan

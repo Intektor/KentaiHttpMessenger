@@ -3,8 +3,8 @@ package de.intektor.mercury.ui
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.support.v7.app.AppCompatActivity
-import android.support.v7.widget.GridLayoutManager
+import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.GridLayoutManager
 import android.view.View
 import de.intektor.mercury.MercuryClient
 import de.intektor.mercury.R
@@ -71,8 +71,8 @@ class ViewMediaActivity : AppCompatActivity() {
         }, { _, _ -> })
         activityViewMediaList.adapter = adapter
 
-        val layoutManager = GridLayoutManager(this, 3)
-        layoutManager.spanSizeLookup = object : GridLayoutManager.SpanSizeLookup() {
+        val layoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 3)
+        layoutManager.spanSizeLookup = object : androidx.recyclerview.widget.GridLayoutManager.SpanSizeLookup() {
             override fun getSpanSize(position: Int): Int {
                 return when (actList[position]) {
                     is MediaAdapter.MediaFileHeader -> 3

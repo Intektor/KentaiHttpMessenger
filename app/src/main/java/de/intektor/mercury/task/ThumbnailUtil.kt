@@ -2,7 +2,10 @@ package de.intektor.mercury.task
 
 import android.content.Context
 import android.graphics.BitmapFactory
+import android.media.ThumbnailUtils
 import android.net.Uri
+import android.os.Parcel
+import android.os.Parcelable
 import android.provider.MediaStore
 import android.widget.ImageView
 import com.squareup.picasso.Picasso
@@ -16,6 +19,10 @@ object ThumbnailUtil {
 
     private const val SCHEME_THUMBNAIL = "thumbnail"
 
+    /**
+     * @param kind when kind is either [MediaStore.Images.Thumbnails.MINI_KIND] or [MediaStore.Images.Thumbnails.MICRO_KIND], this will use the default android [MediaStore.Images.Thumbnails.getThumbnail] way, if its [MediaStore.Images.Thumbnails.FULL_SCREEN_KIND]
+     * it will use [android.media.ThumbnailUtils.createVideoThumbnail] for video files and load the file via [android.graphics.BitmapFactory.decodeFile] for images
+     */
     fun loadThumbnail(previewFile: PreviewFile, target: ImageView, kind: Int) {
         val uri = Uri.Builder()
                 .scheme(SCHEME_THUMBNAIL)
@@ -37,21 +44,65 @@ object ThumbnailUtil {
             val mediaType = parts[2].toInt()
             val kind = parts[3].toInt()
 
-            val thumbnail = when (mediaType) {
-                MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE -> {
-                    MediaStore.Images.Thumbnails.getThumbnail(context.contentResolver, id, kind, BitmapFactory.Options())
+            val thumbnail = if (kind == MediaStore.Images.Thumbnails.MICRO_KIND || kind == MediaStore.Images.Thumbnails.MINI_KIND) {
+                when (mediaType) {
+                    MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE -> {
+                        MediaStore.Images.Thumbnails.getThumbnail(context.contentResolver, id, kind, BitmapFactory.Options())
+                    }
+                    MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO -> {
+                        MediaStore.Video.Thumbnails.getThumbnail(context.contentResolver, id, kind, BitmapFactory.Options())
+                    }
+                    else -> throw UnsupportedOperationException("Can't load thumbnail of mediaType=$mediaType")
                 }
-                MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO -> {
-                    MediaStore.Video.Thumbnails.getThumbnail(context.contentResolver, id, kind, BitmapFactory.Options())
+            } else if (kind == MediaStore.Images.Thumbnails.FULL_SCREEN_KIND) {
+                val filePath = context.contentResolver.query(MediaStore.Files.getContentUri("external"),
+                        arrayOf(MediaStore.MediaColumns.DATA),
+                        "${MediaStore.MediaColumns._ID} = ?",
+                        arrayOf("$id"),
+                        null).use { cursor ->
+                    if (cursor == null || !cursor.moveToNext()) return@use ""
+
+                    cursor.getString(0)
                 }
-                else -> throw UnsupportedOperationException("Can't load thumbnail of mediaType=$mediaType")
-            }
+                when (mediaType) {
+                    MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE -> {
+                        BitmapFactory.decodeFile(filePath)
+                    }
+                    MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO -> {
+                        ThumbnailUtils.createVideoThumbnail(filePath, kind)
+                    }
+                    else -> throw UnsupportedOperationException("Can't load thumbnail of mediaType=$mediaType")
+                }
+            } else throw UnsupportedOperationException("Cant load thumbnail of kind=$kind")
 
             return Result(thumbnail, Picasso.LoadedFrom.DISK)
         }
     }
 
-    data class PreviewFile(val id: Long, val mediaType: Int)
+    data class PreviewFile(val id: Long, val mediaType: Int) : Parcelable {
+        constructor(parcel: Parcel) : this(
+                parcel.readLong(),
+                parcel.readInt())
+
+        override fun writeToParcel(parcel: Parcel, flags: Int) {
+            parcel.writeLong(id)
+            parcel.writeInt(mediaType)
+        }
+
+        override fun describeContents(): Int {
+            return 0
+        }
+
+        companion object CREATOR : Parcelable.Creator<PreviewFile> {
+            override fun createFromParcel(parcel: Parcel): PreviewFile {
+                return PreviewFile(parcel)
+            }
+
+            override fun newArray(size: Int): Array<PreviewFile?> {
+                return arrayOfNulls(size)
+            }
+        }
+    }
 
     fun createThumbnail(file: File, fileType: FileType): ByteArray {
         return byteArrayOf()

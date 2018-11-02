@@ -48,7 +48,7 @@ class NotificationBroadcastReceiver : BroadcastReceiver() {
     }
 
     private fun getRemoteInput(intent: Intent): CharSequence {
-        val remoteInput = android.support.v4.app.RemoteInput.getResultsFromIntent(intent)
+        val remoteInput = androidx.core.app.RemoteInput.getResultsFromIntent(intent)
         if (remoteInput != null) {
             return remoteInput.getCharSequence(KEY_NOTIFICATION_REPLY) ?: "Exception: No notification input found"
         }

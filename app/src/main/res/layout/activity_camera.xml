@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
@@ -18,7 +18,7 @@
 
     </com.otaliastudios.cameraview.CameraView>
 
-    <android.support.v7.widget.CardView
+    <androidx.cardview.widget.CardView
         android:id="@+id/activityCameraTakePictureLayout"
         android:layout_width="60dp"
         android:layout_height="60dp"
@@ -31,14 +31,14 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
-        <android.support.v7.widget.CardView
+        <androidx.cardview.widget.CardView
             android:id="@+id/activityCameraTakePicture"
             android:layout_width="50dp"
             android:layout_height="50dp"
             android:layout_gravity="center"
             app:cardBackgroundColor="@color/colorPrimaryDarkLightTheme"
             app:cardCornerRadius="25dp" />
-    </android.support.v7.widget.CardView>
+    </androidx.cardview.widget.CardView>
 
     <ImageView
         android:id="@+id/activityCameraFlipButton"
@@ -67,4 +67,4 @@
         app:layout_constraintTop_toTopOf="@+id/activityCameraTakePictureLayout"
         app:srcCompat="@drawable/baseline_flash_auto_white_36" />
 
-</android.support.constraint.ConstraintLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>
