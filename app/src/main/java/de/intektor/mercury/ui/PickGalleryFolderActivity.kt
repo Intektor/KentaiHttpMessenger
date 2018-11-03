@@ -1,15 +1,12 @@
 package de.intektor.mercury.ui
 
 import android.app.Activity
-import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.provider.MediaStore
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.view.ActionMode
-import androidx.recyclerview.widget.GridLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
@@ -18,12 +15,11 @@ import de.intektor.mercury.R
 import de.intektor.mercury.android.getChatInfoExtra
 import de.intektor.mercury.android.getSelectedTheme
 import de.intektor.mercury.chat.ChatInfo
-import de.intektor.mercury.task.ThumbnailUtil
+import de.intektor.mercury.media.ExternalStorageFile
+import de.intektor.mercury.media.MediaFile
 import de.intektor.mercury.ui.chat.adapter.chat.HeaderItemDecoration
 import de.intektor.mercury.ui.util.MediaAdapter
-import de.intektor.mercury.util.KEY_CHAT_INFO
 import kotlinx.android.synthetic.main.activity_pick_gallery_folder.*
-import kotlinx.android.synthetic.main.chat_item.*
 import org.threeten.bp.*
 
 class PickGalleryFolderActivity : AppCompatActivity() {
@@ -174,8 +170,9 @@ class PickGalleryFolderActivity : AppCompatActivity() {
 
                 selectedFiles.forEach {
                     it.selected = false
-
+                    adapter.notifyItemChanged(loadedListItems.indexOf(it))
                 }
+
                 selectedFiles.clear()
             }
         }
@@ -261,7 +258,7 @@ class PickGalleryFolderActivity : AppCompatActivity() {
                 val mediaType = cursor.getString(1).toInt()
                 val dateAdded = cursor.getLong(2)
 
-                linkedToGroup += GalleryMediaFile(dateAdded, ThumbnailUtil.PreviewFile(id, mediaType))
+                linkedToGroup += GalleryMediaFile(dateAdded, ExternalStorageFile(id, mediaType))
             }
 
             return@use linkedToGroup
@@ -315,5 +312,5 @@ class PickGalleryFolderActivity : AppCompatActivity() {
         return true
     }
 
-    private class GalleryMediaFile(time: Long, file: ThumbnailUtil.PreviewFile) : MediaAdapter.MediaFile(time, file)
+    private class GalleryMediaFile(time: Long, file: MediaFile) : MediaAdapter.MediaFile(time, file)
 }

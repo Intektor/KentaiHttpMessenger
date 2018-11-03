@@ -19,18 +19,18 @@ object ReferenceUtil {
         return File(context.filesDir, "references/$referenceUUID")
     }
 
-    fun setFileTypeForReference(referenceUUID: UUID, fileType: FileType, database: SQLiteDatabase) {
+    fun setMediaTypeForReference(referenceUUID: UUID, mediaType: Int, database: SQLiteDatabase) {
         database.compileStatement("INSERT INTO file_type (reference_uuid, file_type) VALUES(?, ?)").use { statement ->
             statement.bindUUID(1, referenceUUID)
-            statement.bindEnum(2, fileType)
+            statement.bindLong(2, mediaType.toLong())
             statement.execute()
         }
     }
 
-    fun getFileTypeForReference(database: SQLiteDatabase, referenceUUID: UUID): FileType {
+    fun getMediaTypeForReference(database: SQLiteDatabase, referenceUUID: UUID): Int {
         return database.rawQuery("SELECT file_type FROM file_type WHERE reference_uuid = ?", arrayOf(referenceUUID.toString())).use { cursor ->
             cursor.moveToNext()
-            cursor.getEnum(1)
+            cursor.getInt(1)
         }
     }
 

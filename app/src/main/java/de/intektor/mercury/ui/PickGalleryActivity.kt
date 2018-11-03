@@ -20,7 +20,9 @@ import de.intektor.mercury.R
 import de.intektor.mercury.android.getChatInfoExtra
 import de.intektor.mercury.android.getSelectedTheme
 import de.intektor.mercury.chat.ChatInfo
-import de.intektor.mercury.task.ThumbnailUtil
+import de.intektor.mercury.media.ExternalStorageFile
+import de.intektor.mercury.media.MediaFile
+import de.intektor.mercury.media.ThumbnailUtil
 import kotlinx.android.synthetic.main.activity_pick_gallery.*
 
 class PickGalleryActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
@@ -108,7 +110,7 @@ class PickGalleryActivity : AppCompatActivity(), SearchView.OnQueryTextListener 
 
                 val parentDirectory = cursor.getString(0)
 
-                val previewFile: ThumbnailUtil.PreviewFile? = contentResolver.query(fileUri,
+                val mediaFile: MediaFile? = contentResolver.query(fileUri,
                         arrayOf(MediaStore.MediaColumns._ID, MediaStore.Files.FileColumns.MEDIA_TYPE),
                         "${MediaStore.Files.FileColumns.PARENT} = ? " +
                                 "AND ${MediaStore.Files.FileColumns.MEDIA_TYPE} IN (${MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE}, ${MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO})",
@@ -119,11 +121,11 @@ class PickGalleryActivity : AppCompatActivity(), SearchView.OnQueryTextListener 
                     val id = firstItemCursor.getLong(0)
                     val mimeType = firstItemCursor.getString(1).toInt()
 
-                    ThumbnailUtil.PreviewFile(id, mimeType)
+                    ExternalStorageFile(id, mimeType)
                 }
 
-                if (previewFile != null) {
-                    totalList += GalleryFolder(previewFile, parentDirectory.substringAfterLast('/'), galleryFolder)
+                if (mediaFile != null) {
+                    totalList += GalleryFolder(mediaFile, parentDirectory.substringAfterLast('/'), galleryFolder)
                 }
             }
         }
@@ -188,7 +190,7 @@ class PickGalleryActivity : AppCompatActivity(), SearchView.OnQueryTextListener 
 
             Picasso.get().cancelRequest(holder.image)
 
-            ThumbnailUtil.loadThumbnail(item.previewFile, holder.image, MediaStore.Images.Thumbnails.MINI_KIND)
+            ThumbnailUtil.loadThumbnail(item.mediaFile, holder.image, MediaStore.Images.Thumbnails.MINI_KIND)
 
             val clickListener = View.OnClickListener {
                 activity.startActivityForResult(PickGalleryFolderActivity.createIntent(context, item.folderId, chatInfo, item.label), ACTION_PICK_FROM_GALLERY_FOLDER)
@@ -203,6 +205,6 @@ class PickGalleryActivity : AppCompatActivity(), SearchView.OnQueryTextListener 
         val label: TextView = view.findViewById(R.id.item_gallery_folder_tv_label)
     }
 
-    private data class GalleryFolder(val previewFile: ThumbnailUtil.PreviewFile, val label: String, val folderId: Long)
+    private data class GalleryFolder(val mediaFile: MediaFile, val label: String, val folderId: Long)
 
 }

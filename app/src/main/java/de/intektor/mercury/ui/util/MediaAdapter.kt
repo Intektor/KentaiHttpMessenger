@@ -1,17 +1,15 @@
 package de.intektor.mercury.ui.util
 
 import android.provider.MediaStore
-import androidx.recyclerview.widget.RecyclerView
-import android.text.format.DateUtils
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
-import com.squareup.picasso.Picasso
+import androidx.cardview.widget.CardView
 import de.intektor.mercury.R
-import de.intektor.mercury.task.ThumbnailUtil
+import de.intektor.mercury.media.ThumbnailUtil
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -59,9 +57,9 @@ class MediaAdapter<T : MediaAdapter.MediaFile>(
 
     class MediaViewHolder<T : MediaFile>(view: View, private val clickCallback: (T, MediaViewHolder<T>) -> Unit, private val longClickCallback: (T, MediaViewHolder<T>) -> Unit) : BindableViewHolder<T>(view) {
         private val content: ImageView = view.findViewById(R.id.fragment_image_item_iv_content)
-        private val videoOverlay: ImageView = view.findViewById(R.id.fragment_image_item_iv_video_overlay)
+        private val videoOverlay: CardView = view.findViewById(R.id.fragment_image_item_cv_video_overlay)
         private val checked: ImageView = view.findViewById(R.id.fragment_image_item_iv_check)
-        private val checkedOverlay: ImageView = view.findViewById(R.id.fragment_image_item_iv_check)
+        private val checkedOverlay: ImageView = view.findViewById(R.id.fragment_image_item_iv_dark_overlay)
 
         fun setSelected(selected: Boolean) {
             checked.visibility = if (selected) View.VISIBLE else View.GONE
@@ -90,7 +88,7 @@ class MediaAdapter<T : MediaAdapter.MediaFile>(
         }
     }
 
-    open class MediaFile(val time: Long, val file: ThumbnailUtil.PreviewFile, var selected: Boolean = false)
+    open class MediaFile(val time: Long, val file: de.intektor.mercury.media.MediaFile, var selected: Boolean = false)
 
     class MediaFileHeader(val time: Long)
 }

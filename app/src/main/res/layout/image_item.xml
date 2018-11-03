@@ -5,10 +5,31 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content">
 
+    <ImageView
+        android:id="@+id/fragment_image_item_iv_background_selected"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:srcCompat="@color/colorSelectedItem" />
+
     <androidx.cardview.widget.CardView
         android:layout_width="82dp"
         android:layout_height="82dp"
-        app:cardCornerRadius="7dp">
+        android:layout_marginStart="2dp"
+        android:layout_marginLeft="2dp"
+        android:layout_marginTop="2dp"
+        android:layout_marginEnd="2dp"
+        android:layout_marginRight="2dp"
+        android:layout_marginBottom="2dp"
+        app:cardCornerRadius="7dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
@@ -23,18 +44,29 @@
                 app:layout_constraintTop_toTopOf="parent"
                 app:srcCompat="?attr/ic_account" />
 
-            <ImageView
-                android:id="@+id/fragment_image_item_iv_video_overlay"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
+            <androidx.cardview.widget.CardView
+                android:id="@+id/fragment_image_item_cv_video_overlay"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_marginTop="4dp"
+                android:layout_marginEnd="4dp"
+                android:layout_marginRight="4dp"
                 android:visibility="visible"
+                app:cardCornerRadius="10dp"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintHorizontal_bias="1.0"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintVertical_bias="0.0"
-                app:srcCompat="@android:drawable/ic_media_play" />
+                app:layout_constraintVertical_bias="0.0">
+
+                <ImageView
+                    android:id="@+id/fragment_image_item_iv_play_button"
+                    android:layout_width="15dp"
+                    android:layout_height="15dp"
+                    android:layout_gravity="center"
+                    app:srcCompat="@drawable/baseline_play_arrow_24" />
+            </androidx.cardview.widget.CardView>
 
             <ImageView
                 android:id="@+id/fragment_image_item_iv_dark_overlay"

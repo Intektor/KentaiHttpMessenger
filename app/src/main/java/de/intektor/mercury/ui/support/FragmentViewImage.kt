@@ -1,7 +1,5 @@
 package de.intektor.mercury.ui.support
 
-import android.content.Context
-import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
 import android.view.LayoutInflater
@@ -9,9 +7,9 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.MediaController
 import androidx.fragment.app.Fragment
-import com.squareup.picasso.Picasso
 import de.intektor.mercury.R
-import de.intektor.mercury.task.ThumbnailUtil
+import de.intektor.mercury.media.MediaFile
+import de.intektor.mercury.media.ThumbnailUtil
 import de.intektor.mercury.util.setGone
 import de.intektor.mercury.util.setVisible
 import kotlinx.android.synthetic.main.fragment_view_image.*
@@ -23,26 +21,26 @@ class FragmentViewImage : Fragment() {
 
         private const val EXTRA_CONTENT = "de.intektor.mercury.EXTRA_CONTENT"
 
-        fun create(content: ThumbnailUtil.PreviewFile): FragmentViewImage {
+        fun create(content: MediaFile): FragmentViewImage {
             val fragment = FragmentViewImage()
 
             val arguments = Bundle()
-            arguments.putParcelable(EXTRA_CONTENT, content)
+            arguments.putSerializable(EXTRA_CONTENT, content)
             fragment.arguments = arguments
 
             return fragment
         }
 
         fun getData(arguments: Bundle): Holder {
-            val content = arguments.getParcelable<ThumbnailUtil.PreviewFile>(EXTRA_CONTENT)
+            val content = arguments.getSerializable(EXTRA_CONTENT) as? MediaFile
                     ?: throw IllegalStateException("$EXTRA_CONTENT must not be null")
             return Holder(content)
         }
 
-        data class Holder(val content: ThumbnailUtil.PreviewFile)
+        data class Holder(val content: MediaFile)
     }
 
-    private lateinit var content: ThumbnailUtil.PreviewFile
+    private lateinit var content: MediaFile
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
         return inflater.inflate(R.layout.fragment_view_image, container, false)
@@ -58,32 +56,22 @@ class FragmentViewImage : Fragment() {
             fragment_view_image_pv_content.isZoomable = false
             fragment_view_image_pv_content.isTranslatable = false
 
-            fragment_view_image_iv_play.setVisible()
+            fragment_view_image_cv_play_parent.setVisible()
             fragment_view_image_vv_content.setGone()
 
             fragment_view_image_vv_content.setOnCompletionListener {
-                fragment_view_image_iv_play.setVisible()
-                fragment_view_image_vv_content.setGone()
-                fragment_view_image_pv_content.setVisible()
+                finishVideoPlayback()
             }
+        } else {
+            fragment_view_image_cv_play_parent.setGone()
         }
 
         fragment_view_image_iv_play.setOnClickListener {
-            fragment_view_image_iv_play.setGone()
+            fragment_view_image_cv_play_parent.setGone()
             fragment_view_image_vv_content.setVisible()
             fragment_view_image_pv_content.setGone()
 
-            val path = requireContext().contentResolver.query(MediaStore.Files.getContentUri("external"),
-                    arrayOf(MediaStore.MediaColumns.DATA),
-                    "${MediaStore.Files.FileColumns._ID} = ?",
-                    arrayOf("${content.id}"),
-                    null).use { cursor ->
-                if (cursor == null || !cursor.moveToNext()) return@use ""
-
-                cursor.getString(0)
-            }
-
-            fragment_view_image_vv_content.setVideoPath(path)
+            fragment_view_image_vv_content.setVideoPath(content.getPath(requireContext()))
             fragment_view_image_vv_content.start()
             fragment_view_image_vv_content.setMediaController(MediaController(context))
         }
@@ -91,6 +79,18 @@ class FragmentViewImage : Fragment() {
 
     fun reset() {
         fragment_view_image_pv_content?.reset()
+
+        if (content.mediaType == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO) {
+            finishVideoPlayback()
+        }
+    }
+
+    private fun finishVideoPlayback() {
+        fragment_view_image_cv_play_parent?.setVisible()
+        fragment_view_image_vv_content?.setGone()
+        fragment_view_image_pv_content?.setVisible()
+
+        fragment_view_image_vv_content?.stopPlayback()
     }
 
     override fun setArguments(args: Bundle?) {

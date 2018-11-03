@@ -7,6 +7,7 @@ import de.intektor.mercury.R
 import de.intektor.mercury.android.getAttrDrawable
 import de.intektor.mercury.chat.VoiceReferenceHolder
 import de.intektor.mercury.io.download.IOService
+import de.intektor.mercury.media.MediaHelper
 import de.intektor.mercury.task.ReferenceState
 import de.intektor.mercury.util.setGone
 import de.intektor.mercury.util.setVisible
@@ -64,7 +65,7 @@ class VoiceMessageViewHolder(itemView: View, chatAdapter: ChatAdapter) : ChatMes
                 if (isClient(item)) {
                     IOService.ActionUploadReference.launch(context, data.reference, data.aesKey, data.initVector, FileType.AUDIO)
                 } else {
-                    IOService.ActionDownloadReference.launch(context, data.reference, data.aesKey, data.initVector, FileType.AUDIO)
+                    IOService.ActionDownloadReference.launch(context, data.reference, data.aesKey, data.initVector, MediaHelper.MEDIA_TYPE_AUDIO)
                 }
             } else {
                 if (item.isPlaying) {

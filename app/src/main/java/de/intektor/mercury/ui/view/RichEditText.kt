@@ -18,7 +18,7 @@ import de.intektor.mercury.chat.PendingMessage
 import de.intektor.mercury.chat.sendMessageToServer
 import de.intektor.mercury.client.ClientPreferences
 import de.intektor.mercury.reference.ReferenceUtil
-import de.intektor.mercury.task.ThumbnailUtil
+import de.intektor.mercury.media.ThumbnailUtil
 import de.intektor.mercury.task.getVideoDimension
 import de.intektor.mercury.task.getVideoDuration
 import de.intektor.mercury.ui.chat.ChatActivity

@@ -1,9 +1,7 @@
 package de.intektor.mercury.ui
 
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.os.Parcel
 import android.os.Parcelable
@@ -13,6 +11,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
+import androidx.cardview.widget.CardView
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentPagerAdapter
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -21,10 +20,10 @@ import androidx.viewpager.widget.ViewPager
 import de.intektor.mercury.R
 import de.intektor.mercury.android.*
 import de.intektor.mercury.chat.ChatInfo
-import de.intektor.mercury.task.ThumbnailUtil
+import de.intektor.mercury.media.MediaFile
+import de.intektor.mercury.media.ThumbnailUtil
 import de.intektor.mercury.ui.support.FragmentViewImage
 import kotlinx.android.synthetic.main.activity_send_media.*
-import java.io.File
 import java.lang.IllegalStateException
 
 class SendMediaActivity : AppCompatActivity() {
@@ -40,7 +39,7 @@ class SendMediaActivity : AppCompatActivity() {
         private const val EXTRA_FOLDER_ID = "de.intektor.mercury.EXTRA_FOLDER_ID"
         private const val EXTRA_FILES = "de.intektor.mercury.EXTRA_FILES"
 
-        fun createIntent(context: Context, chatInfo: ChatInfo, folderId: Long, files: List<ThumbnailUtil.PreviewFile>): Intent {
+        fun createIntent(context: Context, chatInfo: ChatInfo, folderId: Long, files: List<MediaFile>): Intent {
             return Intent(context, SendMediaActivity::class.java)
                     .putExtra(EXTRA_CHAT_INFO, chatInfo)
                     .putExtra(EXTRA_FOLDER_ID, folderId)
@@ -51,11 +50,11 @@ class SendMediaActivity : AppCompatActivity() {
         fun getData(intent: Intent): Holder {
             val chatInfo = intent.getChatInfoExtra(EXTRA_CHAT_INFO)
             val folderId = intent.getLongExtra(EXTRA_FOLDER_ID, 0)
-            val files = intent.getParcelableArrayListExtra<ThumbnailUtil.PreviewFile>(EXTRA_FILES)
+            val files = intent.getSerializableExtra(EXTRA_FILES) as ArrayList<MediaFile>
             return Holder(chatInfo, folderId, files)
         }
 
-        data class Holder(val chatInfo: ChatInfo, val folderId: Long, val itemIds: List<ThumbnailUtil.PreviewFile>)
+        data class Holder(val chatInfo: ChatInfo, val folderId: Long, val itemIds: List<MediaFile>)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -69,7 +68,7 @@ class SendMediaActivity : AppCompatActivity() {
 
         supportActionBar?.title = getString(R.string.send_media_activity_title, chatInfo.chatName)
 
-        val media = files.map { MediaPreview(it, false) }.sortedByDescending { it.file.id }
+        val media = files.map { MediaPreview(it, false) }
 
         media.forEach { mediaMap[it] = MediaData(it.file, "", false) }
 
@@ -166,7 +165,7 @@ class SendMediaActivity : AppCompatActivity() {
 
     private class SmallMediaAdapter(private val componentList: List<MediaPreview>, private val clickResponse: (MediaPreview) -> Unit) : RecyclerView.Adapter<SmallMediaViewHolder>() {
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SmallMediaViewHolder {
-            val view = LayoutInflater.from(parent.context).inflate(R.layout.media_item_small, parent, false)
+            val view = LayoutInflater.from(parent.context).inflate(R.layout.image_item, parent, false)
             return SmallMediaViewHolder(view)
         }
 
@@ -190,32 +189,38 @@ class SendMediaActivity : AppCompatActivity() {
     }
 
     private class SmallMediaViewHolder(view: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {
-        val thumbnail: ImageView = view.findViewById(R.id.mediaItemSmallThumbnail)
-        val video: ImageView = view.findViewById(R.id.mediaItemSmallVideo)
-        val selected: ImageView = view.findViewById(R.id.mediaItemSmallSelected)
+        val thumbnail: ImageView = view.findViewById(R.id.fragment_image_item_iv_content)
+        val video: CardView = view.findViewById(R.id.fragment_image_item_cv_video_overlay)
+        val selected: ImageView = view.findViewById(R.id.fragment_image_item_iv_background_selected)
     }
 
-    private data class MediaPreview(val file: ThumbnailUtil.PreviewFile, var selected: Boolean)
+    private data class MediaPreview(val file: MediaFile, var selected: Boolean)
 
-    class MediaData(val previewFile: ThumbnailUtil.PreviewFile, var text: String, var gif: Boolean) : Parcelable {
+    class MediaData(val mediaFile: MediaFile, var text: String, var gif: Boolean) : Parcelable {
         constructor(parcel: Parcel) : this(
-                parcel.readParcelable(ThumbnailUtil.PreviewFile::class.java.classLoader)
-                        ?: throw IllegalStateException(),
-                parcel.readString() ?: throw IllegalStateException(),
-                parcel.readByte() != 0.toByte())
+                parcel.readSerializable() as MediaFile,
+                parcel.readString(),
+                parcel.readByte() != 0.toByte()) {
+        }
 
         override fun writeToParcel(parcel: Parcel, flags: Int) {
-            parcel.writeParcelable(previewFile, flags)
+            parcel.writeSerializable(mediaFile)
             parcel.writeString(text)
             parcel.writeByte(if (gif) 1 else 0)
         }
 
-        override fun describeContents(): Int = 0
+        override fun describeContents(): Int {
+            return 0
+        }
 
         companion object CREATOR : Parcelable.Creator<MediaData> {
-            override fun createFromParcel(parcel: Parcel): MediaData = MediaData(parcel)
+            override fun createFromParcel(parcel: Parcel): MediaData {
+                return MediaData(parcel)
+            }
 
-            override fun newArray(size: Int): Array<MediaData?> = arrayOfNulls(size)
+            override fun newArray(size: Int): Array<MediaData?> {
+                return arrayOfNulls(size)
+            }
         }
     }
 }

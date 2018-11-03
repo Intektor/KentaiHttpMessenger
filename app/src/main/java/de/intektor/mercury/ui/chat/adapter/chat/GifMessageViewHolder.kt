@@ -47,9 +47,9 @@ class GifMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessageVi
 //            videoView.pause()
 //        }
 //
-//        val fileType = if (message.isGif.toBoolean()) FileType.GIF else FileType.VIDEO
+//        val mediaType = if (message.isGif.toBoolean()) FileType.GIF else FileType.VIDEO
 //
-//        val referenceFile = getReferenceFile(message.referenceUUID, fileType, mercuryClient.filesDir, mercuryClient)
+//        val referenceFile = getReferenceFile(message.referenceUUID, mediaType, mercuryClient.filesDir, mercuryClient)
 //
 //        videoView.visibility = View.GONE
 //        webView.visibility = View.GONE
@@ -141,7 +141,7 @@ class GifMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessageVi
 //
 //                loadButton.setImageResource(if (item.chatMessageInfo.client) R.drawable.ic_file_upload_white_24dp else R.drawable.ic_file_download_white_24dp)
 //                loadButton.setOnClickListener {
-//                    chatAdapter.activity.startReferenceLoad(item, adapterPosition, fileType)
+//                    chatAdapter.activity.startReferenceLoad(item, adapterPosition, mediaType)
 //                }
 //            }
 //        }

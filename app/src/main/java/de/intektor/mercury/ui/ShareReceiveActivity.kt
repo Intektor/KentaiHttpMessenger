@@ -5,8 +5,6 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import androidx.appcompat.widget.SearchView
 import android.view.LayoutInflater
 import android.view.Menu
@@ -26,7 +24,7 @@ import de.intektor.mercury.chat.readChats
 import de.intektor.mercury.chat.sendMessageToServer
 import de.intektor.mercury.client.ClientPreferences
 import de.intektor.mercury.io.download.IOService
-import de.intektor.mercury.task.ThumbnailUtil
+import de.intektor.mercury.media.ThumbnailUtil
 import de.intektor.mercury.task.getVideoDimension
 import de.intektor.mercury.task.getVideoDuration
 import de.intektor.mercury.task.saveMediaFileInAppStorage

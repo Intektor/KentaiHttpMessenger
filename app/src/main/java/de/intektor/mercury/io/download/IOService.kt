@@ -102,8 +102,8 @@ class IOService : Service() {
         return super.onStartCommand(intent, flags, startId)
     }
 
-    private fun downloadReference(reference: UUID, aesKey: Key, initVector: ByteArray, fileType: FileType) {
-        downloadQueue += IORequest(reference, aesKey, initVector, fileType)
+    private fun downloadReference(reference: UUID, aesKey: Key, initVector: ByteArray, mediaType: Int) {
+        downloadQueue += IORequest(reference, aesKey, initVector, mediaType)
 
         mercuryClient().currentLoadingTable[reference] = 0.0
     }
@@ -179,7 +179,7 @@ class IOService : Service() {
                             }
 
                             mercuryClient.currentLoadingTable -= request.reference
-                            ReferenceUtil.setFileTypeForReference(request.reference, request.fileType, mercuryClient.dataBase)
+                            ReferenceUtil.setMediaTypeForReference(request.reference, request.mediaType, mercuryClient.dataBase)
 
                             ActionDownloadReferenceFinished.launch(this, request.reference, true)
                         }
@@ -272,7 +272,7 @@ class IOService : Service() {
     private fun accessUploadStreams() = uploadStreams
 
     @Suppress("ArrayInDataClass")
-    private data class IORequest(val reference: UUID, val aesKey: Key, val initVector: ByteArray, val fileType: FileType)
+    private data class IORequest(val reference: UUID, val aesKey: Key, val initVector: ByteArray, val mediaType: Int)
 
     enum class IO {
         UPLOAD,
@@ -331,28 +331,28 @@ class IOService : Service() {
 
         fun getFilter(): IntentFilter = IntentFilter(ACTION)
 
-        private fun createIntent(context: Context, referenceUuid: UUID, aesKey: Key, initVector: ByteArray, fileType: FileType) =
+        private fun createIntent(context: Context, referenceUuid: UUID, aesKey: Key, initVector: ByteArray, mediaType: Int) =
                 Intent()
                         .setAction(ACTION)
                         .setComponent(ComponentName(context, IOService::class.java))
                         .putExtra(EXTRA_REFERENCE_UUID, referenceUuid)
                         .putExtra(EXTRA_AES_KEY, aesKey)
                         .putExtra(EXTRA_INIT_VECTOR, initVector)
-                        .putExtra(EXTRA_FILE_TYPE, fileType)
+                        .putExtra(EXTRA_FILE_TYPE, mediaType)
 
-        fun launch(context: Context, referenceUuid: UUID, aesKey: Key, initVector: ByteArray, fileType: FileType) {
-            context.startService(createIntent(context, referenceUuid, aesKey, initVector, fileType))
+        fun launch(context: Context, referenceUuid: UUID, aesKey: Key, initVector: ByteArray, mediaType: Int) {
+            context.startService(createIntent(context, referenceUuid, aesKey, initVector, mediaType))
         }
 
         fun getData(intent: Intent): Holder {
             val referenceUuid: UUID = intent.getUUIDExtra(EXTRA_REFERENCE_UUID)
             val aesKey: Key = intent.getKeyExtra(EXTRA_AES_KEY)
             val initVector: ByteArray = intent.getByteArrayExtra(EXTRA_INIT_VECTOR)
-            val fileType: FileType = intent.getFileTypeExtra(EXTRA_FILE_TYPE)
-            return Holder(referenceUuid, aesKey, initVector, fileType)
+            val mediaType: Int = intent.getIntExtra(EXTRA_FILE_TYPE, 0)
+            return Holder(referenceUuid, aesKey, initVector, mediaType)
         }
 
-        data class Holder(val referenceUuid: UUID, val aesKey: Key, val initVector: ByteArray, val fileType: FileType)
+        data class Holder(val referenceUuid: UUID, val aesKey: Key, val initVector: ByteArray, val mediaType: Int)
     }
 
     object ActionUploadReference {
@@ -362,7 +362,7 @@ class IOService : Service() {
         private const val EXTRA_REFERENCE_UUID: String = "de.intektor.mercury.EXTRA_REFERENCE_UUID"
         private const val EXTRA_AES_KEY: String = "de.intektor.mercury.EXTRA_AES_KEY"
         private const val EXTRA_INIT_VECTOR: String = "de.intektor.mercury.EXTRA_INIT_VECTOR"
-        private const val EXTRA_FILE_TYPE: String = "de.intektor.mercury.EXTRA_FILE_TYPE"
+        private const val EXTRA_MEDIA_TYPE: String = "de.intektor.mercury.EXTRA_MEDIA_TYPE"
 
         fun isAction(intent: Intent) = intent.action == ACTION
 
@@ -375,7 +375,7 @@ class IOService : Service() {
                         .putExtra(EXTRA_REFERENCE_UUID, referenceUuid)
                         .putExtra(EXTRA_AES_KEY, aesKey)
                         .putExtra(EXTRA_INIT_VECTOR, initVector)
-                        .putExtra(EXTRA_FILE_TYPE, fileType)
+                        .putExtra(EXTRA_MEDIA_TYPE, fileType)
 
         fun launch(context: Context, referenceUuid: UUID, aesKey: Key, initVector: ByteArray, fileType: FileType) {
             context.startService(createIntent(context, referenceUuid, aesKey, initVector, fileType))
@@ -385,7 +385,7 @@ class IOService : Service() {
             val referenceUuid: UUID = intent.getUUIDExtra(EXTRA_REFERENCE_UUID)
             val aesKey: Key = intent.getKeyExtra(EXTRA_AES_KEY)
             val initVector: ByteArray = intent.getByteArrayExtra(EXTRA_INIT_VECTOR)
-            val fileType: FileType = intent.getFileTypeExtra(EXTRA_FILE_TYPE)
+            val fileType: FileType = intent.getFileTypeExtra(EXTRA_MEDIA_TYPE)
             return Holder(referenceUuid, aesKey, initVector, fileType)
         }
 

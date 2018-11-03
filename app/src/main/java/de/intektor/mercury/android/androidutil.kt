@@ -22,6 +22,7 @@ import com.squareup.picasso.RequestCreator
 import com.squareup.picasso.RequestHandler
 import de.intektor.mercury.MercuryClient
 import de.intektor.mercury.R
+import de.intektor.mercury.media.MediaHelper
 import de.intektor.mercury.util.SHARED_PREFERENCES_THEME
 import de.intektor.mercury.util.SP_IS_LIGHT_THEME_KEY
 import de.intektor.mercury.util.getCompatDrawable
@@ -116,3 +117,13 @@ fun videoPicasso(context: Context): Picasso =
 fun Picasso.loadVideoThumbnailMini(path: String): RequestCreator = load("$VIDEO_KIND_MINI:$path")
 
 fun Picasso.loadVideoThumbnailFull(path: String): RequestCreator = load("$VIDEO_KIND_FULL:$path")
+
+@Deprecated("Should not use fileType anymore and replace with MediaHelper")
+fun FileType.mediaType(): Int {
+    return when(this) {
+        FileType.AUDIO -> MediaHelper.MEDIA_TYPE_AUDIO
+        FileType.IMAGE -> MediaHelper.MEDIA_TYPE_IMAGE
+        FileType.VIDEO -> MediaHelper.MEDIA_TYPE_VIDEO
+        FileType.GIF -> MediaHelper.MEDIA_TYPE_VIDEO
+    }
+}

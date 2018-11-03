@@ -15,10 +15,7 @@ import android.os.AsyncTask
 import android.os.Bundle
 import android.os.Handler
 import androidx.core.app.NotificationManagerCompat
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.RecyclerView
 import android.text.Editable
 import android.text.TextWatcher
 import android.text.format.DateUtils
@@ -43,6 +40,7 @@ import de.intektor.mercury.client.getBackgroundChatFile
 import de.intektor.mercury.client.setBackgroundImage
 import de.intektor.mercury.contacts.Contact
 import de.intektor.mercury.io.download.IOService
+import de.intektor.mercury.media.ThumbnailUtil
 import de.intektor.mercury.nine_gag.getGagUUID
 import de.intektor.mercury.nine_gag.isNineGagMessage
 import de.intektor.mercury.reference.ReferenceUtil
@@ -1287,7 +1285,7 @@ fun startReferenceLoad(holder: ReferenceHolder, adapterPosition: Int, fileType: 
     if (upload) {
         IOService.ActionUploadReference.launch(this, referenceUUID, data.aesKey, data.initVector, fileType)
     } else {
-        IOService.ActionDownloadReference.launch(this, referenceUUID, data.aesKey, data.initVector, fileType)
+        IOService.ActionDownloadReference.launch(this, referenceUUID, data.aesKey, data.initVector, fileType.mediaType())
     }
 
     chatAdapter.notifyItemChanged(adapterPosition)

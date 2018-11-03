@@ -13,6 +13,7 @@ import de.intektor.mercury.client.ClientPreferences
 import de.intektor.mercury.contacts.ContactUtil
 import de.intektor.mercury.io.HttpManager
 import de.intektor.mercury.io.download.IOService
+import de.intektor.mercury.media.MediaHelper
 import de.intektor.mercury.task.*
 import de.intektor.mercury.util.Logger
 import de.intektor.mercury_common.chat.*
@@ -248,15 +249,15 @@ class FMService : FirebaseMessagingService() {
                         }
                     }
                     is MessageVoiceMessage -> {
-                        IOService.ActionDownloadReference.launch(this, messageData.reference, messageData.aesKey, messageData.initVector, FileType.AUDIO)
+                        IOService.ActionDownloadReference.launch(this, messageData.reference, messageData.aesKey, messageData.initVector, MediaHelper.MEDIA_TYPE_AUDIO)
                         updateChatAndSendBroadcast(chatMessage, chatInfo)
                     }
                     is MessageImage -> {
-                        IOService.ActionDownloadReference.launch(this, messageData.reference, messageData.aesKey, messageData.initVector, FileType.IMAGE)
+                        IOService.ActionDownloadReference.launch(this, messageData.reference, messageData.aesKey, messageData.initVector, MediaHelper.MEDIA_TYPE_IMAGE)
                         updateChatAndSendBroadcast(chatMessage, chatInfo)
                     }
                     is MessageVideo -> {
-                        IOService.ActionDownloadReference.launch(this, messageData.reference, messageData.aesKey, messageData.initVector, if (messageData.isGif) FileType.GIF else FileType.VIDEO)
+                        IOService.ActionDownloadReference.launch(this, messageData.reference, messageData.aesKey, messageData.initVector, MediaHelper.MEDIA_TYPE_VIDEO)
                         updateChatAndSendBroadcast(chatMessage, chatInfo)
                     }
                 }
