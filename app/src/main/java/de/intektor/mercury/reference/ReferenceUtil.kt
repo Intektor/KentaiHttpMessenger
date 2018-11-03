@@ -19,25 +19,8 @@ object ReferenceUtil {
         return File(context.filesDir, "references/$referenceUUID")
     }
 
-    fun setMediaTypeForReference(referenceUUID: UUID, mediaType: Int, database: SQLiteDatabase) {
-        database.compileStatement("INSERT INTO file_type (reference_uuid, file_type) VALUES(?, ?)").use { statement ->
-            statement.bindUUID(1, referenceUUID)
-            statement.bindLong(2, mediaType.toLong())
-            statement.execute()
-        }
-    }
-
-    fun getMediaTypeForReference(database: SQLiteDatabase, referenceUUID: UUID): Int {
-        return database.rawQuery("SELECT file_type FROM file_type WHERE reference_uuid = ?", arrayOf(referenceUUID.toString())).use { cursor ->
-            cursor.moveToNext()
-            cursor.getInt(1)
-        }
-    }
-
     fun dropReference(context: Context, database: SQLiteDatabase, referenceUUID: UUID) {
         database.execSQL("DELETE FROM reference_upload WHERE reference_uuid = ?", arrayOf(referenceUUID.toString()))
-
-        database.execSQL("DELETE FROM file_type WHERE reference_uuid = ?", arrayOf(referenceUUID.toString()))
 
         getFileForReference(context, referenceUUID).delete()
     }
@@ -78,29 +61,16 @@ object ReferenceUtil {
         }
     }
 
-    fun addReferenceToChat(database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, messageUUID: UUID) {
-        database.compileStatement("INSERT INTO reference (chat_uuid, reference_uuid, message_uuid) VALUES(?, ?, ?)").use { statement ->
+    fun addReference(database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, messageUUID: UUID, mediaType: Int, epochSecond: Long) {
+        database.compileStatement("INSERT INTO reference (chat_uuid, reference_uuid, message_uuid, media_type, time) VALUES(?, ?, ?)").use { statement ->
             statement.bindUUID(1, chatUUID)
             statement.bindUUID(2, referenceUUID)
             statement.bindUUID(3, messageUUID)
+            statement.bindLong(4, mediaType.toLong())
+            statement.bindLong(5, epochSecond)
             statement.execute()
         }
     }
 
-    fun getReferencesInChat(database: SQLiteDatabase, chatUUID: UUID): List<ReferenceInfo> {
-        return database.rawQuery("SELECT reference_uuid, user_uuid FROM reference WHERE chat_uuid = ?", arrayOf(chatUUID.toString())).use { cursor ->
-            val list = mutableListOf<ReferenceInfo>()
-            while (cursor.moveToNext()) {
-                val referenceUUID = cursor.getUUID(0)
-                val senderUUID = cursor.getUUID(1)
-
-                list += ReferenceInfo(referenceUUID, senderUUID)
-            }
-            list
-        }
-    }
-
     class ReferenceKey(val key: Key, val initVector: ByteArray)
-
-    data class ReferenceInfo(val referenceUUID: UUID, val messageUUID: UUID)
 }

@@ -3,7 +3,7 @@ package de.intektor.mercury.media
 import android.content.Context
 import android.provider.MediaStore
 
-class MediaSourceExternalContent(private val folderId: Long) : MediaProvider<ExternalStorageFile> {
+class MediaProviderExternalContent(private val folderId: Long) : MediaProvider<ExternalStorageFile> {
 
     override fun getEpochSecondTimeOfLast(context: Context): Long = context.contentResolver.query(
             MediaStore.Files.getContentUri("external"),

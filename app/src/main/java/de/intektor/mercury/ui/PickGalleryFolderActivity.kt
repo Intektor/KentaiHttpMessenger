@@ -4,26 +4,18 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.provider.MediaStore
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.view.ActionMode
 import android.view.Menu
 import android.view.MenuItem
-import android.view.View
-import android.view.ViewTreeObserver
 import de.intektor.mercury.R
 import de.intektor.mercury.android.getChatInfoExtra
 import de.intektor.mercury.android.getSelectedTheme
 import de.intektor.mercury.chat.ChatInfo
-import de.intektor.mercury.media.ExternalStorageFile
 import de.intektor.mercury.media.MediaFile
-import de.intektor.mercury.media.MediaSourceExternalContent
-import de.intektor.mercury.ui.chat.adapter.chat.HeaderItemDecoration
+import de.intektor.mercury.media.MediaProviderExternalContent
 import de.intektor.mercury.ui.media.FragmentListMedia
-import de.intektor.mercury.ui.util.MediaAdapter
 import kotlinx.android.synthetic.main.activity_pick_gallery_folder.*
-import kotlinx.android.synthetic.main.chat_item.*
-import org.threeten.bp.*
 
 class PickGalleryFolderActivity : AppCompatActivity(), FragmentListMedia.UserInteractionCallback {
 
@@ -70,7 +62,7 @@ class PickGalleryFolderActivity : AppCompatActivity(), FragmentListMedia.UserInt
 
         val (folderId, chatInfo, folderName) = getData(intent)
 
-        val mediaProvider = MediaSourceExternalContent(folderId)
+        val mediaProvider = MediaProviderExternalContent(folderId)
 
         val fragment = FragmentListMedia.create(mediaProvider)
 

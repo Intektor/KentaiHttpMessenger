@@ -1,5 +1,6 @@
 package de.intektor.mercury.ui
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -22,6 +23,7 @@ import de.intektor.mercury.android.*
 import de.intektor.mercury.chat.ChatInfo
 import de.intektor.mercury.media.MediaFile
 import de.intektor.mercury.media.ThumbnailUtil
+import de.intektor.mercury.ui.chat.ChatActivity
 import de.intektor.mercury.ui.support.FragmentViewImage
 import kotlinx.android.synthetic.main.activity_send_media.*
 import java.lang.IllegalStateException
@@ -75,15 +77,19 @@ class SendMediaActivity : AppCompatActivity() {
         media[0].selected = true
 
         activity_send_media_iv_send.setOnClickListener {
-            val selected = media.first { it.selected }
+            val selected = media.first { mediaWrapper -> mediaWrapper.selected }
             mediaMap[selected]?.text = activitySendMediaInput.text.toString()
             mediaMap[selected]?.gif = activitySendMediaVideoGifButton.isSelected
 
-            //TODO
-//            val resultData = Intent()
-//            resultData.putParcelableArrayListExtra(KEY_MEDIA_DATA, ArrayList(mediaMap.values))
-//            setResult(Activity.RESULT_OK, resultData)
-//            finish()
+            setResult(Activity.RESULT_OK, ChatActivity.ActionPickMedia.createIntent(
+                    mediaMap.map { mutableMediaData ->
+                        ChatActivity.ActionPickMedia.MediaToSend(
+                                mutableMediaData.value.mediaFile,
+                                mutableMediaData.value.text,
+                                mutableMediaData.value.gif)
+                    })
+            )
+            finish()
         }
 
         smallMediaAdapter = SmallMediaAdapter(media) { item ->
@@ -196,31 +202,5 @@ class SendMediaActivity : AppCompatActivity() {
 
     private data class MediaPreview(val file: MediaFile, var selected: Boolean)
 
-    class MediaData(val mediaFile: MediaFile, var text: String, var gif: Boolean) : Parcelable {
-        constructor(parcel: Parcel) : this(
-                parcel.readSerializable() as MediaFile,
-                parcel.readString(),
-                parcel.readByte() != 0.toByte()) {
-        }
-
-        override fun writeToParcel(parcel: Parcel, flags: Int) {
-            parcel.writeSerializable(mediaFile)
-            parcel.writeString(text)
-            parcel.writeByte(if (gif) 1 else 0)
-        }
-
-        override fun describeContents(): Int {
-            return 0
-        }
-
-        companion object CREATOR : Parcelable.Creator<MediaData> {
-            override fun createFromParcel(parcel: Parcel): MediaData {
-                return MediaData(parcel)
-            }
-
-            override fun newArray(size: Int): Array<MediaData?> {
-                return arrayOfNulls(size)
-            }
-        }
-    }
+    class MediaData(val mediaFile: MediaFile, var text: String, var gif: Boolean)
 }

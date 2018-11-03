@@ -16,6 +16,7 @@ import de.intektor.mercury.android.*
 import de.intektor.mercury.io.ChatMessageService
 import de.intektor.mercury.io.AddressHolder
 import de.intektor.mercury.io.HttpManager
+import de.intektor.mercury.media.MediaHelper
 import de.intektor.mercury.reference.ReferenceUtil
 import de.intektor.mercury.task.getNextFreeNotificationId
 import de.intektor.mercury.util.NOTIFICATION_CHANNEL_DOWNLOAD_MEDIA
@@ -28,6 +29,7 @@ import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
 import okio.BufferedSink
+import org.threeten.bp.Clock
 import java.io.*
 import java.security.Key
 import java.util.*
@@ -93,8 +95,8 @@ class IOService : Service() {
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
         when {
             ActionDownloadReference.isAction(intent) -> {
-                val (referenceUuid, aesKey, initVector, fileType) = ActionDownloadReference.getData(intent)
-                downloadReference(referenceUuid, aesKey, initVector, fileType)
+                val (referenceUuid, aesKey, initVector, fileType, chatUUID, messageUUID) = ActionDownloadReference.getData(intent)
+                downloadReference(referenceUuid, aesKey, initVector, fileType, chatUUID, messageUUID)
             }
         }
 
@@ -102,8 +104,8 @@ class IOService : Service() {
         return super.onStartCommand(intent, flags, startId)
     }
 
-    private fun downloadReference(reference: UUID, aesKey: Key, initVector: ByteArray, mediaType: Int) {
-        downloadQueue += IORequest(reference, aesKey, initVector, mediaType)
+    private fun downloadReference(reference: UUID, aesKey: Key, initVector: ByteArray, mediaType: Int, chatUUID: UUID, messageUUID: UUID) {
+        downloadQueue += IORequest(reference, aesKey, initVector, mediaType, chatUUID, messageUUID)
 
         mercuryClient().currentLoadingTable[reference] = 0.0
     }
@@ -179,7 +181,8 @@ class IOService : Service() {
                             }
 
                             mercuryClient.currentLoadingTable -= request.reference
-                            ReferenceUtil.setMediaTypeForReference(request.reference, request.mediaType, mercuryClient.dataBase)
+
+                            ReferenceUtil.addReference(mercuryClient.dataBase, request.chatUUID, request.reference, request.messageUUID, request.mediaType, Clock.systemDefaultZone().instant().epochSecond)
 
                             ActionDownloadReferenceFinished.launch(this, request.reference, true)
                         }
@@ -272,7 +275,7 @@ class IOService : Service() {
     private fun accessUploadStreams() = uploadStreams
 
     @Suppress("ArrayInDataClass")
-    private data class IORequest(val reference: UUID, val aesKey: Key, val initVector: ByteArray, val mediaType: Int)
+    private data class IORequest(val reference: UUID, val aesKey: Key, val initVector: ByteArray, val mediaType: Int, val chatUUID: UUID, val messageUUID: UUID)
 
     enum class IO {
         UPLOAD,
@@ -326,12 +329,14 @@ class IOService : Service() {
         private const val EXTRA_AES_KEY: String = "de.intektor.mercury.EXTRA_AES_KEY"
         private const val EXTRA_INIT_VECTOR: String = "de.intektor.mercury.EXTRA_INIT_VECTOR"
         private const val EXTRA_FILE_TYPE: String = "de.intektor.mercury.EXTRA_FILE_TYPE"
+        private const val EXTRA_CHAT_UUID: String = "de.intektor.mercury.EXTRA_CHAT_UUID"
+        private const val EXTRA_MESSAGE_UUID: String = "de.intektor.mercury.EXTRA_MESSAGE_UUID"
 
         fun isAction(intent: Intent) = intent.action == ACTION
 
         fun getFilter(): IntentFilter = IntentFilter(ACTION)
 
-        private fun createIntent(context: Context, referenceUuid: UUID, aesKey: Key, initVector: ByteArray, mediaType: Int) =
+        private fun createIntent(context: Context, referenceUuid: UUID, aesKey: Key, initVector: ByteArray, mediaType: Int, chatUUID: UUID, messageUUID: UUID) =
                 Intent()
                         .setAction(ACTION)
                         .setComponent(ComponentName(context, IOService::class.java))
@@ -339,9 +344,11 @@ class IOService : Service() {
                         .putExtra(EXTRA_AES_KEY, aesKey)
                         .putExtra(EXTRA_INIT_VECTOR, initVector)
                         .putExtra(EXTRA_FILE_TYPE, mediaType)
+                        .putExtra(EXTRA_CHAT_UUID, chatUUID)
+                        .putExtra(EXTRA_MESSAGE_UUID, messageUUID)
 
-        fun launch(context: Context, referenceUuid: UUID, aesKey: Key, initVector: ByteArray, mediaType: Int) {
-            context.startService(createIntent(context, referenceUuid, aesKey, initVector, mediaType))
+        fun launch(context: Context, referenceUuid: UUID, aesKey: Key, initVector: ByteArray, mediaType: Int, chatUUID: UUID, messageUUID: UUID) {
+            context.startService(createIntent(context, referenceUuid, aesKey, initVector, mediaType, chatUUID, messageUUID))
         }
 
         fun getData(intent: Intent): Holder {
@@ -349,10 +356,12 @@ class IOService : Service() {
             val aesKey: Key = intent.getKeyExtra(EXTRA_AES_KEY)
             val initVector: ByteArray = intent.getByteArrayExtra(EXTRA_INIT_VECTOR)
             val mediaType: Int = intent.getIntExtra(EXTRA_FILE_TYPE, 0)
-            return Holder(referenceUuid, aesKey, initVector, mediaType)
+            val chatUUID: UUID = intent.getUUIDExtra(EXTRA_CHAT_UUID)
+            val messageUUID: UUID = intent.getUUIDExtra(EXTRA_MESSAGE_UUID)
+            return Holder(referenceUuid, aesKey, initVector, mediaType, chatUUID, messageUUID)
         }
 
-        data class Holder(val referenceUuid: UUID, val aesKey: Key, val initVector: ByteArray, val mediaType: Int)
+        data class Holder(val referenceUuid: UUID, val aesKey: Key, val initVector: ByteArray, val mediaType: Int, val chatUUID: UUID, val messageUUID: UUID)
     }
 
     object ActionUploadReference {

@@ -249,15 +249,15 @@ class FMService : FirebaseMessagingService() {
                         }
                     }
                     is MessageVoiceMessage -> {
-                        IOService.ActionDownloadReference.launch(this, messageData.reference, messageData.aesKey, messageData.initVector, MediaHelper.MEDIA_TYPE_AUDIO)
+                        IOService.ActionDownloadReference.launch(this, messageData.reference, messageData.aesKey, messageData.initVector, MediaHelper.MEDIA_TYPE_AUDIO, chatUUID, messageUUID)
                         updateChatAndSendBroadcast(chatMessage, chatInfo)
                     }
                     is MessageImage -> {
-                        IOService.ActionDownloadReference.launch(this, messageData.reference, messageData.aesKey, messageData.initVector, MediaHelper.MEDIA_TYPE_IMAGE)
+                        IOService.ActionDownloadReference.launch(this, messageData.reference, messageData.aesKey, messageData.initVector, MediaHelper.MEDIA_TYPE_IMAGE, chatUUID, messageUUID)
                         updateChatAndSendBroadcast(chatMessage, chatInfo)
                     }
                     is MessageVideo -> {
-                        IOService.ActionDownloadReference.launch(this, messageData.reference, messageData.aesKey, messageData.initVector, MediaHelper.MEDIA_TYPE_VIDEO)
+                        IOService.ActionDownloadReference.launch(this, messageData.reference, messageData.aesKey, messageData.initVector, MediaHelper.MEDIA_TYPE_VIDEO, chatUUID, messageUUID)
                         updateChatAndSendBroadcast(chatMessage, chatInfo)
                     }
                 }

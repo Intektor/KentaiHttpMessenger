@@ -65,7 +65,7 @@ class VoiceMessageViewHolder(itemView: View, chatAdapter: ChatAdapter) : ChatMes
                 if (isClient(item)) {
                     IOService.ActionUploadReference.launch(context, data.reference, data.aesKey, data.initVector, FileType.AUDIO)
                 } else {
-                    IOService.ActionDownloadReference.launch(context, data.reference, data.aesKey, data.initVector, MediaHelper.MEDIA_TYPE_AUDIO)
+                    IOService.ActionDownloadReference.launch(context, data.reference, data.aesKey, data.initVector, MediaHelper.MEDIA_TYPE_AUDIO, chatAdapter.activity.chatInfo.chatUUID, core.messageUUID)
                 }
             } else {
                 if (item.isPlaying) {

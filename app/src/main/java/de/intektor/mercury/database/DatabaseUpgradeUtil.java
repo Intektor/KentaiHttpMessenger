@@ -46,8 +46,10 @@ public class DatabaseUpgradeUtil {
     public static void addReferenceTable(SQLiteDatabase database) {
         database.execSQL("CREATE TABLE IF NOT EXISTS reference (" +
                 "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                "chat_uuid NOT NULL REFERENCES chats(chat_uuid) ON DELETE CASCADE, " +
-                "reference_uuid NOT NULL," +
-                "message_uuid NOT NULL REFERENCES chat_message(message_uuid) ON DELETE CASCADE)");
+                "chat_uuid VARCHAR(40) NOT NULL REFERENCES chats(chat_uuid) ON DELETE CASCADE, " +
+                "reference_uuid VARCHAR(40) NOT NULL," +
+                "message_uuid VARCHAR(40) NOT NULL REFERENCES chat_message(message_uuid) ON DELETE CASCADE," +
+                "media_type INT NOT NULL, " +
+                "time BIGINT NOT NULL)");
     }
 }
