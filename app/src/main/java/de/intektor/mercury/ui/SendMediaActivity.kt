@@ -101,10 +101,21 @@ class SendMediaActivity : AppCompatActivity() {
             activitySendMediaOther.visibility = View.GONE
         }
 
+        val fragments = mutableMapOf<Int, FragmentViewImage>()
+
         val pagerAdapter = object : FragmentPagerAdapter(supportFragmentManager) {
             override fun getItem(position: Int): Fragment = FragmentViewImage.create(media[position].file)
 
             override fun getCount(): Int = files.size
+
+            override fun instantiateItem(container: ViewGroup, position: Int): Any {
+                val instance = super.instantiateItem(container, position)
+
+                fragments[position] = instance as? FragmentViewImage ?: return instance
+
+                return instance
+            }
+
         }
         activity_send_media_vp_content.adapter = pagerAdapter
 
@@ -115,6 +126,10 @@ class SendMediaActivity : AppCompatActivity() {
 
             override fun onPageSelected(position: Int) {
                 setCurrentMedia(position, media)
+
+                activitySendMediaOther.smoothScrollToPosition(position)
+
+                (0 until files.size).filterNot { it == position }.forEach { fragments[it]?.reset() }
             }
         })
 

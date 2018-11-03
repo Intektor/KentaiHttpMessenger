@@ -12,6 +12,6 @@
 
     <color name="colorImageOverlayTransparent">#cc212121</color>
     <color name="colorSelectedVideoOverlay">#88000000</color>
-    <color name="colorSelectedItem">#4488ff00</color>
+    <color name="colorSelectedItem">#008400</color>
 
 </resources>

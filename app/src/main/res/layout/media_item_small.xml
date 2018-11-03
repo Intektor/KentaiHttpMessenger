@@ -6,6 +6,22 @@
     android:layout_height="wrap_content">
 
     <ImageView
+        android:id="@+id/mediaItemSmallSelected"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginStart="4dp"
+        android:layout_marginLeft="4dp"
+        android:layout_marginTop="4dp"
+        android:layout_marginEnd="4dp"
+        android:layout_marginRight="4dp"
+        android:layout_marginBottom="4dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:srcCompat="@color/colorSelectedItem" />
+
+    <ImageView
         android:id="@+id/mediaItemSmallThumbnail"
         android:layout_width="80dp"
         android:layout_height="80dp"
@@ -20,7 +36,7 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:srcCompat="@drawable/ic_perm_media_white_24dp" />
+        app:srcCompat="@android:color/white" />
 
     <ImageView
         android:id="@+id/mediaItemSmallVideo"
@@ -37,14 +53,4 @@
         app:layout_constraintTop_toTopOf="parent"
         app:srcCompat="@drawable/baseline_play_arrow_black_24" />
 
-    <ImageView
-        android:id="@+id/mediaItemSmallSelected"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:visibility="gone"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:srcCompat="@color/colorSelectedItem" />
 </androidx.constraintlayout.widget.ConstraintLayout>
