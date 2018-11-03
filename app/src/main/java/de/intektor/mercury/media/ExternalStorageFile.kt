@@ -3,7 +3,7 @@ package de.intektor.mercury.media
 import android.content.Context
 import android.provider.MediaStore
 
-data class ExternalStorageFile(val id: Long, override val mediaType: Int) : MediaFile {
+data class ExternalStorageFile(val id: Long, override val mediaType: Int, override val epochSecondAdded: Long) : MediaFile {
 
     override fun getPath(context: Context): String {
        return context.contentResolver.query(MediaStore.Files.getContentUri("external"),

@@ -17,16 +17,15 @@ import de.intektor.mercury.android.getSelectedTheme
 import de.intektor.mercury.chat.ChatInfo
 import de.intektor.mercury.media.ExternalStorageFile
 import de.intektor.mercury.media.MediaFile
+import de.intektor.mercury.media.MediaSourceExternalContent
 import de.intektor.mercury.ui.chat.adapter.chat.HeaderItemDecoration
+import de.intektor.mercury.ui.media.FragmentListMedia
 import de.intektor.mercury.ui.util.MediaAdapter
 import kotlinx.android.synthetic.main.activity_pick_gallery_folder.*
+import kotlinx.android.synthetic.main.chat_item.*
 import org.threeten.bp.*
 
-class PickGalleryFolderActivity : AppCompatActivity() {
-
-    private lateinit var adapter: MediaAdapter<GalleryMediaFile>
-
-    private var selectingMore = false
+class PickGalleryFolderActivity : AppCompatActivity(), FragmentListMedia.UserInteractionCallback {
 
     companion object {
         private const val ACTION_SEND_MEDIA = 0
@@ -57,17 +56,10 @@ class PickGalleryFolderActivity : AppCompatActivity() {
         data class Holder(val folderId: Long, val chatInfo: ChatInfo, val folderName: String)
     }
 
-    private val loadedListItems = mutableListOf<Any>()
-
-    private val selectedFiles = mutableListOf<GalleryMediaFile>()
 
     private lateinit var actionCallback: ActionMode.Callback
 
     private var actionMode: ActionMode? = null
-
-    private var currentLoadTime = System.currentTimeMillis()
-
-    private var hasReachedLimit = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -78,79 +70,20 @@ class PickGalleryFolderActivity : AppCompatActivity() {
 
         val (folderId, chatInfo, folderName) = getData(intent)
 
-        val clickCallback: (GalleryMediaFile, MediaAdapter.MediaViewHolder<GalleryMediaFile>) -> Unit = { item, holder ->
-            if (!selectingMore) {
-                startActivityForResult(SendMediaActivity.createIntent(this, chatInfo, folderId, listOf(item.file)), ACTION_SEND_MEDIA)
-            } else {
-                holder.setSelected(!item.selected)
+        val mediaProvider = MediaSourceExternalContent(folderId)
 
-                item.selected = !item.selected
+        val fragment = FragmentListMedia.create(mediaProvider)
 
-                if (item.selected) selectedFiles += item else selectedFiles -= item
-
-                if (selectedFiles.isEmpty()) actionMode?.finish()
-
-                actionMode?.title = getString(R.string.pick_gallery_folder_action_mode_items_selected, selectedFiles.size)
-            }
-        }
-
-        val longClickCallback: (GalleryMediaFile, MediaAdapter.MediaViewHolder<GalleryMediaFile>) -> Unit = { item, holder ->
-            selectingMore = true
-
-            if (actionMode == null) {
-                actionMode = startSupportActionMode(actionCallback)
-            }
-
-            holder.setSelected(!item.selected)
-
-            item.selected = !item.selected
-
-            if (item.selected) selectedFiles += item else selectedFiles -= item
-
-            actionMode?.title = getString(R.string.pick_gallery_folder_action_mode_items_selected, selectedFiles.size)
-        }
-
-        adapter = MediaAdapter(loadedListItems, clickCallback, longClickCallback)
-
-
-        pickGalleryFolderList.adapter = adapter
-
-        val layoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 5)
-        layoutManager.spanSizeLookup = object : androidx.recyclerview.widget.GridLayoutManager.SpanSizeLookup() {
-            override fun getSpanSize(position: Int): Int {
-                return when (loadedListItems[position]) {
-                    is MediaAdapter.MediaFileHeader -> 5
-                    is GalleryMediaFile -> 1
-                    else -> throw IllegalArgumentException()
-                }
-            }
-        }
-
-        pickGalleryFolderList.layoutManager = layoutManager
-
-        pickGalleryFolderList.addItemDecoration(HeaderItemDecoration(pickGalleryFolderList, object : HeaderItemDecoration.StickyHeaderInterface {
-            override fun getHeaderPositionForItem(itemPosition: Int): Int {
-                var i = itemPosition
-                while (true) {
-                    if (isHeader(i)) return i
-                    i--
-                }
-            }
-
-            override fun getHeaderLayout(headerPosition: Int): Int = R.layout.media_group_header
-
-            override fun bindHeaderData(header: View, headerPosition: Int) {
-                MediaAdapter.MediaHeaderViewHolder(header).bind(loadedListItems[headerPosition] as MediaAdapter.MediaFileHeader)
-            }
-
-            override fun isHeader(itemPosition: Int): Boolean = loadedListItems[itemPosition] is MediaAdapter.MediaFileHeader
-        }))
+        supportFragmentManager
+                .beginTransaction()
+                .replace(R.id.activity_pick_gallery_folder_content, fragment)
+                .commit()
 
         actionCallback = object : ActionMode.Callback {
             override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
                 when (item.itemId) {
                     R.id.menuPickGalleryActionModeSend -> {
-                        startActivityForResult(SendMediaActivity.createIntent(this@PickGalleryFolderActivity, chatInfo, folderId, selectedFiles.map { it.file }), ACTION_SEND_MEDIA)
+                        startActivityForResult(SendMediaActivity.createIntent(this@PickGalleryFolderActivity, chatInfo, folderId, fragment.selectedMediaFiles.map { it.file }), ACTION_SEND_MEDIA)
                         return true
                     }
                 }
@@ -166,14 +99,8 @@ class PickGalleryFolderActivity : AppCompatActivity() {
 
             override fun onDestroyActionMode(mode: ActionMode) {
                 actionMode = null
-                selectingMore = false
 
-                selectedFiles.forEach {
-                    it.selected = false
-                    adapter.notifyItemChanged(loadedListItems.indexOf(it))
-                }
-
-                selectedFiles.clear()
+                fragment.cancelActionMode()
             }
         }
 
@@ -182,118 +109,33 @@ class PickGalleryFolderActivity : AppCompatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
         supportActionBar?.title = folderName
-
-        val lastTime = contentResolver.query(
-                MediaStore.Files.getContentUri("external"),
-                arrayOf(MediaStore.MediaColumns.DATE_ADDED), "${MediaStore.Files.FileColumns.PARENT} = ?",
-                arrayOf("$folderId"),
-                "${MediaStore.MediaColumns.DATE_ADDED} ASC LIMIT 1").use { cursor ->
-            if (cursor == null || !cursor.moveToNext()) return@use System.currentTimeMillis()
-
-            cursor.getLong(0)
-        }
-
-        pickGalleryFolderList.addOnScrollListener(object : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
-            override fun onScrolled(recyclerView: androidx.recyclerview.widget.RecyclerView, dx: Int, dy: Int) {
-                val lastVisible = layoutManager.findLastVisibleItemPosition()
-
-                if (lastVisible > loadedListItems.size - 15 && !hasReachedLimit) {
-                    hasReachedLimit = !loadAndInsertItems(folderId, lastTime) {}
-                }
-            }
-        })
-
-        pickGalleryFolderList.viewTreeObserver.addOnGlobalLayoutListener(object : ViewTreeObserver.OnGlobalLayoutListener {
-            override fun onGlobalLayout() {
-                val now = LocalDate.now(Clock.systemDefaultZone())
-
-                //First day of this month
-                val minimum = now.withDayOfMonth(1).atStartOfDay(ZoneId.systemDefault()).toInstant().epochSecond
-
-                currentLoadTime = minimum
-
-                var totalAdded = 0
-
-                //We load all images from the start of this month till now
-                val latest = loadNextMediaFileGroup(minimum, Clock.systemDefaultZone().instant().epochSecond, folderId)
-
-                if (latest.isNotEmpty()) {
-                    loadedListItems += MediaAdapter.MediaFileHeader(minimum)
-                    loadedListItems.addAll(latest)
-                }
-                totalAdded += latest.size
-
-                adapter.notifyItemRangeInserted(0, 1 + latest.size)
-
-                //We load until the screen is filled so it doesn't look empty, this is just an approximation because we don't calculate the header size
-                while (totalAdded / 5 * resources.displayMetrics.density * 82 < pickGalleryFolderList.height) {
-                    val moreReady = loadAndInsertItems(folderId, lastTime) { moreAdded ->
-                        totalAdded += moreAdded
-                    }
-
-                    hasReachedLimit = !moreReady
-
-                    if (!moreReady) break
-                }
-                pickGalleryFolderList.viewTreeObserver.removeGlobalOnLayoutListener(this)
-            }
-        })
     }
 
-    private fun loadNextMediaFileGroup(minimum: Long, maximum: Long, folderId: Long): List<GalleryMediaFile> {
-        return contentResolver.query(
-                MediaStore.Files.getContentUri("external"),
-                arrayOf(MediaStore.MediaColumns._ID, MediaStore.Files.FileColumns.MEDIA_TYPE, MediaStore.MediaColumns.DATE_ADDED),
-                "${MediaStore.Files.FileColumns.PARENT} = ? AND ${MediaStore.Files.FileColumns.DATE_ADDED} > ? AND ${MediaStore.Files.FileColumns.DATE_ADDED} < ? " +
-                        "AND ${MediaStore.Files.FileColumns.MEDIA_TYPE} IN (${MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE}, ${MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO})",
-                arrayOf("$folderId", "$minimum", "$maximum"),
-                "${MediaStore.MediaColumns.DATE_ADDED} DESC").use { cursor ->
-
-            if (cursor == null) return@use emptyList<GalleryMediaFile>()
-
-            val linkedToGroup = mutableListOf<GalleryMediaFile>()
-
-            while (cursor.moveToNext()) {
-                val id = cursor.getLong(0)
-                val mediaType = cursor.getString(1).toInt()
-                val dateAdded = cursor.getLong(2)
-
-                linkedToGroup += GalleryMediaFile(dateAdded, ExternalStorageFile(id, mediaType))
-            }
-
-            return@use linkedToGroup
-        }
+    override fun activatedActionMode() {
+        actionMode = startSupportActionMode(actionCallback)
     }
 
-    private fun loadMore(folderId: Long, lastTime: Long, amountAdded: (Int) -> Unit): Boolean {
-        val maximum = LocalDateTime.ofInstant(Instant.ofEpochSecond(currentLoadTime), ZoneId.systemDefault()).toLocalDate()
-
-        val minimum = maximum.minusMonths(1)
-
-        val minimumEpochSecond = minimum.atStartOfDay(ZoneId.systemDefault()).toInstant().epochSecond
-
-        currentLoadTime = minimumEpochSecond
-
-        val result = loadNextMediaFileGroup(minimumEpochSecond, maximum.atStartOfDay(ZoneId.systemDefault()).toInstant().epochSecond, folderId)
-
-        if (result.isNotEmpty()) {
-            loadedListItems += MediaAdapter.MediaFileHeader(minimumEpochSecond)
-            loadedListItems.addAll(result)
-        }
-        amountAdded(result.size)
-
-        if (result.isNotEmpty() && result.last().time == lastTime) return false
-
-        return true
+    override fun finishActionMode() {
+        actionMode?.finish()
+        actionMode = null
     }
 
-    private fun loadAndInsertItems(folderId: Long, lastTime: Long, moreAdded: (Int) -> Unit): Boolean {
-        return loadMore(folderId, lastTime) { added ->
-            moreAdded(added)
-            if (added != 0) {
-                adapter.notifyItemRangeInserted(loadedListItems.size, 1 + added)
-            }
-        }
+    override fun selectedItem(index: Int, mediaFile: MediaFile, totalSelected: Int) {
+        updateActionModeLabel(totalSelected)
+    }
+
+    override fun unselectItem(index: Int, mediaFile: MediaFile, totalSelected: Int) {
+        updateActionModeLabel(totalSelected)
+    }
+
+    override fun selectSingleItemAndContinue(mediaFile: MediaFile) {
+        val (folderId, chatInfo, _) = getData(intent)
+
+        startActivityForResult(SendMediaActivity.createIntent(this, chatInfo, folderId, listOf(mediaFile)), PickGalleryFolderActivity.ACTION_SEND_MEDIA)
+    }
+
+    private fun updateActionModeLabel(selectedAmount: Int) {
+        actionMode?.title = getString(R.string.pick_gallery_folder_action_mode_items_selected, selectedAmount)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -312,5 +154,4 @@ class PickGalleryFolderActivity : AppCompatActivity() {
         return true
     }
 
-    private class GalleryMediaFile(time: Long, file: MediaFile) : MediaAdapter.MediaFile(time, file)
 }

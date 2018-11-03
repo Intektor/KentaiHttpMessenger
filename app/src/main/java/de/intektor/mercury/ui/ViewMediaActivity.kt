@@ -1,26 +1,39 @@
 package de.intektor.mercury.ui
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
-import android.view.View
 import de.intektor.mercury.MercuryClient
 import de.intektor.mercury.R
+import de.intektor.mercury.android.getChatInfoExtra
 import de.intektor.mercury.android.getSelectedTheme
 import de.intektor.mercury.chat.ChatInfo
 import de.intektor.mercury.chat.getChatMessages
 import de.intektor.mercury.reference.ReferenceUtil
-import de.intektor.mercury.ui.chat.adapter.chat.HeaderItemDecoration
 import de.intektor.mercury.ui.util.MediaAdapter
 import de.intektor.mercury.util.KEY_CHAT_INFO
-import de.intektor.mercury.util.KEY_MEDIA_TYPE
-import de.intektor.mercury.util.KEY_MESSAGE_UUID
 import de.intektor.mercury_common.reference.FileType
-import kotlinx.android.synthetic.main.activity_view_media.*
-import java.io.File
 import java.util.*
 
 class ViewMediaActivity : AppCompatActivity() {
+
+    companion object {
+
+        private const val EXTRA_CHAT_INFO = "de.intektor.mercury.EXTRA_CHAT_INFO"
+
+        fun launch(context: Context, chatInfo: ChatInfo) {
+            context.startActivity(Intent(context, ViewMediaActivity::class.java)
+                    .putExtra(EXTRA_CHAT_INFO, chatInfo))
+        }
+
+        fun getData(intent: Intent): Holder {
+            val chatInfo = intent.getChatInfoExtra(EXTRA_CHAT_INFO)
+            return Holder(chatInfo)
+        }
+
+        data class Holder(val chatInfo: ChatInfo)
+    }
 
     lateinit var adapter: MediaAdapter<ReferenceFile>
 
@@ -103,7 +116,7 @@ class ViewMediaActivity : AppCompatActivity() {
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
     }
 
-    class ReferenceFile(val fileType: FileType, time: Long, val messageUUID: UUID) : MediaAdapter.MediaFile(time, TODO())
+    class ReferenceFile(val fileType: FileType, time: Long, val messageUUID: UUID) : MediaAdapter.MediaFileWrapper(TODO())
 
     class CombinedReferences(val date: Date, val combined: MutableList<ReferenceFile>)
 

@@ -17,12 +17,11 @@
             app:layout_scrollFlags="scroll|enterAlways|enterAlwaysCollapsed"/>
     </com.google.android.material.appbar.AppBarLayout>
 
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/pickGalleryFolderList"
+    <FrameLayout
+        android:id="@+id/activity_pick_gallery_folder_content"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        app:layout_behavior="com.google.android.material.appbar.AppBarLayout$ScrollingViewBehavior"
-        tools:listitem="@layout/media_group_header" />
+        app:layout_behavior="com.google.android.material.appbar.AppBarLayout$ScrollingViewBehavior" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
 

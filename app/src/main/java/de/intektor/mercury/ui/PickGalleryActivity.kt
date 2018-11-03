@@ -111,7 +111,7 @@ class PickGalleryActivity : AppCompatActivity(), SearchView.OnQueryTextListener 
                 val parentDirectory = cursor.getString(0)
 
                 val mediaFile: MediaFile? = contentResolver.query(fileUri,
-                        arrayOf(MediaStore.MediaColumns._ID, MediaStore.Files.FileColumns.MEDIA_TYPE),
+                        arrayOf(MediaStore.MediaColumns._ID, MediaStore.Files.FileColumns.MEDIA_TYPE, MediaStore.Files.FileColumns.DATE_ADDED),
                         "${MediaStore.Files.FileColumns.PARENT} = ? " +
                                 "AND ${MediaStore.Files.FileColumns.MEDIA_TYPE} IN (${MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE}, ${MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO})",
                         arrayOf("$galleryFolder"),
@@ -120,8 +120,9 @@ class PickGalleryActivity : AppCompatActivity(), SearchView.OnQueryTextListener 
 
                     val id = firstItemCursor.getLong(0)
                     val mimeType = firstItemCursor.getString(1).toInt()
+                    val dateAdded = firstItemCursor.getLong(2)
 
-                    ExternalStorageFile(id, mimeType)
+                    ExternalStorageFile(id, mimeType, dateAdded)
                 }
 
                 if (mediaFile != null) {

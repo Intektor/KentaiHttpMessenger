@@ -8,5 +8,7 @@ import java.io.Serializable
 interface MediaFile : Serializable {
     val mediaType: Int
 
+    val epochSecondAdded: Long
+
     fun getPath(context: Context): String
 }

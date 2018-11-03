@@ -13,7 +13,7 @@ import de.intektor.mercury.media.ThumbnailUtil
 import java.text.SimpleDateFormat
 import java.util.*
 
-class MediaAdapter<T : MediaAdapter.MediaFile>(
+class MediaAdapter<T : MediaAdapter.MediaFileWrapper>(
         private val componentList: List<Any>, private val clickCallback: (T, MediaViewHolder<T>) -> Unit,
         private val longClickCallback: (T, MediaViewHolder<T>) -> Unit) : androidx.recyclerview.widget.RecyclerView.Adapter<BindableViewHolder<Any>>() {
 
@@ -24,7 +24,7 @@ class MediaAdapter<T : MediaAdapter.MediaFile>(
 
     override fun getItemViewType(position: Int): Int {
         return when (componentList[position]) {
-            is MediaFile -> MEDIA_FILE_ITEM
+            is MediaFileWrapper -> MEDIA_FILE_ITEM
             is MediaFileHeader -> MEDIA_HEADER_ITEM
             else -> throw IllegalArgumentException("Unknown item type at position $position")
         }
@@ -55,7 +55,7 @@ class MediaAdapter<T : MediaAdapter.MediaFile>(
         }
     }
 
-    class MediaViewHolder<T : MediaFile>(view: View, private val clickCallback: (T, MediaViewHolder<T>) -> Unit, private val longClickCallback: (T, MediaViewHolder<T>) -> Unit) : BindableViewHolder<T>(view) {
+    class MediaViewHolder<T : MediaFileWrapper>(view: View, private val clickCallback: (T, MediaViewHolder<T>) -> Unit, private val longClickCallback: (T, MediaViewHolder<T>) -> Unit) : BindableViewHolder<T>(view) {
         private val content: ImageView = view.findViewById(R.id.fragment_image_item_iv_content)
         private val videoOverlay: CardView = view.findViewById(R.id.fragment_image_item_cv_video_overlay)
         private val checked: ImageView = view.findViewById(R.id.fragment_image_item_iv_check)
@@ -88,7 +88,7 @@ class MediaAdapter<T : MediaAdapter.MediaFile>(
         }
     }
 
-    open class MediaFile(val time: Long, val file: de.intektor.mercury.media.MediaFile, var selected: Boolean = false)
+    open class MediaFileWrapper(val file: de.intektor.mercury.media.MediaFile, var selected: Boolean = false)
 
     class MediaFileHeader(val time: Long)
 }
