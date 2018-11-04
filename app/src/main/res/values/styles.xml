@@ -12,7 +12,6 @@
     <attr name="ic_person_add" format="reference" />
     <attr name="ic_photo" format="reference" />
     <attr name="ic_settings" format="reference" />
-    <attr name="ic_share" format="reference" />
     <attr name="ic_pause" format="reference" />
     <attr name="bubble_left" format="reference" />
     <attr name="bubble_right" format="reference" />
@@ -42,7 +41,6 @@
         <item name="ic_person_add">@drawable/ic_person_add_white_24dp</item>
         <item name="ic_photo">@drawable/ic_photo_white_24dp</item>
         <item name="ic_settings">@drawable/ic_settings_white_24dp</item>
-        <item name="ic_share">@drawable/ic_share_white_24dp</item>
         <item name="ic_pause">@drawable/ic_pause_white_24dp</item>
         <item name="ic_mic">@drawable/baseline_mic_white_24</item>
         <item name="ic_camera">@drawable/baseline_photo_camera_white_24</item>
@@ -70,7 +68,6 @@
         <item name="ic_person_add">@drawable/ic_person_add_black_24dp</item>
         <item name="ic_photo">@drawable/ic_photo_black_24dp</item>
         <item name="ic_settings">@drawable/ic_settings_black_24dp</item>
-        <item name="ic_share">@drawable/ic_share_black_24dp</item>
         <item name="ic_pause">@drawable/ic_pause_black_24dp</item>
         <item name="ic_mic">@drawable/baseline_mic_black_24</item>
         <item name="ic_camera">@drawable/baseline_photo_camera_black_24</item>

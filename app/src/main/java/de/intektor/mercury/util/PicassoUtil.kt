@@ -8,6 +8,7 @@ object PicassoUtil {
     fun buildPicasso(context: Context): Picasso {
         return Picasso.Builder(context)
                 .addRequestHandler(ThumbnailUtil.createExternalThumbnailRequestHandler(context))
+                .addRequestHandler(ThumbnailUtil.createReferenceThumbnailRequestHandler(context))
                 .build()
 
     }

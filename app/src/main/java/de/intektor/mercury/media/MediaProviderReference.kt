@@ -37,5 +37,9 @@ class MediaProviderReference(private val chatUUID: UUID) : MediaProvider<Referen
         }
     }
 
-
+    override fun hasAnyElements(context: Context): Boolean =
+            context.mercuryClient().dataBase.rawQuery("SELECT COUNT(reference_uuid) FROM reference WHERE chat_uuid = ? LIMIT 1", arrayOf("$chatUUID")).use { cursor ->
+                cursor.moveToNext()
+                cursor.getInt(0) > 0
+            }
 }

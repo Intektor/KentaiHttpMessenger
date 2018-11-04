@@ -2,8 +2,9 @@ package de.intektor.mercury.reference
 
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
-import de.intektor.mercury.database.*
-import de.intektor.mercury_common.reference.FileType
+import de.intektor.mercury.database.bindBoolean
+import de.intektor.mercury.database.bindUUID
+import de.intektor.mercury.database.getBoolean
 import de.intektor.mercury_common.util.toAESKey
 import java.io.File
 import java.security.Key
@@ -62,7 +63,7 @@ object ReferenceUtil {
     }
 
     fun addReference(database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, messageUUID: UUID, mediaType: Int, epochSecond: Long) {
-        database.compileStatement("INSERT INTO reference (chat_uuid, reference_uuid, message_uuid, media_type, time) VALUES(?, ?, ?)").use { statement ->
+        database.compileStatement("INSERT INTO reference (chat_uuid, reference_uuid, message_uuid, media_type, time) VALUES(?, ?, ?, ?, ?)").use { statement ->
             statement.bindUUID(1, chatUUID)
             statement.bindUUID(2, referenceUUID)
             statement.bindUUID(3, messageUUID)

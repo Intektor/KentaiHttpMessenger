@@ -11,8 +11,8 @@ import com.squareup.picasso.Picasso
 import de.intektor.mercury.MercuryClient
 import de.intektor.mercury.R
 import de.intektor.mercury.android.getSelectedTheme
-import de.intektor.mercury.chat.getUserChat
 import de.intektor.mercury.chat.getContact
+import de.intektor.mercury.chat.getUserChat
 import de.intektor.mercury.io.ChatMessageService
 import de.intektor.mercury.util.*
 import de.intektor.mercury_common.users.ProfilePictureType
@@ -39,12 +39,10 @@ class ContactInfoActivity : AppCompatActivity() {
         activityUserChatInfoProfileName.text = contact.name
         activityUserChatInfoProfileAlias.text = contact.alias
 
-        val chatInfo = getUserChat(mercuryClient, mercuryClient.dataBase, contact)
+        val chatInfo = getUserChat(this, mercuryClient.dataBase, contact)
 
         activityUserChatInfoSentMedia.setOnClickListener {
-            val i = Intent(this@ContactInfoActivity, ViewMediaActivity::class.java)
-            i.putExtra(KEY_CHAT_INFO, chatInfo)
-            startActivity(i)
+            ViewMediaActivity.launch(this, chatInfo)
         }
 
         Picasso.get().load(getProfilePicture(userUUID, this)).memoryPolicy(MemoryPolicy.NO_CACHE).into(activityUserChatInfoProfilePicture)

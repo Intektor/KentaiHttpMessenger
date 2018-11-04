@@ -13,7 +13,6 @@ import de.intektor.mercury.media.MediaFile
 import de.intektor.mercury.media.MediaProvider
 import de.intektor.mercury.ui.chat.adapter.chat.HeaderItemDecoration
 import de.intektor.mercury.ui.util.MediaAdapter
-import kotlinx.android.synthetic.main.activity_pick_gallery_folder.*
 import kotlinx.android.synthetic.main.fragment_media_list.*
 import org.threeten.bp.*
 
@@ -58,14 +57,15 @@ class FragmentListMedia : Fragment() {
 
     private var callback: UserInteractionCallback? = null
 
-    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
-        return inflater.inflate(R.layout.fragment_media_list, container, false)
-    }
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? =
+            inflater.inflate(R.layout.fragment_media_list, container, false)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
         val context = requireContext()
+
+        if (!mediaProvider.hasAnyElements(context)) return
 
         val clickCallback: (GalleryMediaFile, MediaAdapter.MediaViewHolder<GalleryMediaFile>) -> Unit = { item, holder ->
             if (!actionMode) {
@@ -171,12 +171,14 @@ class FragmentListMedia : Fragment() {
                 //We load all images from the start of this month till now
                 val latest = mediaProvider.loadMediaFiles(context, minimum, Clock.systemDefaultZone().instant().epochSecond)
 
-                insertItemsIntoList(LoadResult(minimum, latest, latest.last().epochSecondAdded == lastTime))
+                val alreadyReachedLimit = latest.lastOrNull()?.epochSecondAdded == lastTime
+
+                insertItemsIntoList(LoadResult(minimum, latest, alreadyReachedLimit))
 
                 totalAdded += latest.size
 
                 //We load until the screen is filled so it doesn't look empty, this is just an approximation because we don't calculate the header size
-                while (totalAdded / 5 * resources.displayMetrics.density * 82 < fragment_media_list_rv_content.height) {
+                while (totalAdded / 5 * resources.displayMetrics.density * 82 < fragment_media_list_rv_content.height && !alreadyReachedLimit) {
                     val result = loadMore(lastTime)
 
                     hasReachedLimit = result.reachedLimit

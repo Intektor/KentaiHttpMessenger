@@ -40,4 +40,12 @@ class MediaProviderExternalContent(private val folderId: Long) : MediaProvider<E
         }
     }
 
+    override fun hasAnyElements(context: Context): Boolean = context.contentResolver.query(
+            MediaStore.Files.getContentUri("external"),
+            arrayOf(),
+            "${MediaStore.Files.FileColumns.PARENT} = ?",
+            arrayOf("$folderId"),
+            "${MediaStore.Files.FileColumns.PARENT} LIMIT 1").use { query ->
+        query != null && query.moveToNext()
+    }
 }
