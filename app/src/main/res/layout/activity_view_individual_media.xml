@@ -3,96 +3,73 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    tools:context=".ui.ViewIndividualMediaActivity">
+    android:layout_height="match_parent">
 
-    <com.jsibbold.zoomage.ZoomageView
-        android:id="@+id/activityViewIndividualMediaImage"
+    <ImageView
+        android:id="@+id/activity_chat_media_view_iv_background"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginTop="8dp"
-        android:visibility="gone"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/activityViewIndividualMediaToolbar" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:srcCompat="?attr/backgroundColor" />
 
-    <androidx.appcompat.widget.Toolbar
-        android:id="@+id/activityViewIndividualMediaToolbar"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:background="@color/colorImageOverlayTransparent"
-        android:minHeight="?attr/actionBarSize"
-        android:theme="?attr/actionBarTheme"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <FrameLayout
-        android:id="@+id/activityViewIndividualMediaVideoLayout"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_marginBottom="8dp"
+    <androidx.cardview.widget.CardView
+        android:id="@+id/activity_chat_media_view_cv_share"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:layout_marginTop="8dp"
         android:layout_marginEnd="8dp"
+        android:layout_marginRight="8dp"
+        app:cardCornerRadius="15dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:id="@+id/activity_chat_media_view_iv_share"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="?android:selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:scaleType="center"
+            app:srcCompat="@drawable/baseline_share_24" />
+    </androidx.cardview.widget.CardView>
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/activity_chat_media_view_cv_close"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
         android:layout_marginStart="8dp"
+        android:layout_marginLeft="8dp"
         android:layout_marginTop="8dp"
-        android:visibility="gone"
+        app:cardCornerRadius="15dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:id="@+id/activity_chat_media_view_iv_close"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="?android:selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true"
+            android:scaleType="center"
+            app:srcCompat="@drawable/baseline_close_24" />
+    </androidx.cardview.widget.CardView>
+
+    <androidx.viewpager.widget.ViewPager
+        android:id="@+id/activity_chat_media_view_vp_content"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="8dp"
+        app:layout_behavior="com.google.android.material.appbar.AppBarLayout$ScrollingViewBehavior"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/activityViewIndividualMediaToolbar">
+        app:layout_constraintTop_toBottomOf="@+id/activity_chat_media_view_cv_close">
 
-        <VideoView
-            android:id="@+id/activityViewIndividualMediaVideo"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_gravity="center"
-            android:layout_marginBottom="8dp"
-            android:layout_marginEnd="8dp"
-            android:layout_marginStart="8dp"
-            android:layout_marginTop="8dp"
-            android:visibility="gone"
-            app:layout_constraintBottom_toTopOf="@+id/activityViewIndividualMediaInput"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
-
-        <ImageView
-            android:id="@+id/activityViewIndividualMediaVideoPreview"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:src="@mipmap/ic_launcher" />
-
-        <ImageView
-            android:id="@+id/activityViewIndividualMediaVideoPlay"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:scaleType="centerInside"
-            android:scaleX="3"
-            android:scaleY="3"
-            android:src="@android:drawable/ic_media_play" />
-    </FrameLayout>
-
-    <TextView
-        android:id="@+id/activityViewIndividualMediaMessage"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:background="@color/colorImageOverlayTransparent"
-        android:textSize="18sp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
-
-    <TextView
-        android:id="@+id/activityViewIndividualMediaWhoWhen"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:background="@color/colorImageOverlayTransparent"
-        android:textSize="18sp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/activityViewIndividualMediaToolbar" />
+    </androidx.viewpager.widget.ViewPager>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

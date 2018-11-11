@@ -62,14 +62,22 @@ object ReferenceUtil {
         }
     }
 
-    fun addReference(database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, messageUUID: UUID, mediaType: Int, epochSecond: Long) {
+    fun addReference(database: SQLiteDatabase, chatUUID: UUID, referenceUUID: UUID, messageUUID: UUID, mediaType: Int, epochMilli: Long) {
         database.compileStatement("INSERT INTO reference (chat_uuid, reference_uuid, message_uuid, media_type, time) VALUES(?, ?, ?, ?, ?)").use { statement ->
             statement.bindUUID(1, chatUUID)
             statement.bindUUID(2, referenceUUID)
             statement.bindUUID(3, messageUUID)
             statement.bindLong(4, mediaType.toLong())
-            statement.bindLong(5, epochSecond)
+            statement.bindLong(5, epochMilli)
             statement.execute()
+        }
+    }
+
+    fun getAmountChatReferences(database: SQLiteDatabase, chatUUID: UUID): Int {
+        return database.rawQuery("SELECT COUNT(reference_uuid) FROM reference WHERE chat_uuid = ?", arrayOf(chatUUID.toString())).use { cursor ->
+            cursor.moveToNext()
+
+            cursor.getInt(0)
         }
     }
 

@@ -97,7 +97,7 @@ class GifMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessageVi
 //            }
 //
 //            thumbnail.setOnClickListener {
-//                val i = Intent(itemView.context, ViewIndividualMediaActivity::class.java)
+//                val i = Intent(itemView.context, ChatMediaViewActivity::class.java)
 //                i.putExtra(KEY_FILE_URI, Uri.fromFile(referenceFile))
 //                i.putExtra(KEY_MEDIA_TYPE, FileType.GIF)
 //                itemView.context.startActivity(i)

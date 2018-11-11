@@ -12,13 +12,13 @@ import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.net.Uri
 import android.os.*
-import androidx.core.app.NotificationManagerCompat
-import androidx.appcompat.app.AppCompatActivity
 import android.text.Editable
 import android.text.TextWatcher
 import android.text.format.DateUtils
 import android.view.*
 import android.widget.CheckBox
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.NotificationManagerCompat
 import com.google.common.hash.Hashing
 import com.squareup.picasso.MemoryPolicy
 import com.squareup.picasso.Picasso
@@ -873,6 +873,9 @@ class ChatActivity : AppCompatActivity() {
 
     private class SendPhotoTask(val execute: (ChatMessageInfo) -> (Unit), val mercuryClient: MercuryClient, val chatUUID: UUID, val uri: Uri, val text: String) : AsyncTask<Unit, Unit, ChatMessageInfo>() {
         override fun doInBackground(vararg args: Unit): ChatMessageInfo {
+            Thread.sleep(1L)
+
+            val messageUUID = UUID.randomUUID()
             val referenceUUID = UUID.randomUUID()
 
             val clientUUID = ClientPreferences.getClientUUID(mercuryClient)
@@ -892,11 +895,11 @@ class ChatActivity : AppCompatActivity() {
             val iV = generateInitVector()
 
             ReferenceUtil.setReferenceKey(mercuryClient.dataBase, referenceUUID, aes, iV)
-            ReferenceUtil.addReference(mercuryClient.dataBase, chatUUID, referenceUUID, clientUUID, MediaHelper.MEDIA_TYPE_IMAGE, Clock.systemDefaultZone().instant().epochSecond)
+            ReferenceUtil.addReference(mercuryClient.dataBase, chatUUID, referenceUUID, messageUUID, MediaHelper.MEDIA_TYPE_IMAGE, Clock.systemDefaultZone().instant().toEpochMilli())
 
             val hash = Hashing.sha512().hashBytes(byteOut.toByteArray()).toString()
             val data = MessageImage(ThumbnailUtil.createThumbnail(referenceFile, FileType.IMAGE), text, bitmap.width, bitmap.height, aes, iV, referenceUUID, hash)
-            val core = MessageCore(clientUUID, System.currentTimeMillis(), UUID.randomUUID())
+            val core = MessageCore(clientUUID, System.currentTimeMillis(), messageUUID)
 
             return ChatMessageInfo(ChatMessage(core, data), true, chatUUID)
         }
@@ -926,7 +929,9 @@ class ChatActivity : AppCompatActivity() {
 
     private class SendVideoTask(val execute: (ChatMessageInfo) -> Unit, val mercuryClient: MercuryClient, val uri: Uri, val text: String, val isGif: Boolean, val chatUUID: UUID) : AsyncTask<Unit, Unit, ChatMessageInfo>() {
         override fun doInBackground(vararg args: Unit): ChatMessageInfo {
+            Thread.sleep(1L)
             val referenceUUID = UUID.randomUUID()
+            val messageUUID = UUID.randomUUID()
 
             val clientUUID = ClientPreferences.getClientUUID(mercuryClient)
 
@@ -941,10 +946,10 @@ class ChatActivity : AppCompatActivity() {
             val initVector = generateInitVector()
 
             ReferenceUtil.setReferenceKey(mercuryClient.dataBase, referenceUUID, aesKey, initVector)
-            ReferenceUtil.addReference(mercuryClient.dataBase, chatUUID, referenceUUID, clientUUID, MediaHelper.MEDIA_TYPE_VIDEO, Clock.systemDefaultZone().instant().epochSecond)
+            ReferenceUtil.addReference(mercuryClient.dataBase, chatUUID, referenceUUID, messageUUID, MediaHelper.MEDIA_TYPE_VIDEO, Clock.systemDefaultZone().instant().toEpochMilli())
 
             val data = MessageVideo(getVideoDuration(referenceFile, mercuryClient), isGif, dimension.width, dimension.height, byteArrayOf(), text, aesKey, initVector, referenceUUID, hash.toString())
-            val core = MessageCore(clientUUID, System.currentTimeMillis(), UUID.randomUUID())
+            val core = MessageCore(clientUUID, System.currentTimeMillis(), messageUUID)
 
             val message = ChatMessage(core, data)
 

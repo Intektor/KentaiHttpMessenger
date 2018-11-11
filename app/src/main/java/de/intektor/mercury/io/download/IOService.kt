@@ -13,10 +13,9 @@ import de.intektor.mercury.action.reference.ActionDownloadReferenceProgress
 import de.intektor.mercury.action.reference.ActionUploadReferenceFinished
 import de.intektor.mercury.action.reference.ActionUploadReferenceProgress
 import de.intektor.mercury.android.*
-import de.intektor.mercury.io.ChatMessageService
 import de.intektor.mercury.io.AddressHolder
+import de.intektor.mercury.io.ChatMessageService
 import de.intektor.mercury.io.HttpManager
-import de.intektor.mercury.media.MediaHelper
 import de.intektor.mercury.reference.ReferenceUtil
 import de.intektor.mercury.task.getNextFreeNotificationId
 import de.intektor.mercury.util.NOTIFICATION_CHANNEL_DOWNLOAD_MEDIA
@@ -182,7 +181,7 @@ class IOService : Service() {
 
                             mercuryClient.currentLoadingTable -= request.reference
 
-                            ReferenceUtil.addReference(mercuryClient.dataBase, request.chatUUID, request.reference, request.messageUUID, request.mediaType, Clock.systemDefaultZone().instant().epochSecond)
+                            ReferenceUtil.addReference(mercuryClient.dataBase, request.chatUUID, request.reference, request.messageUUID, request.mediaType, Clock.systemDefaultZone().instant().toEpochMilli())
 
                             ActionDownloadReferenceFinished.launch(this, request.reference, true)
                         }

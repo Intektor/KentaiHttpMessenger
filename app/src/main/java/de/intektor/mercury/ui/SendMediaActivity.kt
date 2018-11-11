@@ -4,29 +4,26 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import android.os.Parcel
-import android.os.Parcelable
 import android.provider.MediaStore
-import androidx.appcompat.app.AppCompatActivity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
+import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentPagerAdapter
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import androidx.viewpager.widget.ViewPager
 import de.intektor.mercury.R
-import de.intektor.mercury.android.*
+import de.intektor.mercury.android.getChatInfoExtra
+import de.intektor.mercury.android.getSelectedTheme
 import de.intektor.mercury.chat.ChatInfo
 import de.intektor.mercury.media.MediaFile
 import de.intektor.mercury.media.ThumbnailUtil
 import de.intektor.mercury.ui.chat.ChatActivity
 import de.intektor.mercury.ui.support.FragmentViewImage
+import de.intektor.mercury.ui.support.FragmentViewImageResetAdapter
 import kotlinx.android.synthetic.main.activity_send_media.*
-import java.lang.IllegalStateException
 
 class SendMediaActivity : AppCompatActivity() {
 
@@ -106,37 +103,22 @@ class SendMediaActivity : AppCompatActivity() {
             activitySendMediaOther.visibility = View.GONE
         }
 
-        val fragments = mutableMapOf<Int, FragmentViewImage>()
-
-        val pagerAdapter = object : FragmentPagerAdapter(supportFragmentManager) {
+        val pagerAdapter = object : FragmentViewImageResetAdapter(supportFragmentManager) {
             override fun getItem(position: Int): Fragment = FragmentViewImage.create(media[position].file)
 
             override fun getCount(): Int = files.size
 
-            override fun instantiateItem(container: ViewGroup, position: Int): Any {
-                val instance = super.instantiateItem(container, position)
-
-                fragments[position] = instance as? FragmentViewImage ?: return instance
-
-                return instance
-            }
-
-        }
-        activity_send_media_vp_content.adapter = pagerAdapter
-
-        activity_send_media_vp_content.addOnPageChangeListener(object : ViewPager.OnPageChangeListener {
-            override fun onPageScrollStateChanged(state: Int) = Unit
-
-            override fun onPageScrolled(position: Int, positionOffset: Float, positionOffsetPixels: Int) = Unit
-
             override fun onPageSelected(position: Int) {
+                super.onPageSelected(position)
+
                 setCurrentMedia(position, media)
 
                 activitySendMediaOther.smoothScrollToPosition(position)
-
-                (0 until files.size).filterNot { it == position }.forEach { fragments[it]?.reset() }
             }
-        })
+        }
+
+        activity_send_media_vp_content.adapter = pagerAdapter
+        activity_send_media_vp_content.addOnPageChangeListener(pagerAdapter)
 
         setCurrentMedia(0, media)
 

@@ -3,7 +3,6 @@ package de.intektor.mercury.ui.chat.adapter.chat
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
-import android.net.Uri
 import android.view.View
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -14,7 +13,7 @@ import de.intektor.mercury.R
 import de.intektor.mercury.chat.ReferenceHolder
 import de.intektor.mercury.reference.ReferenceUtil
 import de.intektor.mercury.task.ReferenceState
-import de.intektor.mercury.ui.ViewIndividualMediaActivity
+import de.intektor.mercury.ui.ChatMediaViewActivity
 import de.intektor.mercury.util.setGone
 import de.intektor.mercury.util.setVisible
 import de.intektor.mercury_common.chat.ChatMessage
@@ -62,7 +61,7 @@ class ImageMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessage
         }
 
         registerForEditModePress(imageView) {
-            ViewIndividualMediaActivity.launch(context, Uri.fromFile(referenceFile), FileType.IMAGE, core.messageUUID)
+            ChatMediaViewActivity.launch(context, chatAdapter.chatInfo.chatUUID, data.reference)
         }
 
         registerForEditModePress(loadButton) {

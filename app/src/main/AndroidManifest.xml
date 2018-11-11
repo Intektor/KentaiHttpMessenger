@@ -64,8 +64,8 @@
         <activity android:name=".ui.AddContactActivity" />
         <activity android:name=".ui.NewChatUserActivity" />
         <activity
-            android:name=".ui.chat.ChatActivity"
-            android:launchMode="singleInstance" />
+            android:name=".ui.chat.ChatActivity"/>
+
         <activity
             android:name=".ui.ContactInfoActivity"
             android:label="@string/contact_info_label" />
@@ -149,9 +149,9 @@
             android:name=".ui.ViewMediaActivity"
             android:label="@string/view_media_label" />
         <activity
-            android:name=".ui.ViewIndividualMediaActivity"
+            android:name=".ui.ChatMediaViewActivity"
             android:label="@string/view_individual_media_label"
-            android:theme="@style/AppTheme.NoActionBar" />
+            android:theme="@style/Translucent" />
         <activity
             android:name=".ui.SettingsOverviewActivity"
             android:label="@string/settings_overview_label" />
@@ -169,7 +169,7 @@
         <service
             android:name=".io.download.IOService"
             android:enabled="true"
-            android:exported="false"></service>
+            android:exported="false"/>
     </application>
 
 </manifest>

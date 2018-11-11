@@ -4,6 +4,7 @@ import android.content.Context
 import de.intektor.mercury.android.mercuryClient
 import de.intektor.mercury.database.getUUID
 import java.util.*
+import java.util.concurrent.TimeUnit
 
 class MediaProviderReference(private val chatUUID: UUID) : MediaProvider<ReferenceFile> {
 
@@ -21,7 +22,7 @@ class MediaProviderReference(private val chatUUID: UUID) : MediaProvider<Referen
         val mercuryClient = context.mercuryClient()
 
         return mercuryClient.dataBase.rawQuery("SELECT reference_uuid, media_type, time FROM reference WHERE chat_uuid = ? AND time > ? AND time < ?",
-                arrayOf(chatUUID.toString(), minimumEpochSecond.toString(), maximumEpochSecond.toString())).use { cursor ->
+                arrayOf(chatUUID.toString(), (TimeUnit.SECONDS.toMillis(minimumEpochSecond)).toString(), (TimeUnit.SECONDS.toMillis(maximumEpochSecond)).toString())).use { cursor ->
 
             val list = mutableListOf<ReferenceFile>()
 

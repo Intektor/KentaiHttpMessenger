@@ -70,7 +70,7 @@ package de.intektor.mercury.ui.chat.adapter.chat
 //                playButton.visibility = View.GONE
 //
 //                registerForEditModePress(thumbnail) {
-//                    val i = Intent(itemView.context, ViewIndividualMediaActivity::class.java)
+//                    val i = Intent(itemView.context, ChatMediaViewActivity::class.java)
 //                    i.putExtra(KEY_FILE_URI, Uri.fromFile(imageFile))
 //                    i.putExtra(KEY_MEDIA_TYPE, FileType.IMAGE)
 //                    i.putExtra(KEY_MESSAGE_UUID, item.chatMessageInfo.message.id.toUUID())
@@ -94,7 +94,7 @@ package de.intektor.mercury.ui.chat.adapter.chat
 //                }
 //
 //                thumbnail.setOnClickListener {
-//                    val i = Intent(itemView.context, ViewIndividualMediaActivity::class.java)
+//                    val i = Intent(itemView.context, ChatMediaViewActivity::class.java)
 //                    i.putExtra(KEY_FILE_URI, Uri.fromFile(videoFile))
 //                    i.putExtra(KEY_MEDIA_TYPE, FileType.VIDEO)
 //                    i.putExtra(KEY_MESSAGE_UUID, item.chatMessageInfo.message.id.toUUID())
