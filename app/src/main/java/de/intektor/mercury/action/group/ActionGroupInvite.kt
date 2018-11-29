@@ -5,7 +5,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import de.intektor.mercury.android.getChatInfoExtra
 import de.intektor.mercury.android.getUUIDExtra
-import de.intektor.mercury.chat.ChatInfo
+import de.intektor.mercury.chat.model.ChatInfo
 import java.util.*
 
 /**

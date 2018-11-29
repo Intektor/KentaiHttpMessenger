@@ -1,12 +1,11 @@
 package de.intektor.mercury.ui.overview_activity
 
-import androidx.recyclerview.widget.RecyclerView
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import de.intektor.mercury.R
-import de.intektor.mercury.chat.ChatInfo
+import de.intektor.mercury.chat.model.ChatInfo
 import de.intektor.mercury.chat.ChatMessageInfo
 import de.intektor.mercury.chat.MessageUtil
 import de.intektor.mercury.ui.overview_activity.fragment.ChatListViewAdapter

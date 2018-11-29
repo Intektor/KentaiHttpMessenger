@@ -8,9 +8,10 @@ import androidx.test.espresso.action.ViewActions
 import androidx.test.espresso.assertion.ViewAssertions
 import androidx.test.espresso.intent.matcher.IntentMatchers
 import androidx.test.espresso.matcher.ViewMatchers
-import androidx.recyclerview.widget.RecyclerView
 import android.view.View
 import de.intektor.mercury.chat.*
+import de.intektor.mercury.chat.model.ChatInfo
+import de.intektor.mercury.chat.model.ChatReceiver
 import de.intektor.mercury.contacts.Contact
 import de.intektor.mercury.contacts.ContactUtil
 import de.intektor.mercury_common.chat.ChatMessage

@@ -2,10 +2,12 @@ package de.intektor.mercury.chat
 
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
+import de.intektor.mercury.R
 import de.intektor.mercury.client.ClientPreferences
 import de.intektor.mercury.database.bindUUID
 import de.intektor.mercury.database.getUUID
 import de.intektor.mercury_common.chat.ChatMessage
+import de.intektor.mercury_common.chat.data.MessageImage
 import de.intektor.mercury_common.chat.data.MessageText
 
 /**
@@ -18,7 +20,9 @@ object MessageUtil {
 
         return when (data) {
             is MessageText -> data.message
-
+            is MessageImage -> {
+                if (data.text.isNotBlank()) data.text else context.getString(R.string.notification_image_message)
+            }
             else -> "No preview text found"
         }
     }

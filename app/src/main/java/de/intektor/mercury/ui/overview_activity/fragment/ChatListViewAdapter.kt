@@ -1,7 +1,5 @@
 package de.intektor.mercury.ui.overview_activity.fragment
 
-import androidx.fragment.app.Fragment
-import androidx.recyclerview.widget.RecyclerView
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -12,7 +10,7 @@ import com.squareup.picasso.Picasso
 import de.intektor.mercury.MercuryClient
 import de.intektor.mercury.R
 import de.intektor.mercury.android.getAttrDrawable
-import de.intektor.mercury.chat.ChatInfo
+import de.intektor.mercury.chat.model.ChatInfo
 import de.intektor.mercury.chat.ChatMessageWrapper
 import de.intektor.mercury.chat.MessageUtil
 import de.intektor.mercury.client.ClientPreferences

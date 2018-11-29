@@ -1,23 +1,24 @@
 package de.intektor.mercury.ui.chat.adapter.chat
 
 import android.view.View
+import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
 import de.intektor.mercury.R
-import de.intektor.mercury.chat.ChatMessageWrapper
+import de.intektor.mercury.chat.adapter.ChatAdapterMessage
 import de.intektor.mercury_common.chat.ChatMessage
 import de.intektor.mercury_common.chat.MessageCore
 import de.intektor.mercury_common.chat.data.MessageText
 
 
-class TextMessageViewHolder(itemView: View, chatAdapter: ChatAdapter) : ChatMessageViewHolder<MessageText, ChatMessageWrapper>(itemView, chatAdapter) {
+class TextMessageViewHolder(itemView: View, chatAdapter: ChatAdapter) : ChatMessageViewHolder<MessageText, ChatAdapterMessage>(itemView, chatAdapter) {
 
     private val msg: TextView = itemView.findViewById(R.id.message_text) as TextView
-    override val bubbleLayout: LinearLayout = itemView.findViewById(R.id.bubble_layout)
+    override val bubbleLayout: ViewGroup = itemView.findViewById(R.id.bubble_layout)
     override val parentLayout: LinearLayout
         get() = itemView.findViewById(R.id.bubble_layout_parent)
 
-    override fun bindMessage(item: ChatMessageWrapper, core: MessageCore, data: MessageText) {
+    override fun bindMessage(item: ChatAdapterMessage, core: MessageCore, data: MessageText) {
         msg.text = data.message
 
         msg.isClickable = false
@@ -78,7 +79,7 @@ class TextMessageViewHolder(itemView: View, chatAdapter: ChatAdapter) : ChatMess
 //            msg.text = sS
 //        }
 
-    override fun getMessage(item: ChatMessageWrapper): ChatMessage = item.chatMessageInfo.message
+    override fun getMessage(item: ChatAdapterMessage): ChatMessage = item.message.chatMessageInfo.message
 
-    override fun isClient(item: ChatMessageWrapper): Boolean = item.chatMessageInfo.client
+    override fun isClient(item: ChatAdapterMessage): Boolean = item.message.chatMessageInfo.client
 }

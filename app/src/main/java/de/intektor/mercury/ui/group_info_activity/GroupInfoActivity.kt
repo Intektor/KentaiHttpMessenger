@@ -10,7 +10,6 @@ import android.graphics.Color
 import android.os.Bundle
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.LinearLayoutManager
 import android.view.ContextMenu
 import android.view.MenuItem
 import android.view.View
@@ -22,6 +21,9 @@ import de.intektor.mercury.R
 import de.intektor.mercury.action.group.ActionGroupModificationReceived
 import de.intektor.mercury.android.getSelectedTheme
 import de.intektor.mercury.chat.*
+import de.intektor.mercury.chat.model.ChatInfo
+import de.intektor.mercury.chat.model.ChatReceiver
+import de.intektor.mercury.chat.model.GroupMember
 import de.intektor.mercury.client.ClientPreferences
 import de.intektor.mercury.contacts.Contact
 import de.intektor.mercury.task.*

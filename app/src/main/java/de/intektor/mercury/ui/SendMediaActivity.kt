@@ -17,7 +17,7 @@ import androidx.recyclerview.widget.RecyclerView
 import de.intektor.mercury.R
 import de.intektor.mercury.android.getChatInfoExtra
 import de.intektor.mercury.android.getSelectedTheme
-import de.intektor.mercury.chat.ChatInfo
+import de.intektor.mercury.chat.model.ChatInfo
 import de.intektor.mercury.media.MediaFile
 import de.intektor.mercury.media.ThumbnailUtil
 import de.intektor.mercury.ui.chat.ChatActivity

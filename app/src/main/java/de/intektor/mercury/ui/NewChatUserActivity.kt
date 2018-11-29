@@ -3,14 +3,13 @@ package de.intektor.mercury.ui
 import android.os.Bundle
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.appcompat.widget.SearchView
 import android.view.Menu
 import de.intektor.mercury.MercuryClient
 import de.intektor.mercury.R
 import de.intektor.mercury.android.getSelectedTheme
-import de.intektor.mercury.chat.ChatInfo
-import de.intektor.mercury.chat.ChatReceiver
+import de.intektor.mercury.chat.model.ChatInfo
+import de.intektor.mercury.chat.model.ChatReceiver
 import de.intektor.mercury.chat.createChat
 import de.intektor.mercury.chat.getChatUUIDForUserChat
 import de.intektor.mercury.client.ClientPreferences

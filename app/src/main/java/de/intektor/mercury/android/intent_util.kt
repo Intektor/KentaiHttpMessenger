@@ -2,7 +2,7 @@ package de.intektor.mercury.android
 
 import android.content.Intent
 import android.net.Uri
-import de.intektor.mercury.chat.ChatInfo
+import de.intektor.mercury.chat.model.ChatInfo
 import de.intektor.mercury.media.MediaFile
 import de.intektor.mercury_common.chat.ChatMessage
 import de.intektor.mercury_common.chat.data.group_modification.GroupModification

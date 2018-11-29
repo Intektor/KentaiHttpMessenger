@@ -24,6 +24,8 @@
     <attr name="ic_info" format="reference" />
     <attr name="messageTextColor" format="color" />
     <attr name="backgroundColor" format="color" />
+    <attr name="bubbleLeftColor" format="color" />
+    <attr name="bubbleRightColor" format="color" />
 
     <style name="AppTheme" parent="Theme.AppCompat">
         <item name="colorPrimary">@color/colorPrimaryDarkTheme</item>
@@ -53,6 +55,8 @@
         <item name="bubble_right">@drawable/bubble_right</item>
         <item name="messageTextColor">#ffffff</item>
         <item name="backgroundColor">@color/material_grey_850</item>
+        <item name="bubbleRightColor">@color/messageColorRightDark</item>
+        <item name="bubbleLeftColor">@color/messageColorLeftDark</item>
     </style>
 
     <style name="AppThemeLight" parent="Theme.AppCompat.Light">
@@ -80,6 +84,8 @@
         <item name="bubble_right">@drawable/bubble_right_light</item>
         <item name="messageTextColor">#000000</item>#
         <item name="backgroundColor">@color/material_grey_50</item>
+        <item name="bubbleRightColor">@color/messageColorRightLight</item>
+        <item name="bubbleLeftColor">@color/messageColorLeftLight</item>
     </style>
 
     <style name="AppThemeLight.NoActionBar" parent="AppThemeLight">

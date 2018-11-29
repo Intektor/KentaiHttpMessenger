@@ -9,11 +9,14 @@ import de.intektor.mercury.action.chat.ActionChatMessageReceived
 import de.intektor.mercury.action.group.ActionGroupInvite
 import de.intektor.mercury.android.mercuryClient
 import de.intektor.mercury.chat.*
+import de.intektor.mercury.chat.model.ChatInfo
+import de.intektor.mercury.chat.model.ChatReceiver
 import de.intektor.mercury.client.ClientPreferences
 import de.intektor.mercury.contacts.ContactUtil
 import de.intektor.mercury.io.HttpManager
 import de.intektor.mercury.io.download.IOService
-import de.intektor.mercury.media.MediaHelper
+import de.intektor.mercury.media.MediaType
+import de.intektor.mercury.reference.ReferenceUtil
 import de.intektor.mercury.task.*
 import de.intektor.mercury.util.Logger
 import de.intektor.mercury_common.chat.*
@@ -24,7 +27,6 @@ import de.intektor.mercury_common.chat.data.group_modification.MessageGroupModif
 import de.intektor.mercury_common.client_to_server.FetchMessageRequest
 import de.intektor.mercury_common.client_to_server.HandledMessagesRequest
 import de.intektor.mercury_common.gson.genGson
-import de.intektor.mercury_common.reference.FileType
 import de.intektor.mercury_common.server_to_client.FetchMessageResponse
 import de.intektor.mercury_common.util.*
 import java.security.interfaces.RSAPublicKey
@@ -94,7 +96,9 @@ class FMService : FirebaseMessagingService() {
                 }
         finishedMessages += temp.filter { it.key == null }.map { it.value.map { it.messageUUID } }.flatMap { it }
 
-        val chats = temp.filter { it.key != null }.map { MessagesForChat(it.key ?: throw IllegalStateException(), it.value) }
+        val chats = temp.filter { it.key != null }.map {
+            MessagesForChat(it.key ?: throw IllegalStateException(), it.value)
+        }
 
         val receivedGroupModificationsAsAdmin = mutableListOf<ReceivedGroupModificationToAdmin>()
 
@@ -155,7 +159,6 @@ class FMService : FirebaseMessagingService() {
                     .toList()
 
             a@ for (message in messagesToProcess) {
-
                 val chatInfo = getChatInfo(chatUUID, dataBase) ?: aswell {
                     val senderContact = getContact(dataBase, message.senderUUID)
 
@@ -197,8 +200,6 @@ class FMService : FirebaseMessagingService() {
                     is MessageText -> updateChatAndSendBroadcast(chatMessage, chatInfo)
                     is MessageStatusUpdate -> {
                         ActionMessageStatusChange.launch(this, chatUUID, messageUUID, messageData.status)
-
-                        updateChatAndSendBroadcast(chatMessage, chatInfo)
                     }
                     is MessageGroupInvite -> {
                         val groupInvite = messageData.groupInvite
@@ -249,16 +250,20 @@ class FMService : FirebaseMessagingService() {
                         }
                     }
                     is MessageVoiceMessage -> {
-                        IOService.ActionDownloadReference.launch(this, messageData.reference, messageData.aesKey, messageData.initVector, MediaHelper.MEDIA_TYPE_AUDIO, chatUUID, messageUUID)
+                        IOService.ActionDownloadReference.launch(this, messageData.reference, messageData.aesKey, messageData.initVector, MediaType.MEDIA_TYPE_AUDIO, chatUUID, messageUUID)
                         updateChatAndSendBroadcast(chatMessage, chatInfo)
                     }
                     is MessageImage -> {
-                        IOService.ActionDownloadReference.launch(this, messageData.reference, messageData.aesKey, messageData.initVector, MediaHelper.MEDIA_TYPE_IMAGE, chatUUID, messageUUID)
+                        IOService.ActionDownloadReference.launch(this, messageData.reference, messageData.aesKey, messageData.initVector, MediaType.MEDIA_TYPE_IMAGE, chatUUID, messageUUID)
                         updateChatAndSendBroadcast(chatMessage, chatInfo)
+
+                        ReferenceUtil.addReference(mercuryClient.dataBase, chatUUID, messageData.reference, messageUUID, MediaType.MEDIA_TYPE_IMAGE, System.currentTimeMillis())
                     }
                     is MessageVideo -> {
-                        IOService.ActionDownloadReference.launch(this, messageData.reference, messageData.aesKey, messageData.initVector, MediaHelper.MEDIA_TYPE_VIDEO, chatUUID, messageUUID)
+                        IOService.ActionDownloadReference.launch(this, messageData.reference, messageData.aesKey, messageData.initVector, MediaType.MEDIA_TYPE_VIDEO, chatUUID, messageUUID)
                         updateChatAndSendBroadcast(chatMessage, chatInfo)
+
+                        ReferenceUtil.addReference(mercuryClient.dataBase, chatUUID, messageData.reference, messageUUID, MediaType.MEDIA_TYPE_VIDEO, System.currentTimeMillis())
                     }
                 }
                 finishedMessages += chatMessage.messageCore.messageUUID

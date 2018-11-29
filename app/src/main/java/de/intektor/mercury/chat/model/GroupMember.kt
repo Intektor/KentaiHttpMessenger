@@ -1,4 +1,4 @@
-package de.intektor.mercury.chat
+package de.intektor.mercury.chat.model
 
 import de.intektor.mercury.contacts.Contact
 import de.intektor.mercury_common.chat.GroupRole

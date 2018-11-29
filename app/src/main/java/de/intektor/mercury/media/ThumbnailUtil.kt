@@ -3,6 +3,7 @@ package de.intektor.mercury.media
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.drawable.Drawable
 import android.media.ThumbnailUtils
 import android.net.Uri
 import android.provider.MediaStore
@@ -11,8 +12,8 @@ import com.squareup.picasso.Picasso
 import com.squareup.picasso.Request
 import com.squareup.picasso.RequestHandler
 import de.intektor.mercury.reference.ReferenceUtil
-import de.intektor.mercury_common.reference.FileType
 import de.intektor.mercury_common.util.toUUID
+import java.io.ByteArrayOutputStream
 import java.io.File
 
 object ThumbnailUtil {
@@ -24,7 +25,7 @@ object ThumbnailUtil {
      * @param kind when kind is either [MediaStore.Images.Thumbnails.MINI_KIND] or [MediaStore.Images.Thumbnails.MICRO_KIND], this will use the default android [MediaStore.Images.Thumbnails.getThumbnail] way, if its [MediaStore.Images.Thumbnails.FULL_SCREEN_KIND]
      * it will use [android.media.ThumbnailUtils.createVideoThumbnail] for video files and load the file via [android.graphics.BitmapFactory.decodeFile] for images
      */
-    fun loadThumbnail(mediaFile: MediaFile, target: ImageView, kind: Int) {
+    fun loadThumbnail(mediaFile: MediaFile, target: ImageView, kind: Int, placeholder: Drawable? = null) {
         val uri = when (mediaFile) {
             is ExternalStorageFile -> Uri.Builder()
                     .scheme(SCHEME_THUMBNAIL_EXTERNAL)
@@ -37,7 +38,7 @@ object ThumbnailUtil {
             else -> throw UnsupportedOperationException("Can't load thumbnail for mediaFile=$mediaFile")
         }
 
-        Picasso.get().load(uri).into(target)
+        if (placeholder == null) Picasso.get().load(uri).into(target) else Picasso.get().load(uri).placeholder(placeholder).into(target)
     }
 
     fun createExternalThumbnailRequestHandler(context: Context) = object : RequestHandler() {
@@ -123,7 +124,7 @@ object ThumbnailUtil {
                 val referenceFile = ReferenceUtil.getFileForReference(context, referenceUUID)
 
                 when (mediaType) {
-                    MediaHelper.MEDIA_TYPE_IMAGE -> {
+                    MediaType.MEDIA_TYPE_IMAGE -> {
                         val originalBitmap = BitmapFactory.decodeFile(referenceFile.path)
                         val scaled = createScaledBitmap(originalBitmap, kind)
 
@@ -131,7 +132,7 @@ object ThumbnailUtil {
 
                         scaled
                     }
-                    MediaHelper.MEDIA_TYPE_VIDEO -> {
+                    MediaType.MEDIA_TYPE_VIDEO -> {
                         val original = ThumbnailUtils.createVideoThumbnail(referenceFile.path, kind)
 
                         writeBitmapToCache(original)
@@ -145,7 +146,17 @@ object ThumbnailUtil {
         }
     }
 
-    fun createThumbnail(file: File, fileType: FileType): ByteArray {
-        return byteArrayOf()
+    fun createThumbnail(file: File, mediaType: Int): ByteArray {
+        val byteOut = ByteArrayOutputStream()
+        when (mediaType) {
+            MediaType.MEDIA_TYPE_IMAGE -> {
+                Bitmap.createScaledBitmap(BitmapFactory.decodeStream(file.inputStream()), 20, 20, false).compress(Bitmap.CompressFormat.JPEG, 50, byteOut)
+            }
+            MediaType.MEDIA_TYPE_VIDEO -> {
+                Bitmap.createScaledBitmap(ThumbnailUtils.createVideoThumbnail(file.path, MediaStore.Video.Thumbnails.FULL_SCREEN_KIND), 20, 20, false).compress(Bitmap.CompressFormat.JPEG, 50, byteOut)
+            }
+            else -> throw UnsupportedOperationException("Can't load thumbnail with mediaType=$mediaType")
+        }
+        return byteOut.toByteArray()
     }
 }

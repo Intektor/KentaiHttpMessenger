@@ -6,6 +6,7 @@ import android.util.Log
 import de.intektor.mercury.R
 import de.intektor.mercury.action.group.ActionGroupModificationReceived
 import de.intektor.mercury.chat.*
+import de.intektor.mercury.chat.model.ChatReceiver
 import de.intektor.mercury.client.ClientPreferences
 import de.intektor.mercury.contacts.ContactUtil
 import de.intektor.mercury.database.bindEnum

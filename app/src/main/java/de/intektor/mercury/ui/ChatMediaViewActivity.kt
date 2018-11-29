@@ -36,24 +36,27 @@ class ChatMediaViewActivity : AppCompatActivity(), FragmentViewImage.BindCallbac
 
         private const val EXTRA_CHAT_UUID: String = "de.intektor.mercury.EXTRA_CHAT_UUID"
         private const val EXTRA_TARGET_REFERENCE: String = "de.intektor.mercury.EXTRA_TARGET_REFERENCE"
+        private const val EXTRA_START_PLAY: String = "de.intektor.mercury.EXTRA_START_PLAY"
 
-        private fun createIntent(context: Context, chatUuid: UUID, targetReference: UUID) =
+        private fun createIntent(context: Context, chatUuid: UUID, targetReference: UUID, startPlay: Boolean = false) =
                 Intent()
                         .setComponent(ComponentName(context, ChatMediaViewActivity::class.java))
                         .putExtra(EXTRA_CHAT_UUID, chatUuid)
                         .putExtra(EXTRA_TARGET_REFERENCE, targetReference)
+                        .putExtra(EXTRA_START_PLAY, startPlay)
 
-        fun launch(context: Context, chatUuid: UUID, targetReference: UUID) {
-            context.startActivity(createIntent(context, chatUuid, targetReference))
+        fun launch(context: Context, chatUuid: UUID, targetReference: UUID, startPlay: Boolean = false) {
+            context.startActivity(createIntent(context, chatUuid, targetReference, startPlay))
         }
 
         fun getData(intent: Intent): Holder {
             val chatUuid: UUID = intent.getUUIDExtra(EXTRA_CHAT_UUID)
             val targetReference: UUID = intent.getUUIDExtra(EXTRA_TARGET_REFERENCE)
-            return Holder(chatUuid, targetReference)
+            val startPlay: Boolean = intent.getBooleanExtra(EXTRA_START_PLAY, false)
+            return Holder(chatUuid, targetReference, startPlay)
         }
 
-        data class Holder(val chatUuid: UUID, val targetReference: UUID)
+        data class Holder(val chatUuid: UUID, val targetReference: UUID, val startPlay: Boolean)
 
     }
 
@@ -64,9 +67,23 @@ class ChatMediaViewActivity : AppCompatActivity(), FragmentViewImage.BindCallbac
 
         val mercuryClient = applicationContext as MercuryClient
 
-        val (chatUuid, targetReference) = getData(intent)
+        val (chatUuid, targetReference, startPlay) = getData(intent)
 
-        val pagerAdapter = FragmentMediaAdapter(supportFragmentManager, ReferenceUtil.getAmountChatReferences(mercuryClient.dataBase, chatUuid), { position ->
+        val targetReferenceTime = mercuryClient.dataBase.rawQuery("SELECT time FROM reference WHERE reference_uuid = ?", arrayOf(targetReference.toString())).use { cursor ->
+            if (!cursor.moveToNext()) return@use null
+            cursor.getLong(0)
+        }
+
+        val targetIndex = if (targetReferenceTime != null) {
+            val targetIndex = mercuryClient.dataBase.rawQuery("SELECT COUNT(reference_uuid) FROM reference WHERE time < ? ORDER BY time ASC", arrayOf(targetReferenceTime.toString())).use { cursor ->
+                cursor.moveToNext()
+                cursor.getInt(0)
+            }
+
+            targetIndex
+        } else 0
+
+        val pagerAdapter = FragmentMediaAdapter(supportFragmentManager, ReferenceUtil.getAmountChatReferences(mercuryClient.dataBase, chatUuid), startPlay, targetIndex, { position ->
             val (mediaFile, messageUUID) = mercuryClient.dataBase.rawQuery("SELECT reference_uuid, message_uuid, media_type, time FROM reference WHERE chat_uuid = ? ORDER BY time ASC LIMIT 1 OFFSET ?",
                     arrayOf(chatUuid.toString(), position.toString())).use { cursor ->
                 cursor.moveToNext()
@@ -118,21 +135,11 @@ class ChatMediaViewActivity : AppCompatActivity(), FragmentViewImage.BindCallbac
         activity_chat_media_view_vp_content.adapter = pagerAdapter
         activity_chat_media_view_vp_content.addOnPageChangeListener(pagerAdapter)
 
-        val targetReferenceTime = mercuryClient.dataBase.rawQuery("SELECT time FROM reference WHERE reference_uuid = ?", arrayOf(targetReference.toString())).use { cursor ->
-            cursor.moveToNext()
-            cursor.getLong(0)
-        }
-
-        val targetIndex = mercuryClient.dataBase.rawQuery("SELECT COUNT(reference_uuid) FROM reference WHERE time < ? ORDER BY time ASC", arrayOf(targetReferenceTime.toString())).use { cursor ->
-            cursor.moveToNext()
-            cursor.getInt(0)
-        }
-
-        activity_chat_media_view_vp_content.currentItem = targetIndex
-
         activity_chat_media_view_iv_close.setOnClickListener {
             finish()
         }
+
+        activity_chat_media_view_vp_content.currentItem = targetIndex
     }
 
     override fun onCreateOptionsMenu(menu: Menu?): Boolean {
@@ -164,12 +171,21 @@ class ChatMediaViewActivity : AppCompatActivity(), FragmentViewImage.BindCallbac
 
     private class FragmentMediaAdapter(fragmentManager: FragmentManager,
                                        private val totalAmount: Int,
+                                       private val startPlay: Boolean,
+                                       private val targetIndex: Int,
                                        private val getMediaData: (Int) -> MediaData,
                                        private val onNewPageSelected: (Int, Fragment?) -> Unit) : FragmentViewImageResetAdapter(fragmentManager) {
 
         override fun getItem(position: Int): Fragment {
             val (file, headline, subtext) = getMediaData(position)
-            return FragmentViewImage.create(file, headline, subtext)
+
+            val fragment = FragmentViewImage.create(file, headline, subtext)
+
+            if (startPlay && targetIndex == position) {
+                fragment.markAutoPlay()
+            }
+
+            return fragment
         }
 
         override fun getCount(): Int = totalAmount

@@ -2,9 +2,7 @@ package de.intektor.mercury.reference
 
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
-import de.intektor.mercury.database.bindBoolean
-import de.intektor.mercury.database.bindUUID
-import de.intektor.mercury.database.getBoolean
+import de.intektor.mercury.database.*
 import de.intektor.mercury_common.util.toAESKey
 import java.io.File
 import java.security.Key
@@ -26,20 +24,37 @@ object ReferenceUtil {
         getFileForReference(context, referenceUUID).delete()
     }
 
+    fun dropChatReferences(context: Context, database: SQLiteDatabase, chatUUID: UUID) {
+        database.rawQuery("SELECT reference_uuid FROM reference WHERE chat_uuid = ?", arrayOf(chatUUID.toString())).use { cursor ->
+            while (cursor.moveToNext()) {
+                dropReference(context, database, cursor.getUUID(0))
+            }
+        }
+    }
+
     fun isReferenceUploaded(database: SQLiteDatabase, referenceUUID: UUID): Boolean {
         return database.rawQuery("SELECT uploaded FROM reference_upload WHERE reference_uuid = ?", arrayOf(referenceUUID.toString())).use { cursor ->
             if (!cursor.moveToNext()) return@use false
 
-            cursor.getBoolean(1)
+            cursor.getBoolean(0)
         }
     }
 
     fun setReferenceUploaded(database: SQLiteDatabase, referenceUUID: UUID, uploaded: Boolean) {
-        database.compileStatement("INSERT INTO reference_upload (reference_uuid, reference_upload) VALUES (?, ?)").use { statement ->
-            statement.bindUUID(0, referenceUUID)
-            statement.bindBoolean(1, uploaded)
+        if (database.isValuePresent("reference_upload", "reference_uuid", referenceUUID)) {
+            database.compileStatement("UPDATE reference_upload SET uploaded = ? WHERE reference_uuid = ?").use { statement ->
+                statement.bindBoolean(1, uploaded)
+                statement.bindUUID(2, referenceUUID)
 
-            statement.execute()
+                statement.execute()
+            }
+        } else {
+            database.compileStatement("INSERT INTO reference_upload (reference_uuid, uploaded) VALUES (?, ?)").use { statement ->
+                statement.bindUUID(1, referenceUUID)
+                statement.bindBoolean(2, uploaded)
+
+                statement.execute()
+            }
         }
     }
 

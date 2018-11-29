@@ -15,4 +15,9 @@
     <color name="colorSelectedItem">#008400</color>
 
     <color name="black_p50">#7f000000</color>
+
+    <color name="messageColorLeftDark">#000000</color>
+    <color name="messageColorRightDark">#212121</color>
+    <color name="messageColorLeftLight">#FFAA00</color>
+    <color name="messageColorRightLight">#00F2FF</color>
 </resources>

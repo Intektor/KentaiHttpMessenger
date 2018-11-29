@@ -31,7 +31,7 @@ class SwipeBackLayout @JvmOverloads constructor(context: Context, attrs: Attribu
 
     private var scrollChild: View? = null
 
-    private var verticalDragRange = 0
+    private var verticalDragRange = height / 3
 
     private var horizontalDragRange = 0
 

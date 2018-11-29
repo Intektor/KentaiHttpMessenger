@@ -4,6 +4,9 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import com.google.common.hash.Hashing
 import com.google.common.io.BaseEncoding
+import de.intektor.mercury.chat.model.ChatInfo
+import de.intektor.mercury.chat.model.ChatReceiver
+import de.intektor.mercury.chat.model.GroupMember
 import de.intektor.mercury.client.ClientPreferences
 import de.intektor.mercury.contacts.Contact
 import de.intektor.mercury.contacts.ContactUtil
@@ -13,6 +16,7 @@ import de.intektor.mercury.database.getUUID
 import de.intektor.mercury.database.isValuePresent
 import de.intektor.mercury.io.ChatMessageService
 import de.intektor.mercury.io.HttpManager
+import de.intektor.mercury.reference.ReferenceUtil
 import de.intektor.mercury.ui.overview_activity.fragment.ChatListViewAdapter
 import de.intektor.mercury.util.Logger
 import de.intektor.mercury.util.internalFile
@@ -71,7 +75,7 @@ fun createGroupChat(chatInfo: ChatInfo, roleMap: Map<UUID, GroupRole>, groupKey:
     }
 }
 
-fun deleteChat(chatUUID: UUID, dataBase: SQLiteDatabase) {
+fun deleteChat(context: Context, chatUUID: UUID, dataBase: SQLiteDatabase) {
     dataBase.compileStatement("DELETE FROM chat_message WHERE chat_uuid = ?").use { statement ->
         statement.bindUUID(1, chatUUID)
         statement.execute()
@@ -84,6 +88,7 @@ fun deleteChat(chatUUID: UUID, dataBase: SQLiteDatabase) {
         statement.bindString(1, chatUUID.toString())
         statement.execute()
     }
+    ReferenceUtil.dropChatReferences(context, dataBase, chatUUID)
 }
 
 fun hasChat(chatUUID: UUID, dataBase: SQLiteDatabase) = dataBase.isValuePresent("chats", "chat_uuid", chatUUID)
@@ -121,9 +126,11 @@ fun saveMessage(context: Context, dataBase: SQLiteDatabase, message: ChatMessage
 
     val serializedData = genGson().toJson(message.messageData, MessageData::class.java)
 
-    dataBase.compileStatement("INSERT INTO message_data(message_uuid, data) VALUES (?, ?)").use { statement ->
+    dataBase.compileStatement("INSERT INTO message_data(message_uuid, data, data_type) VALUES (?, ?, ?)").use { statement ->
         statement.bindUUID(1, messageCore.messageUUID)
         statement.bindString(2, serializedData)
+        statement.bindLong(3, MessageDataRegistry.getID(message.messageData.javaClass)?.toLong()
+                ?: -1L)
         statement.execute()
     }
 

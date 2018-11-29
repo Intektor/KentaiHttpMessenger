@@ -4,13 +4,13 @@ import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.SearchView
 import android.view.LayoutInflater
 import android.view.Menu
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.SearchView
 import com.google.common.hash.Hashing
 import com.squareup.picasso.MemoryPolicy
 import com.squareup.picasso.Picasso
@@ -24,6 +24,7 @@ import de.intektor.mercury.chat.readChats
 import de.intektor.mercury.chat.sendMessageToServer
 import de.intektor.mercury.client.ClientPreferences
 import de.intektor.mercury.io.download.IOService
+import de.intektor.mercury.media.MediaType
 import de.intektor.mercury.media.ThumbnailUtil
 import de.intektor.mercury.task.getVideoDimension
 import de.intektor.mercury.task.getVideoDuration
@@ -165,7 +166,6 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
                     }
                 }
                 type.startsWith("image/") -> {
-
                     val generateMessage = { uri: Uri ->
                         val path = if (File(uri.path).exists()) {
                             uri.path
@@ -177,7 +177,7 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
                         val bitmap = BitmapFactory.decodeStream(contentResolver.openInputStream(uri))
 
                         val core = MessageCore(client, System.currentTimeMillis(), UUID.randomUUID())
-                        val data = MessageImage(ThumbnailUtil.createThumbnail(File(path), FileType.IMAGE),
+                        val data = MessageImage(ThumbnailUtil.createThumbnail(File(path), MediaType.MEDIA_TYPE_IMAGE),
                                 "",
                                 bitmap.width,
                                 bitmap.height,
@@ -224,8 +224,7 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
                                 false,
                                 dimension.width,
                                 dimension.height,
-                                ThumbnailUtil.createThumbnail(referenceFile, FileType.VIDEO),
-//                                createSmallPreviewImage(referenceFile, FileType.VIDEO),
+                                ThumbnailUtil.createThumbnail(referenceFile, MediaType.MEDIA_TYPE_VIDEO),
                                 "",
                                 generateAESKey(),
                                 generateInitVector(),
@@ -254,7 +253,8 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
                 selectedList.map {
                     PendingMessage(message, it.chatInfo.chatUUID, it.chatInfo.getOthers(client))
                 }
-            }.flatMap { it }
+            }.flatten()
+
             sendMessageToServer(this, mercuryClient.dataBase, pendingMessages)
 
             for (pendingMessage in pendingMessages) {
@@ -263,10 +263,10 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
                 if (data is MessageReference) {
                     when (data) {
                         is MessageVideo -> {
-                            IOService.ActionUploadReference.launch(this, data.reference, data.aesKey, data.initVector, FileType.VIDEO)
+                            IOService.ActionUploadReference.launch(this, data.reference, data.aesKey, data.initVector, MediaType.MEDIA_TYPE_VIDEO, pendingMessage.chatUUID, wrapper.messageCore.messageUUID)
                         }
                         is MessageImage -> {
-                            IOService.ActionUploadReference.launch(this, data.reference, data.aesKey, data.initVector, FileType.IMAGE)
+                            IOService.ActionUploadReference.launch(this, data.reference, data.aesKey, data.initVector, MediaType.MEDIA_TYPE_IMAGE, pendingMessage.chatUUID, wrapper.messageCore.messageUUID)
                         }
                     }
                 }

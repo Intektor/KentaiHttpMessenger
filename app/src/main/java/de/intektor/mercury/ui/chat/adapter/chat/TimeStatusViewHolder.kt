@@ -6,6 +6,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import de.intektor.mercury.R
+import de.intektor.mercury.chat.adapter.TimeStatusChatInfo
 import de.intektor.mercury_common.chat.MessageStatus
 import java.text.SimpleDateFormat
 import java.util.*

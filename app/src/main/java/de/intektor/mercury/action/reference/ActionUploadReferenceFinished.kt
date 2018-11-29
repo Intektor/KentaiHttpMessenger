@@ -31,7 +31,7 @@ object ActionUploadReferenceFinished {
                     .putExtra(EXTRA_SUCCESSFUL, successful)
 
     fun launch(context: Context, referenceUuid: UUID, successful: Boolean) {
-        androidx.localbroadcastmanager.content.LocalBroadcastManager.getInstance(context).sendBroadcast(createIntent(context, referenceUuid, successful))
+        LocalBroadcastManager.getInstance(context).sendBroadcast(createIntent(context, referenceUuid, successful))
     }
 
     fun getData(intent: Intent): Holder {

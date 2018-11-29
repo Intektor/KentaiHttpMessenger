@@ -2,6 +2,7 @@ package de.intektor.mercury.chat
 
 import android.os.Parcel
 import android.os.Parcelable
+import de.intektor.mercury.chat.model.ChatReceiver
 import de.intektor.mercury_common.chat.ChatMessage
 import de.intektor.mercury_common.gson.genGson
 import java.util.*

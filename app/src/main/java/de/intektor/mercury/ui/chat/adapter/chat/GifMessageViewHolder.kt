@@ -5,7 +5,7 @@ import android.view.ViewGroup
 import android.webkit.WebView
 import android.widget.*
 import de.intektor.mercury.R
-import de.intektor.mercury.chat.ReferenceHolder
+import de.intektor.mercury.chat.adapter.ReferenceHolder
 import de.intektor.mercury_common.chat.ChatMessage
 import de.intektor.mercury_common.chat.MessageCore
 import de.intektor.mercury_common.chat.data.MessageVideo
@@ -152,7 +152,7 @@ class GifMessageViewHolder(view: View, chatAdapter: ChatAdapter) : ChatMessageVi
 //        registerForEditModeLongPress(loadButton)
 //    }
 
-    override fun getMessage(item: ReferenceHolder): ChatMessage = item.chatMessageInfo.chatMessageInfo.message
+    override fun getMessage(item: ReferenceHolder): ChatMessage = item.message.chatMessageInfo.message
 
-    override fun isClient(item: ReferenceHolder): Boolean = item.chatMessageInfo.chatMessageInfo.client
+    override fun isClient(item: ReferenceHolder): Boolean = item.message.chatMessageInfo.client
 }

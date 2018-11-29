@@ -54,7 +54,7 @@ class DbHelper(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, 2) {
                 "PRIMARY KEY (message_uuid));" +
                 "CREATE INDEX chat_uuid_index ON chat_message (chat_uuid);")
 
-        dB.execSQL("CREATE TABLE IF NOT EXISTS message_data (message_uuid VARCHAR(40) NOT NULL REFERENCES chat_message(message_uuid) ON DELETE CASCADE, data TEXT NOT NULL, PRIMARY KEY(message_uuid))")
+        dB.execSQL("CREATE TABLE IF NOT EXISTS message_data (message_uuid VARCHAR(40) NOT NULL REFERENCES chat_message(message_uuid) ON DELETE CASCADE, data TEXT NOT NULL, data_type INT NOT NULL, PRIMARY KEY(message_uuid))")
 
         dB.execSQL("CREATE TABLE IF NOT EXISTS reference_upload (reference_uuid VARCHAR(40) NOT NULL, uploaded INT NOT NULL, PRIMARY KEY(reference_uuid))")
 

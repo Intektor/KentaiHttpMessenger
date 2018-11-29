@@ -50,6 +50,8 @@ class FragmentViewImage : Fragment() {
     private var headline: String? = null
     private var subtext: String? = null
 
+    private var autoPlay = false
+
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? =
             inflater.inflate(R.layout.fragment_view_image, container, false)
 
@@ -80,18 +82,17 @@ class FragmentViewImage : Fragment() {
         }
 
         fragment_view_image_iv_play.setOnClickListener {
-            fragment_view_image_cv_play_parent.setGone()
-            fragment_view_image_vv_content.setVisible()
-            fragment_view_image_pv_content.setGone()
-
-            fragment_view_image_vv_content.setVideoPath(content.getPath(requireContext()))
-            fragment_view_image_vv_content.start()
-            fragment_view_image_vv_content.setMediaController(MediaController(context))
+            startPlaying()
         }
 
         val context = requireContext()
         if (context is BindCallback) {
             context.bind(this)
+        }
+
+        if (autoPlay) {
+            startPlaying()
+            autoPlay = false
         }
     }
 
@@ -101,6 +102,20 @@ class FragmentViewImage : Fragment() {
         if (content.mediaType == MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO) {
             finishVideoPlayback()
         }
+    }
+
+    fun markAutoPlay() {
+        autoPlay = true
+    }
+
+    private fun startPlaying() {
+        fragment_view_image_cv_play_parent?.setGone()
+        fragment_view_image_vv_content?.setVisible()
+        fragment_view_image_pv_content?.setGone()
+
+        fragment_view_image_vv_content?.setVideoPath(content.getPath(requireContext()))
+        fragment_view_image_vv_content?.start()
+        fragment_view_image_vv_content?.setMediaController(MediaController(context))
     }
 
     private fun finishVideoPlayback() {

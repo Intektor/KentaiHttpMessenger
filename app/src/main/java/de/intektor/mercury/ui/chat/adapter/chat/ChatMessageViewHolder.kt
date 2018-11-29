@@ -1,19 +1,20 @@
 package de.intektor.mercury.ui.chat.adapter.chat
 
-import androidx.constraintlayout.widget.ConstraintLayout
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
 import android.widget.CheckBox
 import android.widget.LinearLayout
+import androidx.constraintlayout.widget.ConstraintLayout
 import de.intektor.mercury.R
 import de.intektor.mercury.android.getAttrDrawable
+import de.intektor.mercury.chat.adapter.ChatAdapterSubItem
 import de.intektor.mercury.util.setCompatBackground
 import de.intektor.mercury_common.chat.ChatMessage
 import de.intektor.mercury_common.chat.MessageCore
 import de.intektor.mercury_common.chat.MessageData
 
-abstract class ChatMessageViewHolder<T : MessageData, K>(view: View, chatAdapter: ChatAdapter) : AbstractViewHolder<K>(view, chatAdapter) {
+abstract class ChatMessageViewHolder<T : MessageData, K : ChatAdapterSubItem>(view: View, chatAdapter: ChatAdapter) : AbstractViewHolder<K>(view, chatAdapter) {
 
     private val checkBox: CheckBox = view.findViewById(R.id.selectedBox)
     private val messageParentLayout: ConstraintLayout = view.findViewById(R.id.messageParentLayout)
@@ -37,10 +38,10 @@ abstract class ChatMessageViewHolder<T : MessageData, K>(view: View, chatAdapter
         val data = message.messageData as T
 
         if (isClient(component.item)) {
-            bubbleLayout.setCompatBackground(getAttrDrawable(itemView.context, R.attr.bubble_right))
+            bubbleLayout.setCompatBackground(getAttrDrawable(itemView.context, R.attr.bubbleRightColor))
             parentLayout.gravity = Gravity.END
         } else {
-            bubbleLayout.setCompatBackground(getAttrDrawable(itemView.context, R.attr.bubble_left))
+            bubbleLayout.setCompatBackground(getAttrDrawable(itemView.context, R.attr.bubbleLeftColor))
             parentLayout.gravity = Gravity.START
         }
 

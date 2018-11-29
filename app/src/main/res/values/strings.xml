@@ -170,6 +170,10 @@
     <string name="chat_activity_edit_chat_menu_delete_alert_media">Delete media as well?</string>
     <string name="chat_activity_edit_chat_menu_delete_alert_positive">Delete</string>
     <string name="chat_activity_edit_chat_menu_delete_alert_negative">Cancel</string>
+    <string name="chat_activity_new_messages_received">New messages</string>
+
+    <!-- Strings related to voice message -->
+    <string name="voice_message_duration">%1$02d:%2$02d</string>
 
     <!-- Strings related to deleting chat -->
     <string name="chat_deletion_notification_title">Deleting messages</string>
@@ -304,4 +308,8 @@
     <!-- Strings related to pick gallery folder -->
     <string name="pick_gallery_folder_action_mode_send">Send</string>
     <string name="pick_gallery_folder_action_mode_items_selected">%1$d items selected</string>
+
+    <!-- Strings related to download media -->
+    <string name="media_download">Download</string>
+    <string name="media_upload">Upload</string>
 </resources>

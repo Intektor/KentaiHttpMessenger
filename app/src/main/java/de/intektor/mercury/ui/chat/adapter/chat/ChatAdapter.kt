@@ -1,13 +1,11 @@
 package de.intektor.mercury.ui.chat.adapter.chat
 
-import androidx.recyclerview.widget.RecyclerView
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.Toast
 import de.intektor.mercury.R
-import de.intektor.mercury.chat.ChatInfo
-import de.intektor.mercury.chat.ChatMessageWrapper
-import de.intektor.mercury.chat.ReferenceHolder
+import de.intektor.mercury.chat.adapter.*
+import de.intektor.mercury.chat.model.ChatInfo
 import de.intektor.mercury.contacts.Contact
 import de.intektor.mercury.ui.chat.ChatActivity
 import de.intektor.mercury_common.chat.data.*
@@ -17,10 +15,10 @@ import java.util.*
 /**
  * @author Intektor
  */
-class ChatAdapter(private val componentList: MutableList<ChatAdapterWrapper<*>>,
+class ChatAdapter(private val componentList: MutableList<ChatAdapterWrapper<out ChatAdapterSubItem>>,
                   val chatInfo: ChatInfo,
                   val contactMap: Map<UUID, Contact>,
-                  val activity: ChatActivity) : androidx.recyclerview.widget.RecyclerView.Adapter<AbstractViewHolder<out Any>>() {
+                  val activity: ChatActivity) : androidx.recyclerview.widget.RecyclerView.Adapter<AbstractViewHolder<out ChatAdapterSubItem>>() {
 
     companion object {
         const val TEXT_MESSAGE_ID = 0
@@ -39,37 +37,15 @@ class ChatAdapter(private val componentList: MutableList<ChatAdapterWrapper<*>>,
         const val DATE_INFO = 13
     }
 
-    fun add(any: ChatAdapterWrapper<*>) {
+    fun add(any: ChatAdapterWrapper<out ChatAdapterSubItem>) {
         componentList.add(any)
     }
 
     override fun getItemViewType(position: Int): Int {
         val component = componentList[position].item
         return when (component) {
-            is ChatMessageWrapper -> {
-                val messageData = component.chatMessageInfo.message.messageData
-                when (messageData) {
-                    is MessageText -> TEXT_MESSAGE_ID
-                    is MessageGroupInvite -> GROUP_INVITE_ID
-                    is MessageGroupModification -> {
-                        val groupModification = messageData.groupModification
-                        when (groupModification) {
-                            is GroupModificationChangeName -> GROUP_MODIFICATION_CHANGE_NAME
-                            is GroupModificationChangeRole -> GROUP_MODIFICATION_CHANGE_ROLE
-                            is GroupModificationKickUser -> GROUP_MODIFICATION_CHANGE_KICK_USER
-                            is GroupModificationAddUser -> GROUP_MODIFICATION_CHANGE_ADD_USER
-                            else -> TODO()
-                        }
-                    }
-                    else -> {
-                        TODO()
-                    }
-                }
-            }
-            is UsernameChatInfo -> USERNAME_CHAT_INFO
-            is TimeStatusChatInfo -> TIME_STATUS_INFO
             is ReferenceHolder -> {
-                val data = component.chatMessageInfo.chatMessageInfo.message.messageData
+                val data = component.message.chatMessageInfo.message.messageData
                 when (data) {
                     is MessageVoiceMessage -> VOICE_MESSAGE
                     is MessageImage -> IMAGE_MESSAGE
@@ -88,16 +64,39 @@ class ChatAdapter(private val componentList: MutableList<ChatAdapterWrapper<*>>,
                     else -> TODO()
                 }
             }
+            is ChatAdapterMessage -> {
+                val messageData = component.message.message.messageData
+                when (messageData) {
+                    is MessageText -> TEXT_MESSAGE_ID
+                    is MessageGroupInvite -> GROUP_INVITE_ID
+                    is MessageGroupModification -> {
+                        val groupModification = messageData.groupModification
+                        when (groupModification) {
+                            is GroupModificationChangeName -> GROUP_MODIFICATION_CHANGE_NAME
+                            is GroupModificationChangeRole -> GROUP_MODIFICATION_CHANGE_ROLE
+                            is GroupModificationKickUser -> GROUP_MODIFICATION_CHANGE_KICK_USER
+                            is GroupModificationAddUser -> GROUP_MODIFICATION_CHANGE_ADD_USER
+                            else -> TODO()
+                        }
+                    }
+                    else -> {
+                        TODO("$component")
+                    }
+                }
+            }
+//            is UsernameChatInfo -> USERNAME_CHAT_INFO
+            is TimeStatusChatInfo -> TIME_STATUS_INFO
+
             is DateInfo -> DATE_INFO
             else -> TODO("$component")
         }
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AbstractViewHolder<out Any> {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): AbstractViewHolder<out ChatAdapterSubItem> {
         return when (viewType) {
             TEXT_MESSAGE_ID -> TextMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_message_text, parent, false), this)
             GROUP_INVITE_ID -> TextMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_message_text, parent, false), this)
-            USERNAME_CHAT_INFO -> UsernameChatInfoViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_sender_info, parent, false), this)
+//            USERNAME_CHAT_INFO -> UsernameChatInfoViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_sender_info, parent, false), this)
             TIME_STATUS_INFO -> TimeStatusViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_time_info, parent, false), this)
             GROUP_MODIFICATION_CHANGE_NAME -> TextMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_message_text, parent, false), this)
             GROUP_MODIFICATION_CHANGE_ROLE -> TextMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_message_text, parent, false), this)
@@ -113,13 +112,13 @@ class ChatAdapter(private val componentList: MutableList<ChatAdapterWrapper<*>>,
         }
     }
 
-    override fun onBindViewHolder(holder: AbstractViewHolder<out Any>, position: Int) {
+    override fun onBindViewHolder(holder: AbstractViewHolder<out ChatAdapterSubItem>, position: Int) {
         try {
-            holder as AbstractViewHolder<Any>
+            holder as AbstractViewHolder<ChatAdapterSubItem>
 
             val wrapper = componentList[position]
             holder.itemView.tag = position
-            holder.bind(wrapper as ChatAdapterWrapper<Any>)
+            holder.bind(wrapper as ChatAdapterWrapper<ChatAdapterSubItem>)
         } catch (t: Throwable) {
             Toast.makeText(activity, t.localizedMessage, Toast.LENGTH_SHORT).show()
         }
@@ -127,5 +126,5 @@ class ChatAdapter(private val componentList: MutableList<ChatAdapterWrapper<*>>,
 
     override fun getItemCount(): Int = componentList.size
 
-    class ChatAdapterWrapper<T>(var selected: Boolean = false, val item: T)
+    class ChatAdapterWrapper<T : ChatAdapterSubItem>(var selected: Boolean = false, val item: T)
 }

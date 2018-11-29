@@ -1,27 +1,37 @@
 package de.intektor.mercury.ui.chat.adapter.chat
 
+import android.content.Context
 import android.view.View
 import android.view.ViewGroup
-import android.widget.*
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.SeekBar
+import android.widget.TextView
+import androidx.cardview.widget.CardView
+import androidx.constraintlayout.widget.ConstraintLayout
 import de.intektor.mercury.R
-import de.intektor.mercury.android.getAttrDrawable
-import de.intektor.mercury.chat.VoiceReferenceHolder
+import de.intektor.mercury.chat.adapter.VoiceReferenceHolder
 import de.intektor.mercury.io.download.IOService
-import de.intektor.mercury.media.MediaHelper
+import de.intektor.mercury.media.MediaType
 import de.intektor.mercury.task.ReferenceState
 import de.intektor.mercury.util.setGone
 import de.intektor.mercury.util.setVisible
 import de.intektor.mercury_common.chat.ChatMessage
 import de.intektor.mercury_common.chat.MessageCore
 import de.intektor.mercury_common.chat.data.MessageVoiceMessage
-import de.intektor.mercury_common.reference.FileType
 
 class VoiceMessageViewHolder(itemView: View, chatAdapter: ChatAdapter) : ChatMessageViewHolder<MessageVoiceMessage, VoiceReferenceHolder>(itemView, chatAdapter) {
 
-    private val playButton: ImageView = itemView.findViewById(R.id.chatMessageVoiceMessagePlayButton)
-    private val uploadBar: ProgressBar = itemView.findViewById(R.id.chatMessageVoiceMessageProgressBar)
-    private val timeDisplay: TextView = itemView.findViewById(R.id.chatMessageVoiceMessageText)
-    private val watchBar: SeekBar = itemView.findViewById(R.id.chatMessageVoiceMessageWatchBar)
+    private val downloadParentCv: CardView = itemView.findViewById(R.id.item_chat_message_voice_cv_download_parent)
+    private val downloadParentCl: ConstraintLayout = itemView.findViewById(R.id.item_chat_message_voice_cl_download_parent)
+    private val downloadLabel: TextView = itemView.findViewById(R.id.item_chat_message_voice_tv_download_label)
+    private val loadParentCv: CardView = itemView.findViewById(R.id.item_chat_message_voice_cv_load_parent)
+    private val loadParentCl: ConstraintLayout = itemView.findViewById(R.id.item_chat_message_voice_cl_load_parent)
+    private val playParentCv: CardView = itemView.findViewById(R.id.item_chat_message_voice_cv_play_parent)
+    private val playParentCl: ConstraintLayout = itemView.findViewById(R.id.item_chat_message_voice_cl_play_parent)
+    private val controlButton: ImageView = itemView.findViewById(R.id.item_chat_message_voice_iv_control_button)
+    private val seekBar: SeekBar = itemView.findViewById(R.id.item_chat_message_voice_sb)
+    private val time: TextView = itemView.findViewById(R.id.item_chat_message_voice_tv_time)
 
     override val parentLayout: LinearLayout
         get() = itemView.findViewById(R.id.bubble_layout_parent) as LinearLayout
@@ -32,58 +42,73 @@ class VoiceMessageViewHolder(itemView: View, chatAdapter: ChatAdapter) : ChatMes
     override fun bindMessage(item: VoiceReferenceHolder, core: MessageCore, data: MessageVoiceMessage) {
         val context = itemView.context
 
-        playButton.setVisible()
-
-        uploadBar.max = 100
-        watchBar.progress = item.playProgress
-
-        watchBar.max = if (item.maxPlayProgress == 0) 100 else item.maxPlayProgress
+        val isClientMessage = item.message.chatMessageInfo.client
 
         when (item.referenceState) {
             ReferenceState.FINISHED -> {
-                uploadBar.setGone()
+                downloadParentCv.setGone()
+                loadParentCv.setGone()
+                playParentCv.setVisible()
 
-                playButton.setImageResource(R.drawable.baseline_play_arrow_24)
+                controlButton.setImageResource(if (item.isPlaying) R.drawable.baseline_pause_24 else R.drawable.baseline_play_arrow_24)
             }
             ReferenceState.IN_PROGRESS -> {
-                playButton.setGone()
-                uploadBar.setVisible()
-                uploadBar.progress = item.progress
+                downloadParentCv.setGone()
+                loadParentCv.setVisible()
+                playParentCv.visibility = if (isClientMessage) View.VISIBLE else View.GONE
+
+                controlButton.setImageResource(if (item.isPlaying) R.drawable.baseline_pause_24 else R.drawable.baseline_play_arrow_24)
             }
             ReferenceState.NOT_STARTED -> {
-                playButton.setImageDrawable(getAttrDrawable(context, if (isClient(item)) R.attr.ic_file_upload else R.attr.ic_file_download))
-                uploadBar.setGone()
+                downloadParentCv.setVisible()
+                loadParentCv.setGone()
+                playParentCv.visibility = if (isClientMessage) View.VISIBLE else View.GONE
+
+                downloadLabel.setText(if (isClientMessage) R.string.media_upload else R.string.media_download)
+                controlButton.setImageResource(if (item.isPlaying) R.drawable.baseline_pause_24 else R.drawable.baseline_play_arrow_24)
             }
         }
 
-        timeDisplay.text = "${convertSeconds(item.playProgress / 1000)}-${convertSeconds(data.durationSeconds.toInt())}"
+        updateTimeAndSeekBar(context, item, data)
 
-        registerForEditModePress(playButton) {
-            if (item.referenceState != ReferenceState.FINISHED) {
+        registerForEditModePress(downloadParentCl) {
+            if (item.referenceState == ReferenceState.NOT_STARTED) {
                 item.referenceState = ReferenceState.IN_PROGRESS
 
                 if (isClient(item)) {
-                    IOService.ActionUploadReference.launch(context, data.reference, data.aesKey, data.initVector, FileType.AUDIO)
+                    IOService.ActionUploadReference.launch(context, data.reference, data.aesKey, data.initVector, MediaType.MEDIA_TYPE_AUDIO, chatAdapter.activity.chatInfo.chatUUID, core.messageUUID)
                 } else {
-                    IOService.ActionDownloadReference.launch(context, data.reference, data.aesKey, data.initVector, MediaHelper.MEDIA_TYPE_AUDIO, chatAdapter.activity.chatInfo.chatUUID, core.messageUUID)
+                    IOService.ActionDownloadReference.launch(context, data.reference, data.aesKey, data.initVector, MediaType.MEDIA_TYPE_AUDIO, chatAdapter.activity.chatInfo.chatUUID, core.messageUUID)
                 }
+            }
+        }
+
+        registerForEditModePress(playParentCl) {
+            if (item.isPlaying) {
+                chatAdapter.activity.stopAudio(item)
             } else {
-                if (item.isPlaying) {
-                    chatAdapter.activity.stopAudio(item)
-                } else {
-                    chatAdapter.activity.playAudio(item, item.playProgress)
-                }
+                chatAdapter.activity.playAudio(item, item.playProgress)
             }
         }
 
         registerSeekBarListener(item)
+    }
 
-        registerForEditModeLongPress(playButton)
-        registerForEditModeLongPress(watchBar)
+    private fun updateTimeAndSeekBar(context: Context, item: VoiceReferenceHolder, data: MessageVoiceMessage) {
+        val (minutes, seconds) = if (item.isPlaying) {
+            getTime(item.playProgress / 1000)
+        } else {
+            getTime(data.durationSeconds)
+        }
+
+        time.text = context.getString(R.string.voice_message_duration, minutes, seconds)
+
+        seekBar.max = item.maxPlayProgress
+        seekBar.progress = item.playProgress
     }
 
     private fun registerSeekBarListener(item: VoiceReferenceHolder) {
-        watchBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+        seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             private var userDragging = false
 
             override fun onProgressChanged(seekBar: SeekBar, p1: Int, fromUser: Boolean) {
@@ -102,17 +127,20 @@ class VoiceMessageViewHolder(itemView: View, chatAdapter: ChatAdapter) : ChatMes
         })
     }
 
-    private fun convertSeconds(seconds: Int): String {
-        var s = seconds
-        var m = 0
-        while (s >= 60) {
-            s -= 60
-            m++
+    private fun getTime(seconds: Int): Pair<Int, Int> {
+        var minutes = 0
+
+        var current = seconds
+
+        while (current >= 60) {
+            minutes += 1
+            current -= 60
         }
-        return String.format("%02d:%02d", m, s)
+
+        return minutes to current
     }
 
-    override fun getMessage(item: VoiceReferenceHolder): ChatMessage = item.chatMessageInfo.chatMessageInfo.message
+    override fun getMessage(item: VoiceReferenceHolder): ChatMessage = item.message.chatMessageInfo.message
 
-    override fun isClient(item: VoiceReferenceHolder): Boolean = item.chatMessageInfo.chatMessageInfo.client
+    override fun isClient(item: VoiceReferenceHolder): Boolean = item.message.chatMessageInfo.client
 }

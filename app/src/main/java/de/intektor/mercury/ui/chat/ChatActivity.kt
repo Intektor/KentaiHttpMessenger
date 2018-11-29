@@ -19,6 +19,9 @@ import android.view.*
 import android.widget.CheckBox
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationManagerCompat
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.SimpleItemAnimator
 import com.google.common.hash.Hashing
 import com.squareup.picasso.MemoryPolicy
 import com.squareup.picasso.Picasso
@@ -33,23 +36,26 @@ import de.intektor.mercury.action.user.ActionTyping
 import de.intektor.mercury.action.user.ActionUserStatusChange
 import de.intektor.mercury.android.*
 import de.intektor.mercury.chat.*
+import de.intektor.mercury.chat.adapter.*
+import de.intektor.mercury.chat.model.ChatInfo
+import de.intektor.mercury.chat.model.ChatReceiver
 import de.intektor.mercury.client.ClientPreferences
 import de.intektor.mercury.client.getBackgroundChatFile
 import de.intektor.mercury.client.setBackgroundImage
 import de.intektor.mercury.contacts.Contact
 import de.intektor.mercury.io.download.IOService
 import de.intektor.mercury.media.MediaFile
-import de.intektor.mercury.media.MediaHelper
+import de.intektor.mercury.media.MediaType
 import de.intektor.mercury.media.ThumbnailUtil
-import de.intektor.mercury.nine_gag.getGagUUID
-import de.intektor.mercury.nine_gag.isNineGagMessage
 import de.intektor.mercury.reference.ReferenceUtil
 import de.intektor.mercury.task.*
 import de.intektor.mercury.ui.CameraActivity
 import de.intektor.mercury.ui.ContactInfoActivity
 import de.intektor.mercury.ui.PickGalleryActivity
 import de.intektor.mercury.ui.SendMediaActivity
-import de.intektor.mercury.ui.chat.adapter.chat.*
+import de.intektor.mercury.ui.chat.adapter.chat.ChatAdapter
+import de.intektor.mercury.ui.chat.adapter.chat.DateViewHolder
+import de.intektor.mercury.ui.chat.adapter.chat.HeaderItemDecoration
 import de.intektor.mercury.ui.chat.adapter.viewing.UserState
 import de.intektor.mercury.ui.chat.adapter.viewing.ViewingAdapter
 import de.intektor.mercury.ui.chat.adapter.viewing.ViewingUser
@@ -57,9 +63,7 @@ import de.intektor.mercury.ui.group_info_activity.GroupInfoActivity
 import de.intektor.mercury.util.*
 import de.intektor.mercury_common.chat.*
 import de.intektor.mercury_common.chat.data.*
-import de.intektor.mercury_common.chat.data.group_modification.GroupModificationAddUser
 import de.intektor.mercury_common.chat.data.group_modification.GroupModificationChangeName
-import de.intektor.mercury_common.chat.data.group_modification.MessageGroupModification
 import de.intektor.mercury_common.reference.FileType
 import de.intektor.mercury_common.tcp.client_to_server.TypingPacketToServer
 import de.intektor.mercury_common.tcp.client_to_server.ViewChatPacketToServer
@@ -67,7 +71,6 @@ import de.intektor.mercury_common.tcp.server_to_client.Status
 import de.intektor.mercury_common.tcp.server_to_client.UserChange
 import de.intektor.mercury_common.util.generateAESKey
 import de.intektor.mercury_common.util.generateInitVector
-import de.intektor.mercury_common.util.toUUID
 import kotlinx.android.synthetic.main.activity_chat.*
 import org.threeten.bp.Clock
 import java.io.ByteArrayOutputStream
@@ -87,16 +90,16 @@ class ChatActivity : AppCompatActivity() {
 
     private val contactMap: MutableMap<UUID, Contact> = HashMap()
 
-    private lateinit var uploadReferenceFinishedReceiver: BroadcastReceiver
-    private lateinit var uploadProgressReceiver: BroadcastReceiver
-    private lateinit var downloadReferenceFinishedReceiver: BroadcastReceiver
-    private lateinit var downloadProgressReceiver: BroadcastReceiver
-    private lateinit var uploadReferenceStartedReceiver: BroadcastReceiver
-    private lateinit var userViewChatReceiver: BroadcastReceiver
-    private lateinit var directConnectedReceiver: BroadcastReceiver
-    private lateinit var updateProfilePictureReceiver: BroadcastReceiver
-    private lateinit var chatMessageReceiver: BroadcastReceiver
-    private lateinit var messageStatusChangeReceiver: BroadcastReceiver
+    private val uploadProgressReceiver = UploadProgressReceiver()
+    private val uploadReferenceFinishedReceiver = UploadReferenceFinishedReceiver()
+    private val downloadProgressReceiver = DownloadProgressReceiver()
+    private val downloadReferenceFinishedReceiver = DownloadReferenceFinishedReceiver()
+    private val uploadReferenceStartedReceiver = UploadReferenceStartedReceiver()
+    private val userViewChatReceiver = UserViewChatReceiver()
+    private val directConnectedReceiver = DirectConnectedReceiver()
+    private val updateProfilePictureReceiver = UploadProfilePictureReceiver()
+    private val chatMessageReceiver = ChatMessageReceiver()
+    private val messageStatusChangeReceiver = MessageStatusChangeReceiver()
 
     private val typingReceiver: BroadcastReceiver = TypingReceiver()
     private val userStatusChangeReceiver: BroadcastReceiver = UserStatusChangeReceiver()
@@ -186,7 +189,6 @@ class ChatActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         setTheme(getSelectedTheme(this))
 
         setContentView(R.layout.activity_chat)
@@ -194,69 +196,47 @@ class ChatActivity : AppCompatActivity() {
         val mercuryClient = mercuryClient()
 
         val (chatInfo, messageUUID) = getData(intent)
-
         this.chatInfo = chatInfo
 
-        if (messageUUID != null) {
-            val message = getChatMessages(this, mercuryClient.dataBase, "message_uuid = ?", arrayOf(messageUUID.toString())).first()
-            firstMessageTime = message.chatMessageInfo.message.messageCore.timeCreated
-
-            upToDate = false
-        }
-
-        val lM = androidx.recyclerview.widget.LinearLayoutManager(this)
-        chatActivityMessageList.layoutManager = lM
-        lM.stackFromEnd = true
+//        if (messageUUID != null) {
+//            val message = getChatMessages(this, mercuryClient.dataBase, "message_uuid = ?", arrayOf(messageUUID.toString())).first()
+//            firstMessageTime = message.chatMessageInfo.message.messageCore.timeCreated
+//
+//            upToDate = false
+//        }
+//
+        val chatAdapterLayoutManager = LinearLayoutManager(this)
+        chatActivityMessageList.layoutManager = chatAdapterLayoutManager
+        chatAdapterLayoutManager.stackFromEnd = true
 
         val actionBar = supportActionBar
 
         actionBar?.title = chatInfo.chatName
 
-        if (chatInfo.chatType.isGroup()) {
-            for ((receiverUUID) in chatInfo.participants) {
-                mercuryClient.dataBase.rawQuery("SELECT contacts.username, user_color_table.color, contacts.user_uuid, contacts.alias FROM user_color_table LEFT JOIN contacts ON contacts.user_uuid = user_color_table.user_uuid WHERE user_color_table.user_uuid = ?", arrayOf(receiverUUID.toString())).use { query ->
-                    query.moveToNext()
-                    val username = query.getString(0)
-                    val color = query.getString(1)
-                    val userUUID = query.getString(2).toUUID()
-                    val alias = query.getString(3)
-                    userToUserInfo[receiverUUID] = UsernameChatInfo(username, color)
-                    contactMap.put(userUUID, Contact(username, alias, userUUID, null))
-                }
-            }
-        } else {
-            for ((receiverUUID) in chatInfo.participants) {
-                val contact = getContact(mercuryClient.dataBase, receiverUUID)
-                contactMap[receiverUUID] = contact
-            }
-        }
+//        if (chatInfo.chatType.isGroup()) {
+//            for ((receiverUUID) in chatInfo.participants) {
+//                mercuryClient.dataBase.rawQuery("SELECT contacts.username, user_color_table.color, contacts.user_uuid, contacts.alias FROM user_color_table LEFT JOIN contacts ON contacts.user_uuid = user_color_table.user_uuid WHERE user_color_table.user_uuid = ?", arrayOf(receiverUUID.toString())).use { query ->
+//                    query.moveToNext()
+//                    val username = query.getString(0)
+//                    val color = query.getString(1)
+//                    val userUUID = query.getString(2).toUUID()
+//                    val alias = query.getString(3)
+//                    userToUserInfo[receiverUUID] = UsernameChatInfo(username, color)
+//                    contactMap.put(userUUID, Contact(username, alias, userUUID, null))
+//                }
+//            }
+//        } else {
+//            for ((receiverUUID) in chatInfo.participants) {
+//                val contact = getContact(mercuryClient.dataBase, receiverUUID)
+//                contactMap[receiverUUID] = contact
+//            }
+//        }
 
         val clientUUID = ClientPreferences.getClientUUID(this)
 
-        val userNoMember = !chatInfo.isUserParticipant(clientUUID) || !chatInfo.userProfile(clientUUID).isActive
-        val adminNoMember = if (chatInfo.chatType == ChatType.GROUP_DECENTRALIZED) {
-            val adminContact = getGroupMembers(mercuryClient.dataBase, chatInfo.chatUUID).first { it.role == GroupRole.ADMIN }.contact
-            !chatInfo.participants.first { it.receiverUUID == adminContact.userUUID }.isActive
-        } else false
-
-        if (userNoMember || adminNoMember) {
-            chatActivityTextInput.isEnabled = false
-            chatActivitySendMessage.isEnabled = false
-        }
-        if (userNoMember) {
-            chatActivityTextInput.setText(R.string.chat_group_no_member)
-        }
-        if (adminNoMember) {
-            chatActivityTextInput.setText(R.string.chat_group_no_admin)
-        }
-
         viewingUsersAdapter = ViewingAdapter(viewingUsersList)
         chatActivityViewingUsersList.adapter = viewingUsersAdapter
-        chatActivityViewingUsersList.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
-
-        val messages = load20Messages(this, mercuryClient.dataBase, true, chatInfo.chatUUID, firstMessageTime)
-
-        lastMessageTime = messages.firstOrNull()?.chatMessageInfo?.message?.messageCore?.timeCreated ?: 0L
+        chatActivityViewingUsersList.layoutManager = LinearLayoutManager(this)
 
         chatAdapter = ChatAdapter(componentList, chatInfo, contactMap, this)
 
@@ -264,11 +244,11 @@ class ChatActivity : AppCompatActivity() {
 
         chatActivityMessageList.addOnScrollListener(ChatListScrollListener())
 
-        addMessages(messages, true)
+        loadMoreMessagesTop(false)
 
         chatActivityTextInput.addTextChangedListener(object : TextWatcher {
-            override fun afterTextChanged(p0: Editable) {
-                chatActivitySendMessage.isEnabled = p0.isNotBlank()
+            override fun afterTextChanged(newText: Editable) {
+                chatActivitySendMessage.isEnabled = newText.isNotBlank()
             }
 
             override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
@@ -283,145 +263,6 @@ class ChatActivity : AppCompatActivity() {
                 }
             }
         })
-
-        uploadProgressReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                val referenceUUID = intent.getSerializableExtra(KEY_REFERENCE_UUID) as UUID
-                val messageUUID = referenceUUIDToMessageUUID[referenceUUID]
-
-                val holder = messageObjects[messageUUID]?.first { it.item is ReferenceHolder }
-                        ?: return
-                val item = holder.item as ReferenceHolder
-                item.progress = (intent.getDoubleExtra(KEY_PROGRESS, 0.0) * 100).toInt()
-
-                chatAdapter.notifyItemChanged(componentList.indexOf(holder))
-            }
-        }
-
-        uploadReferenceFinishedReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                val referenceUUID = intent.getSerializableExtra(KEY_REFERENCE_UUID) as UUID
-                val successful = intent.getBooleanExtra(KEY_SUCCESSFUL, false)
-                val messageUUID = referenceUUIDToMessageUUID[referenceUUID]
-
-                val holder = messageObjects[messageUUID]?.first { it.item is ReferenceHolder }
-                        ?: return
-                val item = holder.item as ReferenceHolder
-                item.referenceState = if (successful) ReferenceState.FINISHED else ReferenceState.NOT_STARTED
-
-                chatAdapter.notifyItemChanged(componentList.indexOf(holder))
-            }
-        }
-
-        downloadProgressReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                val referenceUUID = intent.getSerializableExtra(KEY_REFERENCE_UUID) as UUID
-                val messageUUID = referenceUUIDToMessageUUID[referenceUUID]
-
-                val holder = messageObjects[messageUUID]?.first { it.item is ReferenceHolder }
-                        ?: return
-                val item = holder.item as ReferenceHolder
-                item.progress = intent.getIntExtra(KEY_PROGRESS, 0)
-
-                chatAdapter.notifyItemChanged(componentList.indexOf(holder))
-            }
-        }
-
-        downloadReferenceFinishedReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                val referenceUUID = intent.getSerializableExtra(KEY_REFERENCE_UUID) as UUID
-                val successful = intent.getBooleanExtra(KEY_SUCCESSFUL, false)
-                val messageUUID = referenceUUIDToMessageUUID[referenceUUID]
-
-                val holder = messageObjects[messageUUID]?.first { it.item is ReferenceHolder }
-                        ?: return
-                val item = holder.item as ReferenceHolder
-                item.referenceState = if (successful) ReferenceState.FINISHED else ReferenceState.NOT_STARTED
-
-                chatAdapter.notifyItemChanged(componentList.indexOf(holder))
-            }
-        }
-
-        uploadReferenceStartedReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-            }
-        }
-
-        userViewChatReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                val chatUUID = intent.getSerializableExtra(KEY_CHAT_UUID)
-                val userUUID = intent.getSerializableExtra(KEY_USER_UUID)
-                val view = intent.getBooleanExtra(KEY_USER_VIEW, false)
-
-                if (chatUUID == chatInfo.chatUUID) {
-                    if (userUUID == clientUUID) return
-                    val contact = contactMap[userUUID]!!
-                    val viewingUser = ViewingUser(contact, UserState.VIEWING)
-                    if (view) {
-                        if (viewingUsersList.any { it.contact.userUUID == userUUID }) return
-                        viewingUsersList += viewingUser
-                        viewingUsersAdapter.notifyItemInserted(viewingUsersList.size - 1)
-                    } else {
-                        val index = viewingUsersList.indexOfFirst { it.contact.userUUID == userUUID }
-                        if (index != -1) {
-                            viewingUsersList.removeAt(index)
-                            viewingUsersAdapter.notifyItemRemoved(index)
-                        }
-                    }
-                }
-            }
-        }
-
-        directConnectedReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                viewChat(true)
-            }
-        }
-
-        updateProfilePictureReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                val updatedUserUUID = intent.getSerializableExtra(KEY_USER_UUID) as UUID
-                val indexOf = viewingUsersList.indexOfFirst { it.contact.userUUID == updatedUserUUID }
-                if (indexOf != -1) {
-                    viewingUsersAdapter.notifyItemChanged(indexOf)
-                }
-
-                if (chatInfo.chatType == ChatType.TWO_PEOPLE) {
-                    invalidateOptionsMenu()
-                }
-            }
-        }
-
-        chatMessageReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                val (chatMessage, chatUuid) = ActionChatMessageReceived.getData(intent)
-
-                if (chatUuid == chatInfo.chatUUID) {
-                    val client = ClientPreferences.getClientUUID(context)
-
-                    val isClient = client == chatMessage.messageCore.senderUUID
-                    val info = ChatMessageInfo(chatMessage, isClient, chatUuid)
-
-                    val status = getLatestMessageStatus(mercuryClient.dataBase, chatMessage.messageCore.messageUUID)
-                    val wrapper = ChatMessageWrapper(info, status.status, status.time)
-
-                    addMessage(wrapper, true)
-                    if (onBottom) {
-                        scrollToBottom()
-                    }
-                }
-            }
-        }
-
-        messageStatusChangeReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                val (chatUuid, messageUuid, messageStatus) = ActionMessageStatusChange.getData(intent)
-
-                if (chatInfo.chatUUID != chatUuid) return
-
-                updateMessageStatus(messageUuid, messageStatus)
-            }
-        }
 
         chatActivitySendMessage.setOnClickListener {
             sendMessage()
@@ -474,8 +315,14 @@ class ChatActivity : AppCompatActivity() {
             }
 
             override fun isHeader(itemPosition: Int): Boolean = componentList[itemPosition].item is DateInfo
-
         }))
+
+        activity_chat_cl_new_messages_parent.setOnClickListener {
+            activity_chat_cv_new_messages_parent.visibility = View.GONE
+            scrollToBottom()
+        }
+
+        (chatActivityMessageList.itemAnimator as? SimpleItemAnimator)?.supportsChangeAnimations = false
 
         viewChat(true)
 
@@ -485,7 +332,6 @@ class ChatActivity : AppCompatActivity() {
 
         applyBackgroundImage(getBackgroundChatFile(this, chatInfo.chatUUID))
     }
-
 
     private fun sendMessage() {
         val mercuryClient = applicationContext as MercuryClient
@@ -506,7 +352,7 @@ class ChatActivity : AppCompatActivity() {
 
         val chatMessageInfo = ChatMessageInfo(chatMessage, true, chatInfo.chatUUID)
 
-        addMessage(ChatMessageWrapper(chatMessageInfo, MessageStatus.WAITING, System.currentTimeMillis()), true)
+        addMessageToBottom(ChatMessageWrapper(chatMessageInfo, MessageStatus.WAITING, System.currentTimeMillis()))
         chatAdapter.notifyDataSetChanged()
 
         if (onBottom) scrollToBottom()
@@ -514,177 +360,16 @@ class ChatActivity : AppCompatActivity() {
         sendMessageToServer(this, PendingMessage(chatMessage, chatInfo.chatUUID, chatInfo.getOthers(clientUUID)), mercuryClient.dataBase)
     }
 
-    fun addMessage(info: ChatMessageWrapper, bottom: Boolean) {
-        addMessages(listOf(info), bottom)
-    }
-
-    private fun addMessages(list: List<ChatMessageWrapper>, bottom: Boolean) {
-        val listToAdd = mutableListOf<ChatAdapter.ChatAdapterWrapper<*>>()
-        for (wrapper in list) {
-            val message = wrapper.chatMessageInfo.message
-            val core = message.messageCore
-            val data = message.messageData
-
-            val associated = createMessageObjects(wrapper)
-            messageObjects[core.messageUUID] = associated
-
-            val dateInfo = DateInfo(core.timeCreated)
-
-            if (!bottom) {
-                listToAdd.removeAll {
-                    if (it.item is DateInfo) {
-                        calendar.timeInMillis = it.item.time
-                        val dateThen = calendar.get(Calendar.DATE)
-
-                        calendar.timeInMillis = dateInfo.time
-                        val dateNow = calendar.get(Calendar.DATE)
-                        return@removeAll dateThen == dateNow
-                    }
-                    false
-                }
-            }
-
-            if (bottom) {
-                if ((listToAdd + componentList).none {
-                            if (it.item is DateInfo) {
-                                calendar.timeInMillis = it.item.time
-                                val dateThen = calendar.get(Calendar.DATE)
-
-                                calendar.timeInMillis = dateInfo.time
-                                val dateNow = calendar.get(Calendar.DATE)
-                                dateThen == dateNow
-                            } else false
-                        }) {
-                    listToAdd += ChatAdapter.ChatAdapterWrapper(item = dateInfo)
-                }
-                listToAdd.addAll(associated)
-            } else {
-                listToAdd.addAll(0, associated)
-                listToAdd.add(0, ChatAdapter.ChatAdapterWrapper(item = dateInfo))
-            }
-
-            if (data is MessageReference) {
-                referenceUUIDToMessageUUID[data.reference] = core.messageUUID
-            }
-
-            if (data is MessageText && isNineGagMessage(data.message)) {
-                val gagUUID = getGagUUID(data.message)
-                referenceUUIDToMessageUUID[gagUUID] = core.messageUUID
-            }
-        }
-
-        val removed = mutableListOf<Int>()
-
-        if (!bottom) {
-            listToAdd.filter { it.item is DateInfo }.forEach { c ->
-                c.item as DateInfo
-                componentList.filter {
-                    if (it.item is DateInfo) {
-                        calendar.timeInMillis = it.item.time
-                        val dateThen = calendar.get(Calendar.DATE)
-
-                        calendar.timeInMillis = c.item.time
-                        val dateNow = calendar.get(Calendar.DATE)
-                        dateThen == dateNow
-                    } else false
-                }.forEach {
-                    val index = componentList.indexOf(it)
-                    componentList.remove(it)
-                    removed += index
-                }
-            }
-        }
-
-        val prevSize = componentList.size
-
-        if (bottom) {
-            componentList.addAll(listToAdd)
-            chatAdapter.notifyItemRangeInserted(prevSize, listToAdd.size)
-        } else {
-            componentList.addAll(0, listToAdd)
-            chatAdapter.notifyItemRangeInserted(0, listToAdd.size)
-        }
-
-        for (i in removed) {
-            chatAdapter.notifyItemRemoved(i)
-        }
-    }
-
-    /**
-     * Returns the list of the list components that will be added, you have to add the list to the recycler view yourself
-     */
-    private fun createMessageObjects(wrapper: ChatMessageWrapper): List<ChatAdapter.ChatAdapterWrapper<*>> {
-        val mercuryClient = applicationContext as MercuryClient
-        val message = wrapper.chatMessageInfo.message
-
-        val messageCore = message.messageCore
-        val messageData = message.messageData
-
-        if (messageData is MessageStatusUpdate) return emptyList()
-
-        val resultList = mutableListOf<ChatAdapter.ChatAdapterWrapper<*>>()
-
-        if (messageData is MessageGroupModification) {
-            val groupModification = messageData.groupModification
-            if (groupModification is GroupModificationAddUser) {
-                registerGroupStuff(groupModification.addedUser)
-            }
-        }
-
-        if (chatInfo.chatType.isGroup() && !wrapper.chatMessageInfo.client) {
-            resultList += ChatAdapter.ChatAdapterWrapper(item = userToUserInfo[message.messageCore.senderUUID]!!)
-        }
-
-        val getDownloadState = { reference: UUID ->
-            when {
-                mercuryClient.currentLoadingTable.containsKey(reference) -> ReferenceState.IN_PROGRESS
-                ReferenceUtil.getFileForReference(this, reference).exists() -> ReferenceState.FINISHED
-                else -> ReferenceState.NOT_STARTED
-            }
-        }
-
-        resultList += when {
-            messageData is MessageReference -> {
-                val uploadState = if (wrapper.chatMessageInfo.client) {
-                    when {
-                        ReferenceUtil.isReferenceUploaded(mercuryClient.dataBase, messageData.reference) -> ReferenceState.FINISHED
-                        mercuryClient.currentLoadingTable.containsKey(messageData.reference) -> ReferenceState.IN_PROGRESS
-                        else -> ReferenceState.NOT_STARTED
-                    }
-                } else getDownloadState(messageData.reference)
-
-                if (messageData is MessageVoiceMessage) {
-                    ChatAdapter.ChatAdapterWrapper(item = VoiceReferenceHolder(wrapper, uploadState))
-                } else {
-                    ChatAdapter.ChatAdapterWrapper(item = ReferenceHolder(wrapper, uploadState))
-                }
-            }
-            messageData is MessageText && isNineGagMessage(messageData.message) -> {
-                val gagUUID = getGagUUID(messageData.message)
-
-                ChatAdapter.ChatAdapterWrapper(item = ReferenceHolder(wrapper, getDownloadState(gagUUID)))
-            }
-            else -> ChatAdapter.ChatAdapterWrapper(item = wrapper)
-        }
-
-        val timeStatusInfo = TimeStatusChatInfo(messageCore.timeCreated, wrapper.latestStatus, wrapper.chatMessageInfo.client)
-        resultList += ChatAdapter.ChatAdapterWrapper(item = timeStatusInfo)
-
-        return resultList
-    }
-
     fun updateMessageStatus(messageUUID: UUID, status: MessageStatus) {
         val associatedObjects = messageObjects[messageUUID] ?: return
-        val first = associatedObjects.first { it.item is ChatMessageWrapper || it.item is ReferenceHolder }
-        val wrapper = (first.item as? ReferenceHolder)?.chatMessageInfo
-                ?: first.item as ChatMessageWrapper
-        wrapper.latestStatus = status
 
-        val timeStatusInfo = associatedObjects.first { it.item is TimeStatusChatInfo }.item as TimeStatusChatInfo
-        timeStatusInfo.status = status
-        val index = componentList.indexOfFirst { it.item == timeStatusInfo }
-        if (index == -1) throw IllegalStateException("TimeStatusInfo was not found!")
-        chatAdapter.notifyItemChanged(index)
+        val message = associatedObjects.first { it.item is ChatAdapterMessage }.item as ChatAdapterMessage
+        message.message.latestStatus = status
+
+        val infoAdapterItem = associatedObjects.first { it.item is TimeStatusChatInfo }
+        val info = infoAdapterItem.item as TimeStatusChatInfo
+        info.status = status
+        chatAdapter.notifyItemChanged(componentList.indexOf(infoAdapterItem))
     }
 
     /**
@@ -702,32 +387,8 @@ class ChatActivity : AppCompatActivity() {
         }
     }
 
-    fun scrollToBottom() {
+    private fun scrollToBottom() {
         chatActivityMessageList.smoothScrollToPosition(componentList.size)
-    }
-
-    fun loadMore(top: Boolean) {
-        val mercuryClient = applicationContext as MercuryClient
-        LoadMoreTask({ list ->
-            addMessages(list.reversed(), !top)
-            if (list.isNotEmpty()) {
-                if (top) {
-                    lastMessageTime = list.first().chatMessageInfo.message.messageCore.timeCreated
-                } else {
-                    firstMessageTime = list.last().chatMessageInfo.message.messageCore.timeCreated
-                }
-            }
-        }, chatInfo.chatUUID, mercuryClient, lastMessageTime, lastMessageTime, top).execute()
-    }
-
-    private class LoadMoreTask(val updater: (List<ChatMessageWrapper>) -> (Unit), val chatUUID: UUID, val mercuryClient: MercuryClient, val firstMessageTime: Long, val lastMessageTime: Long, val top: Boolean) :
-            AsyncTask<Unit, Unit, List<ChatMessageWrapper>>() {
-        override fun doInBackground(vararg params: Unit?): List<ChatMessageWrapper> =
-                load20Messages(mercuryClient, mercuryClient.dataBase, top, chatUUID, if (top) lastMessageTime else firstMessageTime)
-
-        override fun onPostExecute(result: List<ChatMessageWrapper>) {
-            updater.invoke(result)
-        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -809,8 +470,8 @@ class ChatActivity : AppCompatActivity() {
                         val uri = Uri.fromFile(File(media.mediaFile.getPath(this@ChatActivity)))
 
                         when (media.mediaFile.mediaType) {
-                            MediaHelper.MEDIA_TYPE_IMAGE -> sendPhoto(uri, media.text)
-                            MediaHelper.MEDIA_TYPE_VIDEO -> sendVideo(uri, media.text, media.isGif)
+                            MediaType.MEDIA_TYPE_IMAGE -> sendPhoto(uri, media.text)
+                            MediaType.MEDIA_TYPE_VIDEO -> sendVideo(uri, media.text, media.isGif)
                         }
                     }
                 }
@@ -860,12 +521,12 @@ class ChatActivity : AppCompatActivity() {
             val data = result.message.messageData as MessageReference
             mercuryClient.currentLoadingTable[data.reference] = 0.0
 
-            addMessage(ChatMessageWrapper(result, MessageStatus.WAITING, System.currentTimeMillis()), true)
+            addMessageToBottom(ChatMessageWrapper(result, MessageStatus.WAITING, System.currentTimeMillis()))
 
             sendMessageToServer(this@ChatActivity, PendingMessage(result.message, chatInfo.chatUUID,
                     chatInfo.getOthers(ClientPreferences.getClientUUID(this))), mercuryClient.dataBase)
 
-            IOService.ActionUploadReference.launch(this, data.reference, data.aesKey, data.initVector, FileType.IMAGE)
+            IOService.ActionUploadReference.launch(this, data.reference, data.aesKey, data.initVector, MediaType.MEDIA_TYPE_IMAGE, chatInfo.chatUUID, result.message.messageCore.messageUUID)
 
             scrollToBottom()
         }, mercuryClient, chatInfo.chatUUID, uri, text).execute()
@@ -895,10 +556,10 @@ class ChatActivity : AppCompatActivity() {
             val iV = generateInitVector()
 
             ReferenceUtil.setReferenceKey(mercuryClient.dataBase, referenceUUID, aes, iV)
-            ReferenceUtil.addReference(mercuryClient.dataBase, chatUUID, referenceUUID, messageUUID, MediaHelper.MEDIA_TYPE_IMAGE, Clock.systemDefaultZone().instant().toEpochMilli())
+            ReferenceUtil.addReference(mercuryClient.dataBase, chatUUID, referenceUUID, messageUUID, MediaType.MEDIA_TYPE_IMAGE, Clock.systemDefaultZone().instant().toEpochMilli())
 
             val hash = Hashing.sha512().hashBytes(byteOut.toByteArray()).toString()
-            val data = MessageImage(ThumbnailUtil.createThumbnail(referenceFile, FileType.IMAGE), text, bitmap.width, bitmap.height, aes, iV, referenceUUID, hash)
+            val data = MessageImage(ThumbnailUtil.createThumbnail(referenceFile, MediaType.MEDIA_TYPE_IMAGE), text, bitmap.width, bitmap.height, aes, iV, referenceUUID, hash)
             val core = MessageCore(clientUUID, System.currentTimeMillis(), messageUUID)
 
             return ChatMessageInfo(ChatMessage(core, data), true, chatUUID)
@@ -916,12 +577,12 @@ class ChatActivity : AppCompatActivity() {
             val data = result.message.messageData as MessageReference
             mercuryClient.currentLoadingTable[data.reference] = 0.0
 
-            addMessage(ChatMessageWrapper(result, MessageStatus.WAITING, System.currentTimeMillis()), true)
+            addMessageToBottom(ChatMessageWrapper(result, MessageStatus.WAITING, System.currentTimeMillis()))
 
             sendMessageToServer(this@ChatActivity, PendingMessage(result.message, chatInfo.chatUUID,
                     chatInfo.getOthers(ClientPreferences.getClientUUID(this))), mercuryClient.dataBase)
 
-            IOService.ActionUploadReference.launch(this, data.reference, data.aesKey, data.initVector, FileType.IMAGE)
+            IOService.ActionUploadReference.launch(this, data.reference, data.aesKey, data.initVector, MediaType.MEDIA_TYPE_VIDEO, chatInfo.chatUUID, result.message.messageCore.messageUUID)
 
             scrollToBottom()
         }, mercuryClient, uri, text, isGif, chatInfo.chatUUID).execute()
@@ -946,9 +607,9 @@ class ChatActivity : AppCompatActivity() {
             val initVector = generateInitVector()
 
             ReferenceUtil.setReferenceKey(mercuryClient.dataBase, referenceUUID, aesKey, initVector)
-            ReferenceUtil.addReference(mercuryClient.dataBase, chatUUID, referenceUUID, messageUUID, MediaHelper.MEDIA_TYPE_VIDEO, Clock.systemDefaultZone().instant().toEpochMilli())
+            ReferenceUtil.addReference(mercuryClient.dataBase, chatUUID, referenceUUID, messageUUID, MediaType.MEDIA_TYPE_VIDEO, Clock.systemDefaultZone().instant().toEpochMilli())
 
-            val data = MessageVideo(getVideoDuration(referenceFile, mercuryClient), isGif, dimension.width, dimension.height, byteArrayOf(), text, aesKey, initVector, referenceUUID, hash.toString())
+            val data = MessageVideo(getVideoDuration(referenceFile, mercuryClient), isGif, dimension.width, dimension.height, ThumbnailUtil.createThumbnail(referenceFile, MediaType.MEDIA_TYPE_VIDEO), text, aesKey, initVector, referenceUUID, hash.toString())
             val core = MessageCore(clientUUID, System.currentTimeMillis(), messageUUID)
 
             val message = ChatMessage(core, data)
@@ -972,20 +633,21 @@ class ChatActivity : AppCompatActivity() {
 
         val mercuryClient = applicationContext as MercuryClient
 
-        if (componentList.isNotEmpty() && upToDate) {
-            val (_: Long, lastMessageUUID: UUID) = if (componentList.any { it.item is ChatMessageWrapper }) {
-                val message = (componentList.last { it.item is ChatMessageWrapper }.item as ChatMessageWrapper).chatMessageInfo
-                message.message.messageCore.timeCreated to message.message.messageCore.messageUUID
-            } else 0L to UUID.randomUUID()
+        //TODO
+//        if (componentList.isNotEmpty() && upToDate) {
+//            val (_: Long, lastMessageUUID: UUID) = if (componentList.any { it.item is ChatMessageWrapper }) {
+//                val message = (componentList.last { it.item is ChatMessageWrapper }.item as ChatMessageWrapper).chatMessageInfo
+//                message.message.messageCore.timeCreated to message.message.messageCore.messageUUID
+//            } else 0L to UUID.randomUUID()
+//
+//            val newMessages = getChatMessages(this, mercuryClient.dataBase, "chat_uuid = '${chatInfo.chatUUID}' AND time_created > $firstMessageTime")
+//
+//            addMessages(newMessages.filter { it.chatMessageInfo.message.messageCore.messageUUID != lastMessageUUID }, true)
+//
+//            if (onBottom) scrollToBottom()
+//        }
 
-            val newMessages = getChatMessages(this, mercuryClient.dataBase, "chat_uuid = '${chatInfo.chatUUID}' AND time_created > $firstMessageTime")
-
-            addMessages(newMessages.filter { it.chatMessageInfo.message.messageCore.messageUUID != lastMessageUUID }, true)
-
-            if (onBottom) scrollToBottom()
-        }
-
-        androidx.localbroadcastmanager.content.LocalBroadcastManager.getInstance(this).apply {
+        LocalBroadcastManager.getInstance(this).apply {
             registerReceiver(uploadProgressReceiver, ActionUploadReferenceProgress.getFilter())
             registerReceiver(uploadReferenceFinishedReceiver, ActionUploadReferenceFinished.getFilter())
             registerReceiver(downloadProgressReceiver, ActionDownloadReferenceProgress.getFilter())
@@ -998,6 +660,7 @@ class ChatActivity : AppCompatActivity() {
             registerReceiver(groupModificationReceiver, ActionGroupModificationReceived.getFilter())
             registerReceiver(typingReceiver, ActionTyping.getFilter())
             registerReceiver(userStatusChangeReceiver, ActionUserStatusChange.getFilter())
+//            registerReceiver(updateProfilePictureReceiver, )
         }
 
         viewChat(true)
@@ -1007,6 +670,25 @@ class ChatActivity : AppCompatActivity() {
         setUnreadMessages(mercuryClient.dataBase, chatInfo.chatUUID, 0)
 
         cancelChatNotifications(this, chatInfo.chatUUID)
+
+        val clientUUID = ClientPreferences.getClientUUID(this)
+
+        val userNoMember = !chatInfo.isUserParticipant(clientUUID) || !chatInfo.userProfile(clientUUID).isActive
+        val adminNoMember = if (chatInfo.chatType == ChatType.GROUP_DECENTRALIZED) {
+            val adminContact = getGroupMembers(mercuryClient.dataBase, chatInfo.chatUUID).first { it.role == GroupRole.ADMIN }.contact
+            !chatInfo.participants.first { it.receiverUUID == adminContact.userUUID }.isActive
+        } else false
+
+        if (userNoMember || adminNoMember) {
+            chatActivityTextInput.isEnabled = false
+            chatActivitySendMessage.isEnabled = false
+        }
+        if (userNoMember) {
+            chatActivityTextInput.setText(R.string.chat_group_no_member)
+        }
+        if (adminNoMember) {
+            chatActivityTextInput.setText(R.string.chat_group_no_admin)
+        }
     }
 
     override fun onPause() {
@@ -1128,9 +810,9 @@ class ChatActivity : AppCompatActivity() {
 
                     sendMessageToServer(this, PendingMessage(message.message, chatInfo.chatUUID, chatInfo.getOthers(clientUUID)), mercuryClient.dataBase)
 
-                    addMessage(ChatMessageWrapper(message, MessageStatus.WAITING, System.currentTimeMillis()), true)
+                    addMessageToBottom(ChatMessageWrapper(message, MessageStatus.WAITING, System.currentTimeMillis()))
 
-                    IOService.ActionUploadReference.launch(this, reference, aes, iV, FileType.AUDIO)
+                    IOService.ActionUploadReference.launch(this, reference, aes, iV, MediaType.MEDIA_TYPE_AUDIO, chatInfo.chatUUID, core.messageUUID)
 
                     scrollToBottom()
                 }
@@ -1226,7 +908,7 @@ class ChatActivity : AppCompatActivity() {
         referenceHolder.isPlaying = true
         referenceHolder.progress = progress
 
-        val reference = (referenceHolder.chatMessageInfo.chatMessageInfo.message.messageData as MessageReference).reference
+        val reference = (referenceHolder.message.chatMessageInfo.message.messageData as MessageReference).reference
 
         mediaPlayer.setDataSource(this, Uri.fromFile(ReferenceUtil.getFileForReference(this, reference)))
         mediaPlayer.prepare()
@@ -1271,9 +953,7 @@ class ChatActivity : AppCompatActivity() {
         currentPlaying = null
     }
 
-    fun startReferenceLoad(holder: ReferenceHolder, adapterPosition: Int, fileType: FileType) {
-        val mercuryClient = applicationContext as MercuryClient
-
+    fun startReferenceLoad(holder: ReferenceHolder, adapterPosition: Int, mediaType: Int) {
         if (!checkWriteStoragePermission(this, PERMISSION_REQUEST_EXTERNAL_STORAGE)) {
             return
         }
@@ -1281,17 +961,17 @@ class ChatActivity : AppCompatActivity() {
         holder.referenceState = ReferenceState.IN_PROGRESS
         holder.progress = 0
 
-        val upload = holder.chatMessageInfo.chatMessageInfo.client
+        val upload = holder.message.chatMessageInfo.client
 
-        val message = holder.chatMessageInfo.chatMessageInfo.message
+        val message = holder.message.chatMessageInfo.message
         val data = message.messageData as MessageReference
 
         val referenceUUID = data.reference
 
         if (upload) {
-            IOService.ActionUploadReference.launch(this, referenceUUID, data.aesKey, data.initVector, fileType)
+            IOService.ActionUploadReference.launch(this, referenceUUID, data.aesKey, data.initVector, mediaType, chatInfo.chatUUID, message.messageCore.messageUUID)
         } else {
-            IOService.ActionDownloadReference.launch(this, referenceUUID, data.aesKey, data.initVector, fileType.mediaType(), chatInfo.chatUUID, message.messageCore.messageUUID)
+            IOService.ActionDownloadReference.launch(this, referenceUUID, data.aesKey, data.initVector, mediaType, chatInfo.chatUUID, message.messageCore.messageUUID)
         }
 
         chatAdapter.notifyItemChanged(adapterPosition)
@@ -1458,6 +1138,70 @@ class ChatActivity : AppCompatActivity() {
         }
     }
 
+    private fun loadMoreMessagesTop(loadAsync: Boolean) {
+        if (currentlyLoadingMore) return
+
+        currentlyLoadingMore = true
+
+        val currentTopMessage = componentList.firstOrNull { it.item is ChatAdapterMessage }?.item
+
+        val currentTopTimeEpochMilli = if (currentTopMessage is ChatAdapterMessage) {
+            currentTopMessage.message.message.messageCore.timeCreated
+        } else System.currentTimeMillis()
+
+        val insertItems =
+                { (loadedItems, messageUUIDToItems, referenceUUIDToMessageUUID): ChatLoader.MessageTransform ->
+                    componentList.addAll(0, loadedItems)
+
+                    messageObjects += messageUUIDToItems
+
+                    this.referenceUUIDToMessageUUID += referenceUUIDToMessageUUID
+
+                    chatAdapter.notifyItemRangeInserted(0, loadedItems.size)
+
+                    ChatLoader.filterDuplicatedDateItems(chatAdapter, componentList, 0, loadedItems.size)
+
+                    currentlyLoadingMore = false
+                }
+
+        if (loadAsync) {
+            ChatLoader.loadMessageItemsForAdapterAsync(this, mercuryClient().dataBase,
+                    chatInfo,
+                    0L,
+                    currentTopTimeEpochMilli,
+                    ChatLoader.LoadType.DESC,
+                    0L,
+                    { result ->
+                        insertItems(result)
+                    })
+        } else {
+            insertItems(ChatLoader.loadMessageItemsForAdapter(this, mercuryClient().dataBase,
+                    chatInfo,
+                    0L,
+                    currentTopTimeEpochMilli,
+                    ChatLoader.LoadType.DESC,
+                    0L
+            ))
+        }
+    }
+
+    fun addMessageToBottom(chatMessageWrapper: ChatMessageWrapper) {
+        val lastMessage = componentList.lastOrNull { it.item is ChatAdapterMessage }?.item as? ChatAdapterMessage
+
+        val latestTime = lastMessage?.message?.message?.messageCore?.timeCreated ?: 0L
+
+        val (adapterItems, messageUUIDToObjects, referenceUUIDToMessageUUID) =
+                ChatLoader.transformMessageList(this, chatInfo, latestTime, listOf(chatMessageWrapper))
+
+        val previousSize = componentList.size
+
+        componentList += adapterItems
+        messageObjects += messageUUIDToObjects
+        this.referenceUUIDToMessageUUID += referenceUUIDToMessageUUID
+
+        chatAdapter.notifyItemRangeInserted(previousSize, adapterItems.size)
+    }
+
     private inner class ChatListScrollListener : androidx.recyclerview.widget.RecyclerView.OnScrollListener() {
         override fun onScrolled(recyclerView: androidx.recyclerview.widget.RecyclerView, dx: Int, dy: Int) {
             onTop = !recyclerView.canScrollVertically(-1)
@@ -1470,48 +1214,51 @@ class ChatActivity : AppCompatActivity() {
 
             val client = ClientPreferences.getClientUUID(this@ChatActivity)
 
-            (Math.max(0, firstVisibleIndex)..Math.min(lastVisibleIndex, componentList.size))
-                    .map { componentList[it].item }
-                    .filter { it is ChatMessageWrapper || it is ReferenceHolder }
-                    .filter {
-                        val wrapper = (it as? ReferenceHolder)?.chatMessageInfo
-                                ?: it as ChatMessageWrapper
-                        wrapper.latestStatus != MessageStatus.SEEN
-                    }
-                    .forEach {
-                        val wrapper = (it as? ReferenceHolder)?.chatMessageInfo
-                                ?: it as ChatMessageWrapper
-                        if (!wrapper.chatMessageInfo.client) {
-                            wrapper.latestStatus = MessageStatus.SEEN
 
-                            val mercuryClient = mercuryClient()
+//            (Math.max(0, firstVisibleIndex)..Math.min(lastVisibleIndex, componentList.size))
+//                    .map { componentList[it].item }
+//                    .filter { it is ChatMessageWrapper || it is ReferenceHolder }
+//                    .filter {
+//                        val wrapper = (it as? ReferenceHolder)?.chatMessageInfo
+//                                ?: it as ChatMessageWrapper
+//                        wrapper.latestStatus != MessageStatus.SEEN
+//                    }
+//                    .forEach {
+//                        val wrapper = (it as? ReferenceHolder)?.chatMessageInfo
+//                                ?: it as ChatMessageWrapper
+//                        if (!wrapper.chatMessageInfo.client) {
+//                            wrapper.latestStatus = MessageStatus.SEEN
+//
+//                            val mercuryClient = mercuryClient()
+//
+//                            val core = wrapper.chatMessageInfo.message.messageCore
+//
+//                            val messageUUID = core.messageUUID
+//
+//                            updateMessageStatus(mercuryClient.dataBase, messageUUID, MessageStatus.SEEN, System.currentTimeMillis())
+//
+//                            for (s in chatInfo.getOthers(client)) {
+//                                val changeCore = MessageCore(client, System.currentTimeMillis(), UUID.randomUUID())
+//                                val changeData = MessageStatusUpdate(messageUUID, MessageStatus.SEEN, System.currentTimeMillis())
+//
+//                                sendMessageToServer(this@ChatActivity, PendingMessage(ChatMessage(changeCore, changeData), chatInfo.chatUUID, chatInfo.getOthers(client)), mercuryClient.dataBase)
+//                            }
+//                            recyclerView.adapter?.notifyItemChanged(componentList.indexOf(it))
+//                        }
+//                    }
 
-                            val core = wrapper.chatMessageInfo.message.messageCore
-
-                            val messageUUID = core.messageUUID
-
-                            updateMessageStatus(mercuryClient.dataBase, messageUUID, MessageStatus.SEEN, System.currentTimeMillis())
-
-                            for (s in chatInfo.getOthers(client)) {
-                                val changeCore = MessageCore(client, System.currentTimeMillis(), UUID.randomUUID())
-                                val changeData = MessageStatusUpdate(messageUUID, MessageStatus.SEEN, System.currentTimeMillis())
-
-                                sendMessageToServer(this@ChatActivity, PendingMessage(ChatMessage(changeCore, changeData), chatInfo.chatUUID, chatInfo.getOthers(client)), mercuryClient.dataBase)
-                            }
-                            recyclerView.adapter?.notifyItemChanged(componentList.indexOf(it))
-                        }
-                    }
-
-            if (firstVisibleIndex <= 10 && !currentlyLoadingMore) {
-                loadMore(true)
+            if (firstVisibleIndex < 10 && !currentlyLoadingMore) {
+                loadMoreMessagesTop(true)
             }
 
-            if (lastVisibleIndex >= componentList.size - 10 && !currentlyLoadingMore && !upToDate) {
-                loadMore(false)
-            }
+//            if (lastVisibleIndex >= componentList.size - 10 && !currentlyLoadingMore && !upToDate) {
+//                loadMore(false)
+//            }
 
             if (onBottom) {
                 upToDate = true
+
+                activity_chat_cv_new_messages_parent.visibility = View.GONE
             }
         }
     }
@@ -1544,6 +1291,142 @@ class ChatActivity : AppCompatActivity() {
         }
     }
 
+    inner class MessageStatusChangeReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val (chatUuid, messageUuid, messageStatus) = ActionMessageStatusChange.getData(intent)
+
+            if (chatInfo.chatUUID != chatUuid) return
+
+            updateMessageStatus(messageUuid, messageStatus)
+        }
+    }
+
+    inner class ChatMessageReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val (chatMessage, chatUuid) = ActionChatMessageReceived.getData(intent)
+
+            val mercuryClient = context.mercuryClient()
+
+            if (chatUuid == chatInfo.chatUUID) {
+                val client = ClientPreferences.getClientUUID(context)
+
+                val isClient = client == chatMessage.messageCore.senderUUID
+                val info = ChatMessageInfo(chatMessage, isClient, chatUuid)
+
+                val status = getLatestMessageStatus(mercuryClient.dataBase, chatMessage.messageCore.messageUUID)
+                val wrapper = ChatMessageWrapper(info, status.status, status.time)
+
+                addMessageToBottom(wrapper)
+
+                if (onBottom) {
+                    scrollToBottom()
+                } else {
+                    activity_chat_cv_new_messages_parent.visibility = View.VISIBLE
+                }
+            }
+        }
+    }
+
+    inner class UploadProfilePictureReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val updatedUserUUID = intent.getSerializableExtra(KEY_USER_UUID) as UUID
+            val indexOf = viewingUsersList.indexOfFirst { it.contact.userUUID == updatedUserUUID }
+            if (indexOf != -1) {
+                viewingUsersAdapter.notifyItemChanged(indexOf)
+            }
+
+            if (chatInfo.chatType == ChatType.TWO_PEOPLE) {
+                invalidateOptionsMenu()
+            }
+        }
+    }
+
+    inner class DirectConnectedReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            viewChat(true)
+        }
+    }
+
+    inner class UserViewChatReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val chatUUID = intent.getSerializableExtra(KEY_CHAT_UUID)
+            val userUUID = intent.getSerializableExtra(KEY_USER_UUID)
+            val view = intent.getBooleanExtra(KEY_USER_VIEW, false)
+
+            if (chatUUID == chatInfo.chatUUID) {
+                if (userUUID == ClientPreferences.getClientUUID(context)) return
+                val contact = contactMap[userUUID]!!
+                val viewingUser = ViewingUser(contact, UserState.VIEWING)
+                if (view) {
+                    if (viewingUsersList.any { it.contact.userUUID == userUUID }) return
+                    viewingUsersList += viewingUser
+                    viewingUsersAdapter.notifyItemInserted(viewingUsersList.size - 1)
+                } else {
+                    val index = viewingUsersList.indexOfFirst { it.contact.userUUID == userUUID }
+                    if (index != -1) {
+                        viewingUsersList.removeAt(index)
+                        viewingUsersAdapter.notifyItemRemoved(index)
+                    }
+                }
+            }
+        }
+    }
+
+    inner class UploadReferenceStartedReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+        }
+    }
+
+    inner class DownloadReferenceFinishedReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val (referenceUuid, successful) = ActionDownloadReferenceFinished.getData(intent)
+
+            val messageUUID = referenceUUIDToMessageUUID[referenceUuid]
+
+            val holder = messageObjects[messageUUID]?.first { it.item is ReferenceHolder } ?: return
+
+            val item = holder.item as ReferenceHolder
+            item.referenceState = if (successful) ReferenceState.FINISHED else ReferenceState.NOT_STARTED
+
+            chatAdapter.notifyItemChanged(componentList.indexOf(holder))
+        }
+    }
+
+    inner class DownloadProgressReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+//            val referenceUUID = intent.getSerializableExtra(KEY_REFERENCE_UUID) as UUID
+//            val messageUUID = referenceUUIDToMessageUUID[referenceUUID]
+//
+//            val holder = messageObjects[messageUUID]?.first { it.item is ReferenceHolder }
+//                    ?: return
+//            val item = holder.item as ReferenceHolder
+//            item.progress = intent.getIntExtra(KEY_PROGRESS, 0)
+//
+//            chatAdapter.notifyItemChanged(componentList.indexOf(holder))
+        }
+    }
+
+    inner class UploadReferenceFinishedReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val (referenceUuid, successful) = ActionUploadReferenceFinished.getData(intent)
+
+            val messageUUID = referenceUUIDToMessageUUID[referenceUuid]
+
+            val holder = messageObjects[messageUUID]?.first { it.item is ReferenceHolder } ?: return
+
+            val item = holder.item as ReferenceHolder
+            item.referenceState = if (successful) ReferenceState.FINISHED else ReferenceState.NOT_STARTED
+
+            chatAdapter.notifyItemChanged(componentList.indexOf(holder))
+        }
+    }
+
+    inner class UploadProgressReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+
+        }
+    }
+
     object ActionPickMedia {
 
         private const val EXTRA_SELECTED_MEDIA = "de.intektor.mercury.EXTRA_SELECTED_MEDIA"
@@ -1572,18 +1455,12 @@ class ChatActivity : AppCompatActivity() {
                 parcel.writeByte(if (isGif) 1 else 0)
             }
 
-            override fun describeContents(): Int {
-                return 0
-            }
+            override fun describeContents(): Int = 0
 
             companion object CREATOR : Parcelable.Creator<MediaToSend> {
-                override fun createFromParcel(parcel: Parcel): MediaToSend {
-                    return MediaToSend(parcel)
-                }
+                override fun createFromParcel(parcel: Parcel): MediaToSend = MediaToSend(parcel)
 
-                override fun newArray(size: Int): Array<MediaToSend?> {
-                    return arrayOfNulls(size)
-                }
+                override fun newArray(size: Int): Array<MediaToSend?> = arrayOfNulls(size)
             }
         }
     }

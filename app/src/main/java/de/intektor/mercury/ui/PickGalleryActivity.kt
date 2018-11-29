@@ -19,7 +19,7 @@ import com.squareup.picasso.Picasso
 import de.intektor.mercury.R
 import de.intektor.mercury.android.getChatInfoExtra
 import de.intektor.mercury.android.getSelectedTheme
-import de.intektor.mercury.chat.ChatInfo
+import de.intektor.mercury.chat.model.ChatInfo
 import de.intektor.mercury.media.ExternalStorageFile
 import de.intektor.mercury.media.MediaFile
 import de.intektor.mercury.media.ThumbnailUtil

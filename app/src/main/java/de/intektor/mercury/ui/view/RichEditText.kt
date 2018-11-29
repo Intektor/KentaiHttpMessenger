@@ -3,13 +3,13 @@ package de.intektor.mercury.ui.view
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import androidx.core.view.inputmethod.EditorInfoCompat
-import androidx.core.view.inputmethod.InputConnectionCompat
-import androidx.core.os.BuildCompat
 import android.util.AttributeSet
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.widget.EditText
+import androidx.core.os.BuildCompat
+import androidx.core.view.inputmethod.EditorInfoCompat
+import androidx.core.view.inputmethod.InputConnectionCompat
 import com.google.common.hash.Hashing
 import de.intektor.mercury.MercuryClient
 import de.intektor.mercury.chat.ChatMessageInfo
@@ -17,8 +17,9 @@ import de.intektor.mercury.chat.ChatMessageWrapper
 import de.intektor.mercury.chat.PendingMessage
 import de.intektor.mercury.chat.sendMessageToServer
 import de.intektor.mercury.client.ClientPreferences
-import de.intektor.mercury.reference.ReferenceUtil
+import de.intektor.mercury.media.MediaType
 import de.intektor.mercury.media.ThumbnailUtil
+import de.intektor.mercury.reference.ReferenceUtil
 import de.intektor.mercury.task.getVideoDimension
 import de.intektor.mercury.task.getVideoDuration
 import de.intektor.mercury.ui.chat.ChatActivity
@@ -74,7 +75,7 @@ class RichEditText(context: Context, attrs: AttributeSet) : EditText(context, at
 
                                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, referenceFile.outputStream())
 
-                                MessageImage(ThumbnailUtil.createThumbnail(referenceFile, FileType.IMAGE), "", bitmap.width, bitmap.height, aes, iV, referenceUUID, hash.toString())
+                                MessageImage(ThumbnailUtil.createThumbnail(referenceFile, MediaType.MEDIA_TYPE_IMAGE), "", bitmap.width, bitmap.height, aes, iV, referenceUUID, hash.toString())
                             }
                             FileType.GIF -> {
                                 context.contentResolver.openInputStream(inputContentInfo.contentUri).copyTo(referenceFile.outputStream(), 1024 * 1024)
@@ -86,7 +87,7 @@ class RichEditText(context: Context, attrs: AttributeSet) : EditText(context, at
                                         true,
                                         dimension.width,
                                         dimension.height,
-                                        ThumbnailUtil.createThumbnail(referenceFile, FileType.GIF), "", aes, iV, referenceUUID, hash.toString())
+                                        ThumbnailUtil.createThumbnail(referenceFile, MediaType.MEDIA_TYPE_VIDEO), "", aes, iV, referenceUUID, hash.toString())
                             }
                             else -> throw IllegalArgumentException()
                         }
@@ -95,7 +96,7 @@ class RichEditText(context: Context, attrs: AttributeSet) : EditText(context, at
                         val info = ChatMessageInfo(message, true, context.chatInfo.chatUUID)
                         val wrapper = ChatMessageWrapper(info, MessageStatus.WAITING, System.currentTimeMillis())
 
-                        context.addMessage(wrapper, true)
+                        context.addMessageToBottom(wrapper)
                         sendMessageToServer(mercuryClient, PendingMessage(message, context.chatInfo.chatUUID, context.chatInfo.getOthers(client)), mercuryClient.dataBase)
                     }
                 } catch (e: Exception) {

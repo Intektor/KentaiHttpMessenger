@@ -1,10 +1,8 @@
 package de.intektor.mercury.ui.overview_activity
 
 import android.os.Bundle
-import androidx.fragment.app.Fragment
-import androidx.appcompat.app.AlertDialog
-import androidx.recyclerview.widget.LinearLayoutManager
 import android.view.*
+import androidx.appcompat.app.AlertDialog
 import de.intektor.mercury.R
 import de.intektor.mercury.android.mercuryClient
 import de.intektor.mercury.chat.deleteChat
@@ -108,7 +106,7 @@ class FragmentChatsOverview : androidx.fragment.app.Fragment() {
                         .setMessage(R.string.overview_activity_delete_chat_message)
                         .setNegativeButton(R.string.overview_activity_delete_chat_cancel, null)
                         .setPositiveButton(R.string.overview_activity_delete_chat_do_delete) { _, _ ->
-                            deleteChat(shownChatList[currentContextSelectedIndex].chatInfo.chatUUID, mercuryClient.dataBase)
+                            deleteChat(context!!, shownChatList[currentContextSelectedIndex].chatInfo.chatUUID, mercuryClient.dataBase)
                             shownChatList.removeAt(currentContextSelectedIndex)
                             chatsAdapter.notifyItemRemoved(currentContextSelectedIndex)
                         }

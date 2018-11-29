@@ -8,9 +8,8 @@ import androidx.test.espresso.contrib.RecyclerViewActions
 import androidx.test.espresso.intent.Intents
 import androidx.test.filters.LargeTest
 import androidx.test.runner.AndroidJUnit4
-import androidx.recyclerview.widget.RecyclerView
 import de.intektor.mercury.android.mercuryClient
-import de.intektor.mercury.chat.ChatInfo
+import de.intektor.mercury.chat.model.ChatInfo
 import de.intektor.mercury.client.ClientPreferences
 import de.intektor.mercury.database.DbHelper
 import de.intektor.mercury.ui.chat.ChatActivity

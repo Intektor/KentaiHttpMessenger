@@ -4,7 +4,7 @@ import android.database.sqlite.SQLiteDatabase
 import androidx.test.InstrumentationRegistry
 import androidx.test.filters.LargeTest
 import de.intektor.mercury.android.mercuryClient
-import de.intektor.mercury.chat.ChatInfo
+import de.intektor.mercury.chat.model.ChatInfo
 import de.intektor.mercury.contacts.Contact
 import de.intektor.mercury.database.DbHelper
 import de.intektor.mercury.ui.chat.ChatActivity

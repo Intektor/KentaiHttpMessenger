@@ -4,6 +4,7 @@ import android.text.format.DateUtils
 import android.view.View
 import android.widget.TextView
 import de.intektor.mercury.R
+import de.intektor.mercury.chat.adapter.DateInfo
 import java.lang.Math.abs
 import java.text.DateFormat
 import java.text.SimpleDateFormat

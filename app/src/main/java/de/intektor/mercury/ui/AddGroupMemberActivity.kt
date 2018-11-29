@@ -6,13 +6,12 @@ import android.os.Bundle
 import androidx.core.view.MenuItemCompat
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.appcompat.widget.SearchView
 import android.view.Menu
 import de.intektor.mercury.MercuryClient
 import de.intektor.mercury.R
 import de.intektor.mercury.android.getSelectedTheme
-import de.intektor.mercury.chat.ChatInfo
+import de.intektor.mercury.chat.model.ChatInfo
 import de.intektor.mercury.chat.readContacts
 import de.intektor.mercury.ui.overview_activity.fragment.ContactAdapter
 import de.intektor.mercury.util.KEY_CHAT_INFO
