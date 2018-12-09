@@ -52,4 +52,9 @@ public class DatabaseUpgradeUtil {
                 "media_type INT NOT NULL, " +
                 "time BIGINT NOT NULL)");
     }
+
+    public static void addPendingMessageTable(SQLiteDatabase database) {
+        database.execSQL("CREATE TABLE IF NOT EXISTS pending_message (" +
+                "message_uuid PRIMARY KEY NOT NULL REFERENCES chat_message(message_uuid) ON DELETE CASCADE)");
+    }
 }

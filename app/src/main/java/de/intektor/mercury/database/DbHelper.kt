@@ -99,6 +99,7 @@ class DbHelper(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, 2) {
         DatabaseUpgradeUtil.addGroupMessageUUIDTable(dB)
         DatabaseUpgradeUtil.addNotificationMessagesTable(dB)
         DatabaseUpgradeUtil.addReferenceTable(dB)
+        DatabaseUpgradeUtil.addPendingMessageTable(dB)
     }
 
     override fun onUpgrade(dB: SQLiteDatabase, oldVersion: Int, newVersion: Int) {

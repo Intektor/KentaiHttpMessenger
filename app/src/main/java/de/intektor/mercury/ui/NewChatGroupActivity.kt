@@ -1,27 +1,29 @@
 package de.intektor.mercury.ui
 
 import android.os.Bundle
-import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.SearchView
 import android.text.Editable
 import android.text.TextWatcher
 import android.view.*
 import android.widget.ImageView
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.SearchView
 import com.squareup.picasso.MemoryPolicy
 import com.squareup.picasso.Picasso
 import de.intektor.mercury.MercuryClient
 import de.intektor.mercury.R
-import de.intektor.mercury.android.getAttrDrawable
 import de.intektor.mercury.android.getSelectedTheme
-import de.intektor.mercury.chat.*
+import de.intektor.mercury.chat.PendingMessage
+import de.intektor.mercury.chat.createGroupChat
+import de.intektor.mercury.chat.getUserChat
 import de.intektor.mercury.chat.model.ChatInfo
 import de.intektor.mercury.chat.model.ChatReceiver
+import de.intektor.mercury.chat.sendMessageToServer
 import de.intektor.mercury.client.ClientPreferences
 import de.intektor.mercury.contacts.Contact
 import de.intektor.mercury.ui.chat.ChatActivity
 import de.intektor.mercury.ui.overview_activity.fragment.ContactAdapter
-import de.intektor.mercury.util.getProfilePicture
+import de.intektor.mercury.util.ProfilePictureUtil
 import de.intektor.mercury_common.chat.ChatMessage
 import de.intektor.mercury_common.chat.ChatType
 import de.intektor.mercury_common.chat.GroupRole
@@ -218,9 +220,9 @@ class NewChatGroupActivity : AppCompatActivity(), androidx.appcompat.widget.Sear
 
             val userUUID = item.contact.userUUID
             Picasso.get()
-                    .load(getProfilePicture(userUUID, holder.itemView.context))
+                    .load(ProfilePictureUtil.getProfilePicture(userUUID, holder.itemView.context))
                     .memoryPolicy(MemoryPolicy.NO_CACHE)
-                    .placeholder(getAttrDrawable(holder.itemView.context, R.attr.ic_account))
+                    .placeholder(R.drawable.baseline_account_circle_24)
                     .into(holder.image)
 
 

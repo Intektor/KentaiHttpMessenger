@@ -20,7 +20,8 @@ import de.intektor.mercury.android.isUsingLightTheme
 import de.intektor.mercury.android.setSelectedTheme
 import de.intektor.mercury.client.ClientPreferences
 import de.intektor.mercury.io.ChatMessageService
-import de.intektor.mercury.util.*
+import de.intektor.mercury.util.ACTION_PROFILE_PICTURE_UPLOADED
+import de.intektor.mercury.util.ProfilePictureUtil
 import kotlinx.android.synthetic.main.activity_settings_overview.*
 
 class SettingsOverviewActivity : AppCompatActivity() {
@@ -42,8 +43,8 @@ class SettingsOverviewActivity : AppCompatActivity() {
 
         val client = ClientPreferences.getClientUUID(this)
 
-        if (hasProfilePicture(client, this)) {
-            val clientFile = getProfilePicture(client, this)
+        if (ProfilePictureUtil.hasProfilePicture(client, this)) {
+            val clientFile = ProfilePictureUtil.getProfilePicture(client, this)
             settingsOverviewActivityProfilePicture.setImageBitmap(BitmapFactory.decodeFile(clientFile.path))
         }
 
@@ -60,7 +61,7 @@ class SettingsOverviewActivity : AppCompatActivity() {
         receiverUploadedProfilePicture = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent?) {
                 Picasso.get()
-                        .load(getProfilePicture(client, context))
+                        .load(ProfilePictureUtil.getProfilePicture(client, context))
                         .memoryPolicy(MemoryPolicy.NO_CACHE)
                         .into(settingsOverviewActivityProfilePicture)
             }
@@ -100,10 +101,7 @@ class SettingsOverviewActivity : AppCompatActivity() {
                 if (data != null && resultCode == Activity.RESULT_OK) {
                     val result = CropImage.getActivityResult(data)
 
-                    val startServiceIntent = Intent(this, ChatMessageService::class.java)
-                    startServiceIntent.action = ACTION_UPLOAD_PROFILE_PICTURE
-                    startServiceIntent.putExtra(KEY_PICTURE, result.uri)
-                    startService(startServiceIntent)
+                    ChatMessageService.ActionUploadProfilePicture.launch(this, result.uri)
                 }
             }
         }

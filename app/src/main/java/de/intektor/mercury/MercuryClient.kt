@@ -5,28 +5,26 @@ import android.app.Activity
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.database.sqlite.SQLiteDatabase
 import android.graphics.Typeface
-import android.net.ConnectivityManager
-import android.net.NetworkInfo
 import android.net.Uri
-import android.os.*
-import androidx.core.app.NotificationManagerCompat
-import androidx.appcompat.app.AlertDialog
+import android.os.AsyncTask
+import android.os.Build
+import android.os.Bundle
+import android.os.PowerManager
 import android.text.Spannable
 import android.text.SpannableString
 import android.text.style.StyleSpan
 import android.util.Log
+import androidx.appcompat.app.AlertDialog
+import androidx.core.app.NotificationManagerCompat
 import com.squareup.picasso.Picasso
 import de.intektor.mercury.client.ClientPreferences
-import de.intektor.mercury.connection.DirectConnectionManager
+import de.intektor.mercury.connection.DirectConnectionService
 import de.intektor.mercury.database.DbHelper
 import de.intektor.mercury.io.HttpManager
-import de.intektor.mercury.ui.chat.ChatActivity
 import de.intektor.mercury.util.*
 import de.intektor.mercury_common.client_to_server.CurrentVersionRequest
 import de.intektor.mercury_common.gson.genGson
@@ -52,8 +50,7 @@ class MercuryClient : Application() {
     private var activitiesStarted = 0
 
     val userStatusMap: HashMap<UUID, UserChange> = HashMap()
-
-    lateinit var directConnectionManager: DirectConnectionManager
+        @Synchronized get
 
     val currentLoadingTable = mutableMapOf<UUID, Double>()
 
@@ -66,8 +63,6 @@ class MercuryClient : Application() {
 
         dbHelper = DbHelper(applicationContext)
         dataBase = dbHelper.writableDatabase
-
-        directConnectionManager = DirectConnectionManager(this)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -102,8 +97,7 @@ class MercuryClient : Application() {
                 if (activitiesStarted == 0) {
                     if (isScreenOn()) {
                         //Establish a TCP connection to the mercury server
-                        directConnectionManager.wantConnection = true
-                        launchTCPConnection()
+                        DirectConnectionService.ActionConnect.launch(this@MercuryClient)
 
                         CheckForNewVersionTask().execute(this@MercuryClient)
                     }
@@ -122,8 +116,7 @@ class MercuryClient : Application() {
                 if (activitiesStarted == 0) {
 
                     //Exit the TCP connection to the mercury server
-                    directConnectionManager.wantConnection = false
-                    exitTCPConnection()
+                    DirectConnectionService.ActionDisconnect.launch(this@MercuryClient)
                     currentActivity = null
                 }
             }
@@ -134,42 +127,7 @@ class MercuryClient : Application() {
 
         })
 
-        registerReceiver(object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                val extras = intent.extras
-                val info = extras.getParcelable<Parcelable>("networkInfo") as NetworkInfo
-                val state = info.state
-
-                if (state == NetworkInfo.State.CONNECTED && !directConnectionManager.isConnected && isScreenOn() && activitiesStarted > 0) {
-                    launchTCPConnection()
-                }
-            }
-
-        }, IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION))
-
-        registerReceiver(object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                val currentActivity = this@MercuryClient.currentActivity
-                if (currentActivity is ChatActivity) {
-                    currentActivity.connectionClosed()
-                }
-            }
-
-        }, IntentFilter("de.intektor.mercury.tcp_closed"))
-
         Picasso.setSingletonInstance(PicassoUtil.buildPicasso(this))
-    }
-
-    fun launchTCPConnection() {
-        if (internalFile("username.info", this).exists()) {
-            directConnectionManager.launchConnection(dataBase)
-        }
-    }
-
-    fun exitTCPConnection() {
-        if (internalFile("username.info", this).exists()) {
-            directConnectionManager.exitConnection()
-        }
     }
 
     class CheckForNewVersionTask : AsyncTask<MercuryClient, Unit, Pair<CurrentVersionResponse?, MercuryClient>>() {
@@ -178,7 +136,7 @@ class MercuryClient : Application() {
             return try {
                 val pInfo = mercuryClient.packageManager.getPackageInfo(mercuryClient.packageName, 0)
                 val gson = genGson()
-                val response = HttpManager.httpPost(gson.toJson(CurrentVersionRequest(pInfo.versionCode.toLong())), CurrentVersionRequest.TARGET)
+                val response = HttpManager.post(gson.toJson(CurrentVersionRequest(pInfo.versionCode.toLong())), CurrentVersionRequest.TARGET)
                 gson.fromJson<CurrentVersionResponse>(response, CurrentVersionResponse::class.java) to mercuryClient
             } catch (t: Throwable) {
                 null to mercuryClient
@@ -252,18 +210,15 @@ class MercuryClient : Application() {
 
         if (userUUID == client) return
         interestedUsers += userUUID
-        if (directConnectionManager.isConnected) {
-            val time = getProfilePicture(userUUID, this).lastModified()
-            directConnectionManager.sendPacket(InterestedUserPacketToServer(InterestedUser(userUUID, time), true))
-        }
+
+        val time = ProfilePictureUtil.getProfilePicture(userUUID, this).lastModified()
+        DirectConnectionService.ActionSendPacketToServer.launch(this, InterestedUserPacketToServer(InterestedUser(userUUID, time), true))
     }
 
     fun removeInterestedUser(userUUID: UUID) {
         interestedUsers -= userUUID
-        if (directConnectionManager.isConnected) {
-            val time = getProfilePicture(userUUID, this).lastModified()
-            directConnectionManager.sendPacket(InterestedUserPacketToServer(InterestedUser(userUUID, time), false))
-        }
+        val time = ProfilePictureUtil.getProfilePicture(userUUID, this).lastModified()
+        DirectConnectionService.ActionSendPacketToServer.launch(this, InterestedUserPacketToServer(InterestedUser(userUUID, time), false))
     }
 
     fun getCurrentInterestedUsers(): Set<UUID> = interestedUsers

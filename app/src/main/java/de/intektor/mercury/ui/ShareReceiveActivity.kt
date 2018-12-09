@@ -32,7 +32,7 @@ import de.intektor.mercury.task.saveMediaFileInAppStorage
 import de.intektor.mercury.ui.chat.ChatActivity
 import de.intektor.mercury.ui.overview_activity.fragment.ChatListViewAdapter
 import de.intektor.mercury.util.KEY_CHAT_INFO
-import de.intektor.mercury.util.getProfilePicture
+import de.intektor.mercury.util.ProfilePictureUtil
 import de.intektor.mercury_common.chat.ChatMessage
 import de.intektor.mercury_common.chat.ChatType
 import de.intektor.mercury_common.chat.MessageCore
@@ -300,9 +300,9 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
             if (item.chatInfo.chatType == ChatType.TWO_PEOPLE) {
                 val userUUID = item.chatInfo.participants.first { it.receiverUUID != client }.receiverUUID
                 Picasso.get()
-                        .load(getProfilePicture(userUUID, holder.itemView.context))
+                        .load(ProfilePictureUtil.getProfilePicture(userUUID, holder.itemView.context))
                         .memoryPolicy(MemoryPolicy.NO_CACHE)
-                        .placeholder(R.drawable.ic_account_circle_white_24dp)
+                        .placeholder(R.drawable.baseline_account_circle_24)
                         .into(holder.image)
             }
 

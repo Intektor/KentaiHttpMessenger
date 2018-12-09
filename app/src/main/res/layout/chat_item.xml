@@ -88,7 +88,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:scaleType="fitCenter"
-            app:srcCompat="@drawable/ic_account_circle_white_24dp" />
+            app:srcCompat="@drawable/baseline_account_circle_24" />
     </androidx.cardview.widget.CardView>
 
     <ImageView

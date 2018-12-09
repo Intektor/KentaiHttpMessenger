@@ -4,6 +4,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import com.google.common.io.BaseEncoding
 import de.intektor.mercury.database.bindUUID
+import de.intektor.mercury.database.isValuePresent
 import java.security.Key
 import java.util.*
 
@@ -41,6 +42,9 @@ object ContactUtil {
             statement.execute()
         }
     }
+
+    fun hasContact(dataBase: SQLiteDatabase, userUUID: UUID): Boolean =
+            dataBase.isValuePresent("contacts", "user_uuid", userUUID)
 
     fun getDisplayName(context: Context, dataBase: SQLiteDatabase, contact: Contact) = contact.name
 

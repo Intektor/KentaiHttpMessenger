@@ -32,27 +32,21 @@ import com.google.api.services.drive.Drive
 import com.google.firebase.iid.FirebaseInstanceId
 import de.intektor.mercury.MercuryClient
 import de.intektor.mercury.R
-import de.intektor.mercury.action.ActionMessageStatusChange
-import de.intektor.mercury.action.chat.ActionChatMessageReceived
-import de.intektor.mercury.action.chat.ActionInitChatFinished
 import de.intektor.mercury.action.group.ActionGroupModificationReceived
 import de.intektor.mercury.android.getAttrDrawable
 import de.intektor.mercury.android.getSelectedTheme
-import de.intektor.mercury.android.mercuryClient
 import de.intektor.mercury.backup.BackupService
 import de.intektor.mercury.backup.BackupService.Companion.PREF_ACCOUNT_NAME
-import de.intektor.mercury.chat.*
+import de.intektor.mercury.chat.MessageUtil
+import de.intektor.mercury.chat.readChats
 import de.intektor.mercury.client.ClientPreferences
 import de.intektor.mercury.firebase.UploadTokenTask
-import de.intektor.mercury.task.handleNotification
 import de.intektor.mercury.ui.*
 import de.intektor.mercury.ui.chat.ChatActivity
 import de.intektor.mercury.ui.chat.adapter.chat.HeaderItemDecoration
 import de.intektor.mercury.ui.overview_activity.fragment.ChatListViewAdapter
-import de.intektor.mercury.util.KEY_CHAT_UUID
-import de.intektor.mercury.util.KEY_SUCCESSFUL
+import de.intektor.mercury.ui.register.RegisterActivity
 import de.intektor.mercury_common.chat.MessageStatus
-import de.intektor.mercury_common.chat.data.MessageStatusUpdate
 import de.intektor.mercury_common.chat.data.group_modification.GroupModificationChangeName
 import kotlinx.android.synthetic.main.activity_overview.*
 import kotlinx.android.synthetic.main.fragment_chat_list.*
@@ -91,11 +85,6 @@ class OverviewActivity : AppCompatActivity() {
 
     private val chatList = mutableListOf<ChatListViewAdapter.ChatItem>()
     private var currentQuery = ""
-
-    private lateinit var initChatListener: BroadcastReceiver
-    private lateinit var chatMessageListener: BroadcastReceiver
-    private lateinit var messageStatusChangeReceiver: BroadcastReceiver
-    private val groupModificationReceiver: BroadcastReceiver = GroupModificationReceiver()
 
     companion object {
         private const val SIGN_IN_REQUEST_CODE = 0
@@ -173,49 +162,6 @@ class OverviewActivity : AppCompatActivity() {
                 }
             }
         })
-
-        initChatListener = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                val chatUUID = intent.getSerializableExtra(KEY_CHAT_UUID) as UUID
-                val successful = intent.getBooleanExtra(KEY_SUCCESSFUL, false)
-                updateInitChat(chatUUID, successful)
-            }
-        }
-
-        chatMessageListener = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                val (chatMessage, chatUuid) = ActionChatMessageReceived.getData(intent)
-
-                val mercuryClient = context.mercuryClient()
-
-                val chatType = getChatType(mercuryClient.dataBase, chatUuid) ?: return
-
-                val senderContact = getContact(mercuryClient.dataBase, chatMessage.messageCore.senderUUID)
-
-                handleNotification(context,
-                        chatUuid,
-                        chatMessage)
-
-                val chatInfo = getChatInfo(chatUuid, mercuryClient.dataBase) ?: return
-
-                val latestMessage = getChatMessages(context, mercuryClient.dataBase, "chat_uuid = ?", arrayOf(chatUuid.toString()), "time DESC", "1")
-                val unreadMessages = ChatUtil.getUnreadMessagesFromChat(mercuryClient.dataBase, chatUuid)
-
-                if (getCurrentChats().none { it.chatInfo.chatUUID == chatUuid }) {
-                    addChat(ChatListViewAdapter.ChatItem(chatInfo, latestMessage.firstOrNull(), unreadMessages, ChatUtil.isChatInitialized(mercuryClient.dataBase, chatUuid)))
-                } else {
-                    updateLatestChatMessage(chatUuid, ChatMessageInfo(chatMessage, chatMessage.messageCore.senderUUID == ClientPreferences.getClientUUID(context), chatUuid), unreadMessages)
-                }
-            }
-        }
-
-        messageStatusChangeReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                val (chatUuid, messageUuid, messageStatus) = ActionMessageStatusChange.getData(intent)
-
-                updateLatestChatMessageStatus(chatUuid, messageStatus, messageUuid)
-            }
-        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -336,20 +282,6 @@ class OverviewActivity : AppCompatActivity() {
         return fragment.shownChatList
     }
 
-    fun updateLatestChatMessage(chatUUID: UUID, lastMessage: ChatMessageInfo, unreadMessages: Int) {
-        if (lastMessage.message.messageData is MessageStatusUpdate) return
-        val fragment = supportFragmentManager.findFragmentByTag("android:switcher:" + R.id.activity_overview_viewpager + ":0") as FragmentChatsOverview
-        val chatItem = fragment.chatMap[chatUUID] ?: return
-
-        chatItem.lastChatMessage = ChatMessageWrapper(lastMessage, MessageStatus.WAITING, System.currentTimeMillis())
-
-        chatItem.unreadMessages = unreadMessages
-        fragment.shownChatList.sortByDescending {
-            it.lastChatMessage?.chatMessageInfo?.message?.messageCore?.timeCreated ?: 0
-        }
-        fragment.fragment_chat_list_rv_chats.adapter?.notifyDataSetChanged()
-    }
-
     fun updateLatestChatMessageStatus(chatUUID: UUID, status: MessageStatus, messageUUID: UUID) {
         val fragment = supportFragmentManager.findFragmentByTag("android:switcher:" + R.id.activity_overview_viewpager + ":0") as FragmentChatsOverview
         val chatItem = fragment.chatMap[chatUUID]!!
@@ -380,18 +312,10 @@ class OverviewActivity : AppCompatActivity() {
             startActivity(i)
             finish()
         }
-
-        registerReceiver(initChatListener, ActionInitChatFinished.getFilter())
-        registerReceiver(messageStatusChangeReceiver, ActionMessageStatusChange.getFilter())
-        registerReceiver(groupModificationReceiver, ActionGroupModificationReceived.getFilter())
     }
 
     override fun onPause() {
         super.onPause()
-
-        unregisterReceiver(initChatListener)
-        unregisterReceiver(messageStatusChangeReceiver)
-        unregisterReceiver(groupModificationReceiver)
     }
 
     inner class SectionsPagerAdapter(fm: androidx.fragment.app.FragmentManager) : androidx.fragment.app.FragmentPagerAdapter(fm) {

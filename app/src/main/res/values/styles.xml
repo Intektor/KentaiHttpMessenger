@@ -1,9 +1,7 @@
 <resources>
 
-    <attr name="ic_account" format="reference" />
     <attr name="ic_cancel" format="reference" />
     <attr name="ic_check_circle" format="reference" />
-    <attr name="ic_check" format="reference" />
     <attr name="ic_error_outline" format="reference" />
     <attr name="ic_file_download" format="reference" />
     <attr name="ic_file_upload" format="reference" />
@@ -31,10 +29,8 @@
         <item name="colorPrimary">@color/colorPrimaryDarkTheme</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDarkDarkTheme</item>
         <item name="colorAccent">@color/colorAccentDarkTheme</item>
-        <item name="ic_account">@drawable/ic_account_circle_white_24dp</item>
         <item name="ic_cancel">@drawable/ic_cancel_white_24dp</item>
         <item name="ic_check_circle">@drawable/ic_check_circle_white_24dp</item>
-        <item name="ic_check">@drawable/ic_check_white_24dp</item>
         <item name="ic_error_outline">@drawable/ic_error_outline_white_24dp</item>
         <item name="ic_file_download">@drawable/ic_file_download_white_24dp</item>
         <item name="ic_file_upload">@drawable/ic_file_upload_white_24dp</item>
@@ -60,10 +56,8 @@
     </style>
 
     <style name="AppThemeLight" parent="Theme.AppCompat.Light">
-        <item name="ic_account">@drawable/ic_account_circle_black_24dp</item>
         <item name="ic_cancel">@drawable/ic_cancel_black_24dp</item>
         <item name="ic_check_circle">@drawable/ic_check_circle_black_24dp</item>
-        <item name="ic_check">@drawable/ic_check_black_24dp</item>
         <item name="ic_error_outline">@drawable/ic_error_outline_black_24dp</item>
         <item name="ic_file_download">@drawable/ic_file_download_black_24dp</item>
         <item name="ic_file_upload">@drawable/ic_file_upload_black_24dp</item>

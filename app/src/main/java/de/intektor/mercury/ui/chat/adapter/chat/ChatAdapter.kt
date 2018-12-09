@@ -106,7 +106,6 @@ class ChatAdapter(private val componentList: MutableList<ChatAdapterWrapper<out 
             IMAGE_MESSAGE -> ImageMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_message_image, parent, false), this)
             VIDEO_MESSAGE -> VideoMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_message_video, parent, false), this)
             GIF_MESSAGE -> GifMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_message_gif, parent, false), this)
-//                NINE_GAG_VIEW_ID -> NineGagViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.nine_gag_bubble, parent, false), this)
             DATE_INFO -> DateViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_date_item, parent, false), this)
             else -> throw RuntimeException()
         }

@@ -9,6 +9,7 @@ object PicassoUtil {
         return Picasso.Builder(context)
                 .addRequestHandler(ThumbnailUtil.createExternalThumbnailRequestHandler(context))
                 .addRequestHandler(ThumbnailUtil.createReferenceThumbnailRequestHandler(context))
+                .addRequestHandler(ProfilePictureUtil.createProfilePictureRequestHandler(context))
                 .build()
 
     }

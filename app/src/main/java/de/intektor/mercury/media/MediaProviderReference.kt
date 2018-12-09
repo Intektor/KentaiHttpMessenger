@@ -18,10 +18,11 @@ class MediaProviderReference(private val chatUUID: UUID) : MediaProvider<Referen
         }
     }
 
-    override fun loadMediaFiles(context: Context, minimumEpochSecond: Long, maximumEpochSecond: Long): List<ReferenceFile> {
+    override fun loadMediaFiles(context: Context, minimumEpochSecond: Long, maximumEpochSecond: Long, limit: Int?): List<ReferenceFile> {
         val mercuryClient = context.mercuryClient()
 
-        return mercuryClient.dataBase.rawQuery("SELECT reference_uuid, media_type, time FROM reference WHERE chat_uuid = ? AND time > ? AND time < ?",
+        return mercuryClient.dataBase.rawQuery("SELECT reference_uuid, media_type, time FROM reference WHERE chat_uuid = ? AND time > ? AND time < ? LIMIT ${limit
+                ?: Int.MAX_VALUE}",
                 arrayOf(chatUUID.toString(), (TimeUnit.SECONDS.toMillis(minimumEpochSecond)).toString(), (TimeUnit.SECONDS.toMillis(maximumEpochSecond)).toString())).use { cursor ->
 
             val list = mutableListOf<ReferenceFile>()

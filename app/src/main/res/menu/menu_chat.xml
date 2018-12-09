@@ -6,7 +6,7 @@
 
     <item
         android:id="@+id/chatActivityMenuAccount"
-        android:icon="?attr/ic_account"
+        android:icon="@drawable/baseline_account_circle_24"
         android:title="@string/chat_activity_menu_profile"
         app:showAsAction="ifRoom" />
 

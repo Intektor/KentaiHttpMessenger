@@ -1,7 +1,6 @@
 package de.intektor.mercury.ui.overview_activity.fragment
 
 import android.app.Activity
-import androidx.recyclerview.widget.RecyclerView
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -11,10 +10,9 @@ import android.widget.TextView
 import com.squareup.picasso.Picasso
 import de.intektor.mercury.MercuryClient
 import de.intektor.mercury.R
-import de.intektor.mercury.android.getAttrDrawable
 import de.intektor.mercury.contacts.Contact
+import de.intektor.mercury.util.ProfilePictureUtil
 import de.intektor.mercury.util.getName
-import de.intektor.mercury.util.getProfilePicture
 
 class ContactAdapter(val contacts: List<ContactWrapper>, private val callbackClickView: (ContactWrapper, ViewHolder) -> Unit, private val showCheckBox: Boolean = false, val callbackClickCheckBox: (ContactWrapper, ViewHolder) -> Unit, private val registerForContextMenu: (Contact) -> Boolean) : androidx.recyclerview.widget.RecyclerView.Adapter<ContactAdapter.ViewHolder>() {
 
@@ -44,11 +42,11 @@ class ContactAdapter(val contacts: List<ContactWrapper>, private val callbackCli
             callbackClickView.invoke(wrapper, holder)
         }
 
-        val profilePicture = getProfilePicture(contact.userUUID, holder.itemView.context)
+        val profilePicture = ProfilePictureUtil.getProfilePicture(contact.userUUID, holder.itemView.context)
         if (profilePicture.exists()) {
-            Picasso.get().load(profilePicture).placeholder(getAttrDrawable(holder.itemView.context, R.attr.ic_account)).into(holder.profilePicture)
+            Picasso.get().load(profilePicture).placeholder(R.drawable.baseline_account_circle_24).into(holder.profilePicture)
         } else {
-            holder.profilePicture.setImageDrawable(getAttrDrawable(holder.itemView.context, R.attr.ic_account))
+            holder.profilePicture.setImageResource(R.drawable.baseline_account_circle_24)
         }
 
         holder.subtext.visibility = if (wrapper.subtext == null) View.GONE else View.VISIBLE

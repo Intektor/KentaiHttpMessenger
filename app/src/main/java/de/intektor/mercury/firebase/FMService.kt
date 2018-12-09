@@ -68,12 +68,12 @@ class FMService : FirebaseMessagingService() {
         val privateAuthKey = ClientPreferences.getPrivateAuthKey(this)
 
         val gson = genGson()
-        val res = HttpManager.httpPost(gson.toJson(FetchMessageRequest(userUUID, signUserUUID(userUUID, privateAuthKey))), FetchMessageRequest.TARGET)
+        val res = HttpManager.post(gson.toJson(FetchMessageRequest(userUUID, signUserUUID(userUUID, privateAuthKey))), FetchMessageRequest.TARGET)
 
         val response = gson.fromJson(res, FetchMessageResponse::class.java)
         val handled = processChatMessage(response)
         if (handled.isNotEmpty()) {
-            HttpManager.httpPost(gson.toJson(HandledMessagesRequest(handled, signUserUUID(userUUID, privateAuthKey), userUUID)), HandledMessagesRequest.TARGET)
+            HttpManager.post(gson.toJson(HandledMessagesRequest(handled, signUserUUID(userUUID, privateAuthKey), userUUID)), HandledMessagesRequest.TARGET)
         }
     }
 
@@ -199,7 +199,8 @@ class FMService : FirebaseMessagingService() {
                 when (messageData) {
                     is MessageText -> updateChatAndSendBroadcast(chatMessage, chatInfo)
                     is MessageStatusUpdate -> {
-                        ActionMessageStatusChange.launch(this, chatUUID, messageUUID, messageData.status)
+                        updateMessageStatus(dataBase, messageData.messageUUID, messageData.status, System.currentTimeMillis())
+                        ActionMessageStatusChange.launch(this, chatUUID, messageData.messageUUID, messageData.status)
                     }
                     is MessageGroupInvite -> {
                         val groupInvite = messageData.groupInvite

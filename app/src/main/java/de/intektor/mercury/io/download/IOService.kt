@@ -27,7 +27,6 @@ import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
 import okio.BufferedSink
-import org.threeten.bp.Clock
 import java.io.*
 import java.security.Key
 import java.util.*
@@ -204,8 +203,6 @@ class IOService : Service() {
                             }
 
                             mercuryClient.currentLoadingTable -= request.reference
-
-                            ReferenceUtil.addReference(mercuryClient.dataBase, request.chatUUID, request.reference, request.messageUUID, request.mediaType, Clock.systemDefaultZone().instant().toEpochMilli())
 
                             ActionDownloadReferenceFinished.launch(this, request.reference, true)
                         }

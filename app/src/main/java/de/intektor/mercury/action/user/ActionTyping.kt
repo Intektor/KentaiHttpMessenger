@@ -28,7 +28,7 @@ object ActionTyping {
                     .putExtra(EXTRA_USER_UUID, userUuid)
 
     fun launch(context: Context, chatUuid: UUID, userUuid: UUID) {
-        androidx.localbroadcastmanager.content.LocalBroadcastManager.getInstance(context).sendBroadcast(createIntent(context, chatUuid, userUuid))
+        LocalBroadcastManager.getInstance(context).sendBroadcast(createIntent(context, chatUuid, userUuid))
     }
 
     fun getData(intent: Intent): Holder {

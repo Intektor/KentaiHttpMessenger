@@ -10,7 +10,7 @@ interface MediaProvider<T : MediaFile> : Serializable {
      */
     fun getEpochSecondTimeOfLast(context: Context): Long
 
-    fun loadMediaFiles(context: Context, minimumEpochSecond: Long, maximumEpochSecond: Long): List<T>
+    fun loadMediaFiles(context: Context, minimumEpochSecond: Long, maximumEpochSecond: Long, limit: Int? = null): List<T>
 
     fun hasAnyElements(context: Context): Boolean
 }

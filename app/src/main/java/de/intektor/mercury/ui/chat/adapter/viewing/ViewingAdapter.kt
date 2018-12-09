@@ -1,18 +1,17 @@
 package de.intektor.mercury.ui.chat.adapter.viewing
 
 import android.content.Intent
-import androidx.recyclerview.widget.RecyclerView
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import com.squareup.picasso.Picasso
-import de.intektor.mercury.ui.ContactInfoActivity
 import de.intektor.mercury.R
-import de.intektor.mercury.util.KEY_USER_UUID
 import de.intektor.mercury.contacts.Contact
-import de.intektor.mercury.util.getProfilePicture
+import de.intektor.mercury.ui.ContactInfoActivity
+import de.intektor.mercury.util.KEY_USER_UUID
+import de.intektor.mercury.util.ProfilePictureUtil
 
 class ViewingAdapter(private val viewingUsers: List<ViewingUser>) : androidx.recyclerview.widget.RecyclerView.Adapter<ViewingViewHolder>() {
 
@@ -34,8 +33,8 @@ class ViewingAdapter(private val viewingUsers: List<ViewingUser>) : androidx.rec
         holder.username.visibility = View.VISIBLE
 
         Picasso.get()
-                .load(getProfilePicture(item.contact.userUUID, holder.itemView.context))
-                .placeholder(R.drawable.ic_account_circle_white_24dp)
+                .load(ProfilePictureUtil.getProfilePicture(item.contact.userUUID, holder.itemView.context))
+                .placeholder(R.drawable.baseline_account_circle_24)
                 .into(holder.profilePicture)
 
         holder.profilePicture.setOnClickListener {

@@ -67,6 +67,7 @@ fun getVideoDuration(referenceFile: File, mercuryClient: MercuryClient): Int {
         val movie = Movie.decodeStream(referenceFile.inputStream())
         movie.duration().toLong()
     }
+
     return (time / 1000L).toInt()
 }
 

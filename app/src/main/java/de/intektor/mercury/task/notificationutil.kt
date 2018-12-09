@@ -145,8 +145,8 @@ fun popNotificationSDK24(context: Context, list: List<NotificationHolder>, notif
                 .setStyle(inboxStyle)
                 .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
 
-        if (getProfilePicture(chatMessage.messageCore.senderUUID, context).exists()) {
-            builder.setLargeIcon(BitmapFactory.decodeFile(getProfilePicture(chatMessage.messageCore.senderUUID, context).path))
+        if (ProfilePictureUtil.getProfilePicture(chatMessage.messageCore.senderUUID, context).exists()) {
+            builder.setLargeIcon(BitmapFactory.decodeFile(ProfilePictureUtil.getProfilePicture(chatMessage.messageCore.senderUUID, context).path))
         }
 
         val id = getNotificationIdForChat(context, chatUUID)

@@ -9,13 +9,12 @@ import android.widget.TextView
 import com.squareup.picasso.Picasso
 import de.intektor.mercury.MercuryClient
 import de.intektor.mercury.R
-import de.intektor.mercury.android.getAttrDrawable
-import de.intektor.mercury.chat.model.ChatInfo
 import de.intektor.mercury.chat.ChatMessageWrapper
 import de.intektor.mercury.chat.MessageUtil
+import de.intektor.mercury.chat.model.ChatInfo
 import de.intektor.mercury.client.ClientPreferences
 import de.intektor.mercury.ui.util.BindableViewHolder
-import de.intektor.mercury.util.getProfilePicture
+import de.intektor.mercury.util.ProfilePictureUtil
 import de.intektor.mercury_common.chat.ChatType
 import de.intektor.mercury_common.chat.MessageStatus
 import java.text.SimpleDateFormat
@@ -113,15 +112,14 @@ class ChatListViewAdapter(private val chats: List<ChatItem>, private val clickRe
                     mercuryClient.addInterestedUser(other.receiverUUID)
 
                     Picasso.get()
-                            .load(getProfilePicture(other.receiverUUID, context))
-                            .placeholder(getAttrDrawable(context, R.attr.ic_account))
+                            .load(ProfilePictureUtil.getProfilePicture(other.receiverUUID, context))
+                            .placeholder(R.drawable.baseline_account_circle_24)
                             .into(picture)
                 }
             }
 
             if (!item.finishedInitialisation) {
-                val attr = if (!item.loading) R.attr.ic_file_download else R.attr.ic_account
-                picture.setImageDrawable(getAttrDrawable(context, attr))
+                picture.setImageResource(R.drawable.baseline_account_circle_24)
 
                 loadBar.visibility = if (item.loading) View.VISIBLE else View.GONE
                 picture.visibility = if (item.loading) View.GONE else View.VISIBLE

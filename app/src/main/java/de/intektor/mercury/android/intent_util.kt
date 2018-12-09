@@ -8,6 +8,13 @@ import de.intektor.mercury_common.chat.ChatMessage
 import de.intektor.mercury_common.chat.data.group_modification.GroupModification
 import de.intektor.mercury_common.gson.genGson
 import de.intektor.mercury_common.reference.FileType
+import de.intektor.mercury_common.tcp.IPacket
+import de.intektor.mercury_common.tcp.MercuryTCPOperator
+import de.intektor.mercury_common.tcp.sendPacket
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.DataInputStream
+import java.io.DataOutputStream
 import java.security.Key
 import java.util.*
 
@@ -35,5 +42,29 @@ fun Intent.putEnumExtra(key: String, enum: Enum<*>): Intent = putExtra(key, enum
 fun Intent.getUriExtra(key: String): Uri = getParcelableExtra(key)
 
 fun Intent.getMediaFileExtra(key: String): MediaFile = getSerializableExtra(key) as MediaFile
+
+fun Intent.putExtra(key: String, iPacket: IPacket): Intent {
+    val byteOut = ByteArrayOutputStream()
+
+    val dataOut = DataOutputStream(byteOut)
+
+    sendPacket(iPacket, dataOut)
+
+    putExtra(key, byteOut.toByteArray())
+
+    return this
+}
+
+fun Intent.getIPacketExtra(key: String): IPacket {
+    val byteIn = ByteArrayInputStream(getByteArrayExtra(key))
+
+    val dataIn = DataInputStream(byteIn)
+
+    val packetID = dataIn.readInt()
+    val packet = MercuryTCPOperator.packetRegistry.fromID(packetID)
+    packet.read(dataIn)
+
+    return packet
+}
 
 inline fun <reified T : Enum<T>> Intent.getEnumExtra(key: String): T = enumValues<T>()[getIntExtra(key, 0)]

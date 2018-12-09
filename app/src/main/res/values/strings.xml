@@ -5,19 +5,16 @@
 
     <!-- Strings related to register -->
     <string name="register_prompt_username">Username</string>
+    <string name="register_mercury_info">Mercury is a secure instant messaging service that allows you to connect with friends, family and search for new contacts. You are just a few steps away from entering mercury.</string>
     <string name="register_action_register">Register now</string>
-    <string name="action_check_available">Check Availability</string>
-    <string name="register_error_invalid_username_title">Invalid username!</string>
-    <string name="register_error_invalid_username_message">The username\'s length has to be between 5 and 20 and can only have latin letters, arabic numbers and underscores!</string>
-    <string name="register_username_available_title">OK!</string>
-    <string name="register_username_available">This username is available!</string>
-    <string name="register_username_not_available_title">Sorry!</string>
-    <string name="register_username_not_available">Sorry! This username is already taken!</string>
-    <string name="register_username_available_proceed">PROCEED</string>
-    <string name="register_register_error_title">ERROR</string>
+    <string name="register_error_invalid_username_message">Your username must have a length between 5 and 20 characters and can only have latin letters, arabic numbers and underscores.</string>
+    <string name="register_username_available">This username is available.</string>
+    <string name="register_username_not_available">Sorry! This username is already taken.</string>
     <string name="register_error_while_connecting">Could not connect to server!</string>
     <string name="register_transfer_text">Or transfer from an old device?</string>
     <string name="register_qr_image_content_description">Scan this on your old phone</string>
+    <string name="register_username_need">A username is needed for other users to be able to contact you. It will also be shown to other users. It can not be changed later so choose wisely.</string>
+    <string name="register_verify_no_robot">Verify that you are not a robot</string>
 
     <!-- String related to add contact -->
 
@@ -172,6 +169,12 @@
     <string name="chat_activity_edit_chat_menu_delete_alert_negative">Cancel</string>
     <string name="chat_activity_new_messages_received">New messages</string>
 
+    <!-- Strings related to message status -->
+    <string name="message_status_waiting">Waiting</string>
+    <string name="message_status_sent">Sent</string>
+    <string name="message_status_received">Received</string>
+    <string name="message_status_seen">Seen</string>
+
     <!-- Strings related to voice message -->
     <string name="voice_message_duration">%1$02d:%2$02d</string>
 
@@ -312,4 +315,18 @@
     <!-- Strings related to download media -->
     <string name="media_download">Download</string>
     <string name="media_upload">Upload</string>
+
+    <!-- Strings related to add contact activity -->
+    <string name="activity_add_contact_tv_query_users">You can search for users by entering their username.</string>
+    <string name="activity_add_contact_tv_no_user_found">Looks like we could not find any users.</string>
+    <string name="activity_add_contact_tv_error">An error has occurred. Are you connected to the Internet? Maybe try again later.</string>
+
+    <string name="item_queried_user_tv_add">Add</string>
+    <string name="item_queried_user_tv_joined">Joined %1$s</string>
+
+    <string name="privacy_policy_recaptcha">By clicking the below shown verify button that leads to the Google-Service of reCAPTCHA you are agreeing to send any data necessary for Google to be processed
+        and analyzed for their use. Data can include data about your hardware, software, device and applications. This data can be used by Google to improve their services and security. Data is not used for personalized advertisement.
+        Since this operation is not used another time after successfully registering to the mercury services, this agreement can not be revoked. If you do not agree you can quit this window at any time
+        and uninstall the application. I understand that this data is used by Google and not by Mercury or their owners. I also agree that my IP-Address will be used by Mercury to verify reCAPTCHA.
+    </string>
 </resources>

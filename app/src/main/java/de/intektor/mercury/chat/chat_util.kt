@@ -16,6 +16,7 @@ import de.intektor.mercury.database.getUUID
 import de.intektor.mercury.database.isValuePresent
 import de.intektor.mercury.io.ChatMessageService
 import de.intektor.mercury.io.HttpManager
+import de.intektor.mercury.io.PendingMessageUtil
 import de.intektor.mercury.reference.ReferenceUtil
 import de.intektor.mercury.ui.overview_activity.fragment.ChatListViewAdapter
 import de.intektor.mercury.util.Logger
@@ -154,6 +155,8 @@ fun sendMessageToServer(context: Context, dataBase: SQLiteDatabase, pendingMessa
         saveMessage(context, dataBase, message, chatUUID)
 
         updateMessageStatus(dataBase, message.messageCore.messageUUID, MessageStatus.WAITING, System.currentTimeMillis())
+
+        PendingMessageUtil.queueMessage(dataBase, message.messageCore.messageUUID)
     }
 
     ChatMessageService.ActionSendMessages.launch(context, pendingMessages)
@@ -199,7 +202,7 @@ data class MessageStatusHolder(val status: MessageStatus, val time: Long)
 
 fun requestUsers(userUUIDs: List<UUID>, dataBase: SQLiteDatabase) {
     val gson = genGson()
-    val r = HttpManager.httpPost(gson.toJson(UsersRequest(userUUIDs)), UsersRequest.TARGET)
+    val r = HttpManager.post(gson.toJson(UsersRequest(userUUIDs)), UsersRequest.TARGET)
     val response = gson.fromJson(r, UsersResponse::class.java)
 
     for (user in response.users) {

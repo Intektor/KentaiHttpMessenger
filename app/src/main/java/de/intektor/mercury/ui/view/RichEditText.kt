@@ -1,13 +1,11 @@
 package de.intektor.mercury.ui.view
 
 import android.content.Context
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.AttributeSet
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.widget.EditText
-import androidx.core.os.BuildCompat
 import androidx.core.view.inputmethod.EditorInfoCompat
 import androidx.core.view.inputmethod.InputConnectionCompat
 import com.google.common.hash.Hashing
@@ -20,7 +18,6 @@ import de.intektor.mercury.client.ClientPreferences
 import de.intektor.mercury.media.MediaType
 import de.intektor.mercury.media.ThumbnailUtil
 import de.intektor.mercury.reference.ReferenceUtil
-import de.intektor.mercury.task.getVideoDimension
 import de.intektor.mercury.task.getVideoDuration
 import de.intektor.mercury.ui.chat.ChatActivity
 import de.intektor.mercury_common.chat.ChatMessage
@@ -28,7 +25,6 @@ import de.intektor.mercury_common.chat.MessageCore
 import de.intektor.mercury_common.chat.MessageStatus
 import de.intektor.mercury_common.chat.data.MessageImage
 import de.intektor.mercury_common.chat.data.MessageVideo
-import de.intektor.mercury_common.reference.FileType
 import de.intektor.mercury_common.util.generateAESKey
 import de.intektor.mercury_common.util.generateInitVector
 import java.util.*
@@ -46,13 +42,13 @@ class RichEditText(context: Context, attrs: AttributeSet) : EditText(context, at
         val context = context
 
         val callback = InputConnectionCompat.OnCommitContentListener { inputContentInfo, flags, opts ->
-            if (BuildCompat.isAtLeastNMR1() && flags and InputConnectionCompat.INPUT_CONTENT_GRANT_READ_URI_PERMISSION != 0) {
+            if (flags and InputConnectionCompat.INPUT_CONTENT_GRANT_READ_URI_PERMISSION != 0) {
                 try {
                     inputContentInfo.requestPermission()
 
-                    val fileType = when (inputContentInfo.description.getMimeType(0)) {
-                        "image/gif" -> FileType.GIF
-                        "image/png" -> FileType.IMAGE
+                    val mediaType = when (inputContentInfo.description.getMimeType(0)) {
+                        "image/gif" -> MediaType.MEDIA_TYPE_VIDEO
+                        "image/png" -> MediaType.MEDIA_TYPE_IMAGE
                         else -> throw IllegalArgumentException("")
                     }
 
@@ -62,32 +58,34 @@ class RichEditText(context: Context, attrs: AttributeSet) : EditText(context, at
 
                         val client = ClientPreferences.getClientUUID(context)
 
-                        val hash = Hashing.sha512().hashBytes(referenceFile.readBytes())
+                        val contentBytes = context.contentResolver.openInputStream(inputContentInfo.contentUri).readBytes()
+
+                        val hash = Hashing.sha512().hashBytes(contentBytes)
 
                         val aes = generateAESKey()
                         val iV = generateInitVector()
 
                         val core = MessageCore(client, System.currentTimeMillis(), UUID.randomUUID())
 
-                        val data = when (fileType) {
-                            FileType.IMAGE -> {
-                                val bitmap = BitmapFactory.decodeStream(context.contentResolver.openInputStream(inputContentInfo.contentUri))
+                        referenceFile.outputStream().write(contentBytes)
 
-                                bitmap.compress(Bitmap.CompressFormat.PNG, 100, referenceFile.outputStream())
+                        val data = when (mediaType) {
+                            MediaType.MEDIA_TYPE_IMAGE -> {
+                                val bitmap = BitmapFactory.decodeByteArray(contentBytes, 0, contentBytes.size)
 
                                 MessageImage(ThumbnailUtil.createThumbnail(referenceFile, MediaType.MEDIA_TYPE_IMAGE), "", bitmap.width, bitmap.height, aes, iV, referenceUUID, hash.toString())
                             }
-                            FileType.GIF -> {
-                                context.contentResolver.openInputStream(inputContentInfo.contentUri).copyTo(referenceFile.outputStream(), 1024 * 1024)
-
+                            MediaType.MEDIA_TYPE_VIDEO -> {
                                 val videoDuration = getVideoDuration(referenceFile, mercuryClient)
-                                val dimension = getVideoDimension(context, referenceFile)
+
+                                val options = BitmapFactory.Options()
+                                val dimension = BitmapFactory.decodeByteArray(contentBytes, 0, contentBytes.size, options)
 
                                 MessageVideo(videoDuration,
                                         true,
                                         dimension.width,
                                         dimension.height,
-                                        ThumbnailUtil.createThumbnail(referenceFile, MediaType.MEDIA_TYPE_VIDEO), "", aes, iV, referenceUUID, hash.toString())
+                                        ThumbnailUtil.createThumbnail(referenceFile, MediaType.MEDIA_TYPE_IMAGE), "", aes, iV, referenceUUID, hash.toString())
                             }
                             else -> throw IllegalArgumentException()
                         }

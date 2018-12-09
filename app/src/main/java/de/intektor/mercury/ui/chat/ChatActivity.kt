@@ -30,6 +30,7 @@ import de.intektor.mercury.MercuryClient
 import de.intektor.mercury.R
 import de.intektor.mercury.action.ActionMessageStatusChange
 import de.intektor.mercury.action.chat.ActionChatMessageReceived
+import de.intektor.mercury.action.chat.ActionUserViewChat
 import de.intektor.mercury.action.group.ActionGroupModificationReceived
 import de.intektor.mercury.action.reference.*
 import de.intektor.mercury.action.user.ActionTyping
@@ -42,6 +43,7 @@ import de.intektor.mercury.chat.model.ChatReceiver
 import de.intektor.mercury.client.ClientPreferences
 import de.intektor.mercury.client.getBackgroundChatFile
 import de.intektor.mercury.client.setBackgroundImage
+import de.intektor.mercury.connection.DirectConnectionService
 import de.intektor.mercury.contacts.Contact
 import de.intektor.mercury.io.download.IOService
 import de.intektor.mercury.media.MediaFile
@@ -257,9 +259,7 @@ class ChatActivity : AppCompatActivity() {
             override fun onTextChanged(newText: CharSequence, p1: Int, p2: Int, p3: Int) {
                 if (System.currentTimeMillis() - 5000 >= lastTimeSentTypingMessage) {
                     lastTimeSentTypingMessage = System.currentTimeMillis()
-                    if (mercuryClient.directConnectionManager.isConnected) {
-                        mercuryClient.directConnectionManager.sendPacket(TypingPacketToServer(chatInfo.getOthers(clientUUID).map { it.receiverUUID }, chatInfo.chatUUID))
-                    }
+                    DirectConnectionService.ActionSendPacketToServer.launch(this@ChatActivity, TypingPacketToServer(chatInfo.getOthers(clientUUID).map { it.receiverUUID }, chatInfo.chatUUID))
                 }
             }
         })
@@ -399,7 +399,7 @@ class ChatActivity : AppCompatActivity() {
         val accountItem = menu.findItem(R.id.chatActivityMenuAccount)
         if (chatInfo.chatType == ChatType.TWO_PEOPLE) {
             Picasso.get()
-                    .load(getProfilePicture(chatInfo.participants.first { it.receiverUUID != clientUUID }.receiverUUID, this))
+                    .load(ProfilePictureUtil.getProfilePicture(chatInfo.participants.first { it.receiverUUID != clientUUID }.receiverUUID, this))
                     .memoryPolicy(MemoryPolicy.NO_CACHE)
                     .resize(80, 80)
                     .into(object : Target {
@@ -426,9 +426,7 @@ class ChatActivity : AppCompatActivity() {
         when (item.itemId) {
             R.id.chatActivityMenuAccount -> {
                 if (chatInfo.chatType == ChatType.TWO_PEOPLE) {
-                    val intent = Intent(this@ChatActivity, ContactInfoActivity::class.java)
-                    intent.putExtra(KEY_USER_UUID, chatInfo.participants.first { it.receiverUUID != clientUUID }.receiverUUID)
-                    startActivity(intent)
+                    ContactInfoActivity.launch(this, chatInfo.participants.first { it.receiverUUID != clientUUID }.receiverUUID)
                 } else if (chatInfo.chatType.isGroup()) {
                     val intent = Intent(this@ChatActivity, GroupInfoActivity::class.java)
                     intent.putExtra(KEY_CHAT_INFO, chatInfo)
@@ -653,7 +651,7 @@ class ChatActivity : AppCompatActivity() {
             registerReceiver(downloadProgressReceiver, ActionDownloadReferenceProgress.getFilter())
             registerReceiver(downloadReferenceFinishedReceiver, ActionDownloadReferenceFinished.getFilter())
             registerReceiver(uploadReferenceStartedReceiver, ActionUploadReferenceStarted.getFilter())
-            registerReceiver(userViewChatReceiver, IntentFilter(ACTION_USER_VIEW_CHAT))
+            registerReceiver(userViewChatReceiver, ActionUserViewChat.getFilter())
             registerReceiver(directConnectedReceiver, IntentFilter(ACTION_DIRECT_CONNECTION_CONNECTED))
             registerReceiver(chatMessageReceiver, ActionChatMessageReceived.getFilter())
             registerReceiver(messageStatusChangeReceiver, ActionMessageStatusChange.getFilter())
@@ -990,7 +988,8 @@ class ChatActivity : AppCompatActivity() {
 
     private fun viewChat(view: Boolean) {
         val mercuryClient = applicationContext as MercuryClient
-        mercuryClient.directConnectionManager.sendPacket(ViewChatPacketToServer(chatInfo.chatUUID, view))
+
+        DirectConnectionService.ActionSendPacketToServer.launch(this, ViewChatPacketToServer(chatInfo.chatUUID, view))
     }
 
     override fun onSupportNavigateUp(): Boolean {
@@ -1349,20 +1348,18 @@ class ChatActivity : AppCompatActivity() {
 
     inner class UserViewChatReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            val chatUUID = intent.getSerializableExtra(KEY_CHAT_UUID)
-            val userUUID = intent.getSerializableExtra(KEY_USER_UUID)
-            val view = intent.getBooleanExtra(KEY_USER_VIEW, false)
+            val (chatUuid, userUuid, isViewing) = ActionUserViewChat.getData(intent)
 
-            if (chatUUID == chatInfo.chatUUID) {
-                if (userUUID == ClientPreferences.getClientUUID(context)) return
-                val contact = contactMap[userUUID]!!
+            if (chatUuid == chatInfo.chatUUID) {
+                if (userUuid == ClientPreferences.getClientUUID(context)) return
+                val contact = contactMap[userUuid] ?: return
                 val viewingUser = ViewingUser(contact, UserState.VIEWING)
-                if (view) {
-                    if (viewingUsersList.any { it.contact.userUUID == userUUID }) return
+                if (isViewing) {
+                    if (viewingUsersList.any { it.contact.userUUID == userUuid }) return
                     viewingUsersList += viewingUser
                     viewingUsersAdapter.notifyItemInserted(viewingUsersList.size - 1)
                 } else {
-                    val index = viewingUsersList.indexOfFirst { it.contact.userUUID == userUUID }
+                    val index = viewingUsersList.indexOfFirst { it.contact.userUUID == userUuid }
                     if (index != -1) {
                         viewingUsersList.removeAt(index)
                         viewingUsersAdapter.notifyItemRemoved(index)

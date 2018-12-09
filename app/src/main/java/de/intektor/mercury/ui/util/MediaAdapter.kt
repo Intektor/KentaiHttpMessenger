@@ -8,6 +8,7 @@ import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.cardview.widget.CardView
+import androidx.recyclerview.widget.RecyclerView
 import de.intektor.mercury.R
 import de.intektor.mercury.media.ThumbnailUtil
 import java.text.SimpleDateFormat
@@ -15,7 +16,7 @@ import java.util.*
 
 class MediaAdapter<T : MediaAdapter.MediaFileWrapper>(
         private val componentList: List<Any>, private val clickCallback: (T, MediaViewHolder<T>) -> Unit,
-        private val longClickCallback: (T, MediaViewHolder<T>) -> Unit) : androidx.recyclerview.widget.RecyclerView.Adapter<BindableViewHolder<Any>>() {
+        private val longClickCallback: (T, MediaViewHolder<T>) -> Unit) : RecyclerView.Adapter<BindableViewHolder<Any>>() {
 
     companion object {
         private const val MEDIA_FILE_ITEM = 0

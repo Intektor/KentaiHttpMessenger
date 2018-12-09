@@ -171,7 +171,7 @@ class FragmentListMedia : Fragment() {
                 //We load all images from the start of this month till now
                 val latest = mediaProvider.loadMediaFiles(context, minimum, Clock.systemDefaultZone().instant().epochSecond)
 
-                val alreadyReachedLimit = latest.lastOrNull()?.epochSecondAdded == lastTime
+                val alreadyReachedLimit = latest.any { it.epochSecondAdded == lastTime }
 
                 insertItemsIntoList(LoadResult(minimum, latest, alreadyReachedLimit))
 

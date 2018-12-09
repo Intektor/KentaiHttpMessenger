@@ -19,7 +19,7 @@ object UploadTokenTask {
         val gson = genGson()
         val s = gson.toJson(UpdateFBCMTokenRequest(client, sign(token, privateAuthKey), token))
 
-        val rMessage = HttpManager.httpPost(s, UpdateFBCMTokenRequest.TARGET)
+        val rMessage = HttpManager.post(s, UpdateFBCMTokenRequest.TARGET)
         val response = gson.fromJson(rMessage, UpdateFBCMTokenResponse::class.java)
         return response.successful
     }

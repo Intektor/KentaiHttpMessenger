@@ -15,14 +15,15 @@ class MediaProviderExternalContent(private val folderId: Long) : MediaProvider<E
         cursor.getLong(0)
     }
 
-    override fun loadMediaFiles(context: Context, minimumEpochSecond: Long, maximumEpochSecond: Long): List<ExternalStorageFile> {
+    override fun loadMediaFiles(context: Context, minimumEpochSecond: Long, maximumEpochSecond: Long, limit: Int?): List<ExternalStorageFile> {
         return context.contentResolver.query(
                 MediaStore.Files.getContentUri("external"),
                 arrayOf(MediaStore.MediaColumns._ID, MediaStore.Files.FileColumns.MEDIA_TYPE, MediaStore.MediaColumns.DATE_ADDED),
                 "${MediaStore.Files.FileColumns.PARENT} = ? AND ${MediaStore.Files.FileColumns.DATE_ADDED} > ? AND ${MediaStore.Files.FileColumns.DATE_ADDED} < ? " +
                         "AND ${MediaStore.Files.FileColumns.MEDIA_TYPE} IN (${MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE}, ${MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO})",
                 arrayOf("$folderId", "$minimumEpochSecond", "$maximumEpochSecond"),
-                "${MediaStore.MediaColumns.DATE_ADDED} DESC").use { cursor ->
+                "${MediaStore.MediaColumns.DATE_ADDED} DESC LIMIT ${limit
+                        ?: Int.MAX_VALUE}").use { cursor ->
 
             if (cursor == null) return@use emptyList<ExternalStorageFile>()
 

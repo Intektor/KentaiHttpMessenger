@@ -2,6 +2,7 @@ package de.intektor.mercury.action.profpic
 
 import android.content.Context
 import android.content.Intent
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import de.intektor.mercury.android.getUUIDExtra
 import java.util.*
 
@@ -22,7 +23,7 @@ object ActionProfilePictureUpdate {
                 .putExtra(EXTRA_USER_UUID,  userUuid)
 
     fun launch(context: Context, userUuid: UUID) {
-        context.sendBroadcast(createIntent(context, userUuid))
+        LocalBroadcastManager.getInstance(context).sendBroadcast(createIntent(context, userUuid))
     }
 
     fun getData(intent: Intent): Holder {

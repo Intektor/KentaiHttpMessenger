@@ -1,21 +1,21 @@
 package de.intektor.mercury.io
 
+import android.annotation.TargetApi
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
-import android.content.ComponentName
-import android.content.ContentResolver
-import android.content.Context
-import android.content.Intent
+import android.content.*
 import android.database.sqlite.SQLiteDatabase
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.net.Uri
+import android.net.*
 import android.os.AsyncTask
+import android.os.Build
 import android.os.IBinder
+import android.os.Parcelable
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import android.util.Log
 import de.intektor.mercury.MercuryClient
 import de.intektor.mercury.R
 import de.intektor.mercury.action.ActionMessageStatusChange
@@ -66,6 +66,11 @@ class ChatMessageService : Service() {
         private const val TAG = "ChatMessageService"
     }
 
+    @TargetApi(21)
+    private val networkCallback: NetworkCallback = NetworkCallback()
+
+    private val networkListener: BroadcastReceiver = NetworkListener()
+
     override fun onCreate() {
         super.onCreate()
 
@@ -82,6 +87,16 @@ class ChatMessageService : Service() {
 //        }
 //
 //        registerReceiver(abortUploadProfilePicture, IntentFilter(ACTION_CANCEL_UPLOAD_PROFILE_PICTURE))
+
+        ConnectivityManager.CONNECTIVITY_ACTION
+
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+
+        if (Build.VERSION.SDK_INT >= 21) {
+            connectivityManager.registerNetworkCallback(NetworkRequest.Builder().addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET).build(), networkCallback)
+        } else {
+            registerReceiver(networkListener, IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION))
+        }
 
         thread {
             while (true) {
@@ -137,8 +152,38 @@ class ChatMessageService : Service() {
         return super.onStartCommand(intent, flags, startId)
     }
 
-    fun buildPendingMessages(userUUID: UUID): List<PendingMessage> =
-            PendingMessageUtil.getWaitingMessages(dataBase).map { PendingMessage(it.message, it.chatUUID, readChatParticipants(dataBase, it.chatUUID)) }
+    @TargetApi(21)
+    private inner class NetworkCallback : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network?) {
+            collectAndSendPendingMessages()
+        }
+    }
+
+    private inner class NetworkListener : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val extras = intent.extras
+            val info = extras.getParcelable<Parcelable>("networkInfo") as NetworkInfo
+            val state = info.state
+
+            if (state == NetworkInfo.State.CONNECTED) {
+                collectAndSendPendingMessages()
+            }
+        }
+    }
+
+    /**
+     * This method collects all messages currently saved in the pending messages table and tries to send them to the server
+     */
+    private fun collectAndSendPendingMessages() {
+        val pendingMessageUUIDs = PendingMessageUtil.getQueueMessages(mercuryClient().dataBase)
+
+        val query = "(${pendingMessageUUIDs.joinToString { "'$it'" }})"
+
+        val pendingMessages = getChatMessages(this, mercuryClient().dataBase, "chat_message.message_uuid IN $query")
+                .map { PendingMessage(it.message, it.chatMessageInfo.chatUUID, readChatParticipants(dataBase, it.chatMessageInfo.chatUUID)) }
+
+        sendPendingMessages(pendingMessages.toMutableList(), ClientPreferences.getClientUUID(this))
+    }
 
     private fun sendPendingMessages(list: MutableList<PendingMessage>, userUUID: UUID) {
         val gson = genGson()
@@ -175,15 +220,21 @@ class ChatMessageService : Service() {
             }
         }
 
-        val response = HttpManager.httpPost(gson.toJson(SendChatMessageRequest(sendingMap, userUUID, signatureAuth)), SendChatMessageRequest.TARGET)
-        val res = gson.fromJson(response, SendChatMessageResponse::class.java)
-        if (res.id == 0) {
-            for (message in list) {
-                updateMessageStatus(dataBase, message.message.messageCore.messageUUID, MessageStatus.SENT, System.currentTimeMillis())
+        try {
+            val response = HttpManager.post(gson.toJson(SendChatMessageRequest(sendingMap, userUUID, signatureAuth)), SendChatMessageRequest.TARGET)
+            val res = gson.fromJson(response, SendChatMessageResponse::class.java)
+            if (res.id == 0) {
+                for (message in list) {
+                    updateMessageStatus(dataBase, message.message.messageCore.messageUUID, MessageStatus.SENT, System.currentTimeMillis())
 
-                ActionMessageStatusChange.launch(this, message.chatUUID, message.message.messageCore.messageUUID, MessageStatus.SENT)
+                    PendingMessageUtil.removeMessage(dataBase, message.message.messageCore.messageUUID)
+
+                    ActionMessageStatusChange.launch(this, message.chatUUID, message.message.messageCore.messageUUID, MessageStatus.SENT)
+                }
+                list.clear()
             }
-            list.clear()
+        } catch (t: Throwable) {
+            Logger.error(TAG, "Error while trying to send chat message", t)
         }
     }
 
@@ -215,37 +266,11 @@ class ChatMessageService : Service() {
         }
     }
 
-    private class ResponseInputStream(inputStream: InputStream, private val totalToReceive: Long, private val onUpdateProgress: (Double) -> Unit) : FilterInputStream(inputStream) {
-
-        var bytesRead = 0L
-        var prefRead = 0.0
-
-        override fun read(): Int {
-            bytesRead++
-            update()
-            return super.read()
-        }
-
-        override fun read(b: ByteArray?, off: Int, len: Int): Int {
-            bytesRead += len
-            update()
-            return super.read(b, off, len)
-        }
-
-        private fun update() {
-            val currentPercent = bytesRead.toDouble() / totalToReceive.toDouble()
-            if (prefRead + 0.01 < currentPercent) {
-                prefRead = currentPercent
-                onUpdateProgress.invoke(currentPercent)
-            }
-        }
-    }
-
     private fun uploadProfilePicture(data: Uri, mercuryClient: MercuryClient) {
         profilePictureUploadStream?.close()
         profilePictureUploadStream = null
 
-        UploadProfilePictureTask(data, mercuryClient, getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager, contentResolver, { profilePictureUploadStream = it }).execute()
+        UploadProfilePictureTask(data, mercuryClient, getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager, contentResolver) { profilePictureUploadStream = it }.execute()
     }
 
     private class UploadProfilePictureTask(private val data: Uri, private val mercuryClient: MercuryClient,
@@ -318,7 +343,7 @@ class ChatMessageService : Service() {
                 }
 
                 if (res == UploadProfilePictureResponse.Type.SUCCESS) {
-                    setProfilePicture(bitmap, ClientPreferences.getClientUUID(mercuryClient), mercuryClient, ProfilePictureType.NORMAL)
+                    ProfilePictureUtil.setProfilePicture(bitmap, ClientPreferences.getClientUUID(mercuryClient), mercuryClient, ProfilePictureType.NORMAL)
                 }
 
                 newText
@@ -351,7 +376,7 @@ class ChatMessageService : Service() {
 
     private fun downloadProfilePicture(userUUID: UUID, type: ProfilePictureType) {
         DownloadProfilePictureTask({ uU ->
-            getProfilePicture(userUUID, this, ProfilePictureType.NORMAL).delete()
+            ProfilePictureUtil.getProfilePicture(userUUID, this, ProfilePictureType.NORMAL).delete()
 
             ActionProfilePictureUpdate.launch(this, uU)
         }, userUUID, type, applicationContext as MercuryClient).execute()
@@ -371,7 +396,7 @@ class ChatMessageService : Service() {
                 HttpManager.httpClient.newCall(request).execute().use { response ->
                     if (response.isSuccessful) {
                         DataInputStream(response.body()!!.byteStream()).use { inputStream ->
-                            getProfilePicture(userUUID, mercuryClient, type).outputStream().use { out ->
+                            ProfilePictureUtil.getProfilePicture(userUUID, mercuryClient, type).outputStream().use { out ->
                                 inputStream.copyFully(out)
                             }
                         }
@@ -420,6 +445,18 @@ class ChatMessageService : Service() {
             ActionInitChatFinished.launch(this@ChatMessageService, chatUUID, successful)
 
             initializingChats -= chatUUID
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+
+        val connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+
+        if (Build.VERSION.SDK_INT >= 21) {
+            connectivityManager.unregisterNetworkCallback(networkCallback)
+        } else {
+            unregisterReceiver(networkListener)
         }
     }
 
