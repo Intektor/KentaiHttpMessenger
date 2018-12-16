@@ -13,6 +13,7 @@
     <item
         android:id="@+id/chatActivityNativeGallery"
         android:title="@string/chat_activity_menu_native_gallery"
+        android:visible="false"
         app:showAsAction="never" />
 
     <item
@@ -22,6 +23,7 @@
     <item
         android:id="@+id/chatActivitySetBackground"
         android:title="@string/chat_activity_menu_change_background"
+        android:visible="false"
         app:showAsAction="never">
 
         <menu>

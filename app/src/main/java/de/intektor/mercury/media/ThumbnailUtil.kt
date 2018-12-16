@@ -50,8 +50,21 @@ object ThumbnailUtil {
             val parts = path.split("/")
 
             val id = parts[1].toLong()
-            val mediaType = parts[2].toInt()
+            val mediaTypeFromInput = parts[2].toInt()
             val kind = parts[3].toInt()
+
+            val mediaType = if (mediaTypeFromInput != MediaType.MEDIA_TYPE_NONE) mediaTypeFromInput else {
+                val mime = context.contentResolver.query(MediaStore.Files.getContentUri("external"),
+                        arrayOf(MediaStore.MediaColumns.MIME_TYPE),
+                        "${MediaStore.MediaColumns._ID} = ?",
+                        arrayOf("$id"),
+                        null).use { cursor ->
+                    if (cursor == null || !cursor.moveToNext()) ""
+                    cursor.getString(0)
+                }
+
+                MediaType.getMediaTypeFromMime(mime)
+            }
 
             val thumbnail = if (kind == MediaStore.Images.Thumbnails.MICRO_KIND || kind == MediaStore.Images.Thumbnails.MINI_KIND) {
                 when (mediaType) {

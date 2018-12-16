@@ -17,6 +17,8 @@ import androidx.recyclerview.widget.RecyclerView
 import de.intektor.mercury.R
 import de.intektor.mercury.android.getChatInfoExtra
 import de.intektor.mercury.android.getSelectedTheme
+import de.intektor.mercury.android.mercuryClient
+import de.intektor.mercury.chat.ChatUtil
 import de.intektor.mercury.chat.model.ChatInfo
 import de.intektor.mercury.media.MediaFile
 import de.intektor.mercury.media.ThumbnailUtil
@@ -35,25 +37,22 @@ class SendMediaActivity : AppCompatActivity() {
 
     companion object {
         private const val EXTRA_CHAT_INFO = "de.intektor.mercury.EXTRA_CHAT_INFO"
-        private const val EXTRA_FOLDER_ID = "de.intektor.mercury.EXTRA_FOLDER_ID"
         private const val EXTRA_FILES = "de.intektor.mercury.EXTRA_FILES"
 
-        fun createIntent(context: Context, chatInfo: ChatInfo, folderId: Long, files: List<MediaFile>): Intent {
+        fun createIntent(context: Context, chatInfo: ChatInfo, files: List<MediaFile>): Intent {
             return Intent(context, SendMediaActivity::class.java)
                     .putExtra(EXTRA_CHAT_INFO, chatInfo)
-                    .putExtra(EXTRA_FOLDER_ID, folderId)
                     .putExtra(EXTRA_FILES, ArrayList(files))
         }
 
 
         fun getData(intent: Intent): Holder {
             val chatInfo = intent.getChatInfoExtra(EXTRA_CHAT_INFO)
-            val folderId = intent.getLongExtra(EXTRA_FOLDER_ID, 0)
             val files = intent.getSerializableExtra(EXTRA_FILES) as ArrayList<MediaFile>
-            return Holder(chatInfo, folderId, files)
+            return Holder(chatInfo, files)
         }
 
-        data class Holder(val chatInfo: ChatInfo, val folderId: Long, val itemIds: List<MediaFile>)
+        data class Holder(val chatInfo: ChatInfo, val itemIds: List<MediaFile>)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -63,9 +62,9 @@ class SendMediaActivity : AppCompatActivity() {
 
         setContentView(R.layout.activity_send_media)
 
-        val (chatInfo, _, files) = getData(intent)
+        val (chatInfo, files) = getData(intent)
 
-        supportActionBar?.title = getString(R.string.send_media_activity_title, chatInfo.chatName)
+        supportActionBar?.title = getString(R.string.send_media_activity_title, ChatUtil.getChatName(this, mercuryClient().dataBase, chatInfo.chatUUID))
 
         val media = files.map { MediaPreview(it, false) }
 

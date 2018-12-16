@@ -3,6 +3,7 @@ package de.intektor.mercury.action.profpic
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 
 /**
  * @author Intektor
@@ -21,6 +22,6 @@ object ActionProfilePictureUploaded {
                     .setAction(ACTION)
 
     fun launch(context: Context) {
-        context.sendBroadcast(createIntent(context))
+        LocalBroadcastManager.getInstance(context).sendBroadcast(createIntent(context))
     }
 }

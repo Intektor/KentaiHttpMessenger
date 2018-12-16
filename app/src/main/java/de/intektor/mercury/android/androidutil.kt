@@ -61,7 +61,7 @@ fun getRealImagePath(uri: Uri, context: Context): String {
 
 fun isUsingLightTheme(context: Context): Boolean {
     val sp = context.getSharedPreferences(SHARED_PREFERENCES_THEME, Context.MODE_PRIVATE)
-    return sp.getBoolean(SP_IS_LIGHT_THEME_KEY, false)
+    return sp.getBoolean(SP_IS_LIGHT_THEME_KEY, true)
 }
 
 fun getSelectedTheme(context: Context, actionBar: Boolean = true): Int {

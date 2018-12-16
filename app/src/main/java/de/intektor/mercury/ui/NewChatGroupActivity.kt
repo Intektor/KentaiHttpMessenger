@@ -5,6 +5,7 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.view.*
 import android.widget.ImageView
+import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
@@ -13,6 +14,7 @@ import com.squareup.picasso.Picasso
 import de.intektor.mercury.MercuryClient
 import de.intektor.mercury.R
 import de.intektor.mercury.android.getSelectedTheme
+import de.intektor.mercury.android.mercuryClient
 import de.intektor.mercury.chat.PendingMessage
 import de.intektor.mercury.chat.createGroupChat
 import de.intektor.mercury.chat.getUserChat
@@ -21,6 +23,7 @@ import de.intektor.mercury.chat.model.ChatReceiver
 import de.intektor.mercury.chat.sendMessageToServer
 import de.intektor.mercury.client.ClientPreferences
 import de.intektor.mercury.contacts.Contact
+import de.intektor.mercury.contacts.ContactUtil
 import de.intektor.mercury.ui.chat.ChatActivity
 import de.intektor.mercury.ui.overview_activity.fragment.ContactAdapter
 import de.intektor.mercury.util.ProfilePictureUtil
@@ -134,7 +137,7 @@ class NewChatGroupActivity : AppCompatActivity(), androidx.appcompat.widget.Sear
         val client = ClientPreferences.getClientUUID(this)
 
         //TODO:
-        val chatInfo = ChatInfo(UUID.randomUUID(), groupName.text.toString(), ChatType.GROUP_DECENTRALIZED, selected.asSequence().map {
+        val chatInfo = ChatInfo(UUID.randomUUID(), ChatType.GROUP_DECENTRALIZED, selected.asSequence().map {
             ChatReceiver(it.contact.userUUID, it.contact.message_key, ChatReceiver.ReceiverType.USER)
         }.plus(ChatReceiver(client, null, ChatReceiver.ReceiverType.USER)).toList())
 
@@ -219,12 +222,14 @@ class NewChatGroupActivity : AppCompatActivity(), androidx.appcompat.widget.Sear
             val item = selectedList[position]
 
             val userUUID = item.contact.userUUID
+            val context = holder.itemView.context
             Picasso.get()
-                    .load(ProfilePictureUtil.getProfilePicture(userUUID, holder.itemView.context))
+                    .load(ProfilePictureUtil.getProfilePicture(userUUID, context))
                     .memoryPolicy(MemoryPolicy.NO_CACHE)
                     .placeholder(R.drawable.baseline_account_circle_24)
                     .into(holder.image)
 
+            holder.label.text = ContactUtil.getDisplayName(context, context.mercuryClient().dataBase, item.contact)
 
             holder.itemView.setOnClickListener {
                 onClick.invoke(item)
@@ -233,7 +238,8 @@ class NewChatGroupActivity : AppCompatActivity(), androidx.appcompat.widget.Sear
     }
 
     private class SelectedViewHolder(view: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {
-        val image: ImageView = view.findViewById(R.id.chatItemSmallProfilePicture)
+        val image: ImageView = view.findViewById(R.id.item_chat_small_iv_pp)
+        val label: TextView = view.findViewById(R.id.item_chat_small_tv_label)
     }
 
     override fun onSupportNavigateUp(): Boolean {

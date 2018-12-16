@@ -11,7 +11,6 @@ import androidx.cardview.widget.CardView
 import androidx.constraintlayout.widget.ConstraintLayout
 import de.intektor.mercury.R
 import de.intektor.mercury.chat.adapter.VoiceReferenceHolder
-import de.intektor.mercury.io.download.IOService
 import de.intektor.mercury.media.MediaType
 import de.intektor.mercury.task.ReferenceState
 import de.intektor.mercury.util.setGone
@@ -72,15 +71,7 @@ class VoiceMessageViewHolder(itemView: View, chatAdapter: ChatAdapter) : ChatMes
         updateTimeAndSeekBar(context, item, data)
 
         registerForEditModePress(downloadParentCl) {
-            if (item.referenceState == ReferenceState.NOT_STARTED) {
-                item.referenceState = ReferenceState.IN_PROGRESS
-
-                if (isClient(item)) {
-                    IOService.ActionUploadReference.launch(context, data.reference, data.aesKey, data.initVector, MediaType.MEDIA_TYPE_AUDIO, chatAdapter.activity.chatInfo.chatUUID, core.messageUUID)
-                } else {
-                    IOService.ActionDownloadReference.launch(context, data.reference, data.aesKey, data.initVector, MediaType.MEDIA_TYPE_AUDIO, chatAdapter.activity.chatInfo.chatUUID, core.messageUUID)
-                }
-            }
+            chatAdapter.activity.startReferenceLoad(item, adapterPosition, MediaType.MEDIA_TYPE_VIDEO)
         }
 
         registerForEditModePress(playParentCl) {

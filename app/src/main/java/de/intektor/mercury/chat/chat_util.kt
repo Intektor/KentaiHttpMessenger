@@ -18,10 +18,11 @@ import de.intektor.mercury.io.ChatMessageService
 import de.intektor.mercury.io.HttpManager
 import de.intektor.mercury.io.PendingMessageUtil
 import de.intektor.mercury.reference.ReferenceUtil
-import de.intektor.mercury.ui.overview_activity.fragment.ChatListViewAdapter
+import de.intektor.mercury.ui.overview_activity.fragment.ChatListAdapter
 import de.intektor.mercury.util.Logger
 import de.intektor.mercury.util.internalFile
 import de.intektor.mercury_common.chat.*
+import de.intektor.mercury_common.chat.data.MessageStatusUpdate
 import de.intektor.mercury_common.client_to_server.UsersRequest
 import de.intektor.mercury_common.gson.genGson
 import de.intektor.mercury_common.server_to_client.UsersResponse
@@ -40,10 +41,9 @@ import java.util.*
 private const val TAG = "chatutil"
 
 fun createChat(chatInfo: ChatInfo, dataBase: SQLiteDatabase, clientUUID: UUID) {
-    dataBase.compileStatement("INSERT INTO chats (chat_name, chat_uuid, type) VALUES (?, ?, ?)").use { statement ->
-        statement.bindString(1, chatInfo.chatName)
-        statement.bindString(2, chatInfo.chatUUID.toString())
-        statement.bindLong(3, chatInfo.chatType.ordinal.toLong())
+    dataBase.compileStatement("INSERT INTO chats (chat_uuid, type) VALUES (?, ?)").use { statement ->
+        statement.bindString(1, chatInfo.chatUUID.toString())
+        statement.bindLong(2, chatInfo.chatType.ordinal.toLong())
         statement.execute()
     }
 
@@ -304,30 +304,33 @@ fun hasContact(dataBase: SQLiteDatabase, userUUID: UUID): Boolean {
     }
 }
 
-fun readChats(dataBase: SQLiteDatabase, context: Context): List<ChatListViewAdapter.ChatItem> {
-    val list = mutableListOf<ChatListViewAdapter.ChatItem>()
-    dataBase.rawQuery("SELECT chat_name, chat_uuid, type FROM chats", null).use { cursor ->
+fun readChats(dataBase: SQLiteDatabase, context: Context): List<ChatListAdapter.ChatItem> {
+    val list = mutableListOf<ChatListAdapter.ChatItem>()
+    dataBase.rawQuery("SELECT chat_uuid, type FROM chats", null).use { cursor ->
         while (cursor.moveToNext()) {
-            val chatName = cursor.getString(0)
-            val chatUUID = UUID.fromString(cursor.getString(1))
-            val chatType = ChatType.values()[cursor.getInt(2)]
+            val chatUUID = UUID.fromString(cursor.getString(0))
+            val chatType = ChatType.values()[cursor.getInt(1)]
 
-            val chatInfo = ChatInfo(chatUUID, chatName, chatType, readChatParticipants(dataBase, chatUUID))
+            val chatInfo = ChatInfo(chatUUID, chatType, readChatParticipants(dataBase, chatUUID))
 
-            val messageList = getChatMessages(context, dataBase, "chat_uuid = '$chatUUID'", null, "time_created DESC", "1")
+            val messageList = getChatMessages(context,
+                    dataBase,
+                    "chat_uuid = ? AND message_data.data_type != ?",
+                    arrayOf(chatUUID.toString(), MessageDataRegistry.getID(MessageStatusUpdate::class.java).toString()),
+                    "time_created DESC",
+                    "1")
 
-            list.add(ChatListViewAdapter.ChatItem(chatInfo, messageList.firstOrNull(), ChatUtil.getUnreadMessagesFromChat(dataBase, chatUUID), !chatInfo.hasUnitializedUser()))
+            list.add(ChatListAdapter.ChatItem(chatInfo, messageList.firstOrNull(), ChatUtil.getUnreadMessagesFromChat(dataBase, chatUUID), !chatInfo.hasUnitializedUser()))
         }
     }
     return list
 }
 
 fun getChatInfo(chatUUID: UUID, dataBase: SQLiteDatabase): ChatInfo? {
-    return dataBase.rawQuery("SELECT chat_name, type FROM chats WHERE chat_uuid = ?", arrayOf(chatUUID.toString())).use { cursor ->
+    return dataBase.rawQuery("SELECT type FROM chats WHERE chat_uuid = ?", arrayOf(chatUUID.toString())).use { cursor ->
         if (cursor.moveToNext()) {
-            val chatName = cursor.getString(0)
-            val chatType = ChatType.values()[cursor.getInt(1)]
-            ChatInfo(chatUUID, chatName, chatType, readChatParticipants(dataBase, chatUUID))
+            val chatType = ChatType.values()[cursor.getInt(0)]
+            ChatInfo(chatUUID, chatType, readChatParticipants(dataBase, chatUUID))
         } else null
     }
 }
@@ -430,7 +433,7 @@ fun getUserChat(context: Context, dataBase: SQLiteDatabase, contact: Contact): C
             chatUUID = getChatUUIDForUserChat(clientUUID, contact.userUUID)
             wasRandom = true
         }
-        val chatInfo = ChatInfo(chatUUID, contact.name, ChatType.TWO_PEOPLE,
+        val chatInfo = ChatInfo(chatUUID, ChatType.TWO_PEOPLE,
                 listOf(ChatReceiver(contact.userUUID, contact.message_key, ChatReceiver.ReceiverType.USER), ChatReceiver(clientUUID, null, ChatReceiver.ReceiverType.USER, true)))
         if (wasRandom) createChat(chatInfo, dataBase, clientUUID)
         chatInfo

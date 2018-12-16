@@ -25,3 +25,11 @@ fun Resources.getCompatDrawable(id: Int, theme: Resources.Theme): Drawable {
         getDrawable(id)
     }
 }
+
+fun Resources.getCompatColor(colorId: Int, theme: Resources.Theme): Int {
+    return if(Build.VERSION.SDK_INT >= 23) {
+        getColor(colorId, theme)
+    } else {
+        getColor(colorId)
+    }
+}

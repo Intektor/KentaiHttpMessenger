@@ -1,4 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <SwitchPreference
+        android:defaultValue="true"
+        android:key="@string/preference_use_light_theme"
+        android:title="@string/preference_use_light_theme_ui" />
+    <SwitchPreference
+        android:defaultValue="false"
+        android:key="@string/preference_use_native_media_picker"
+        android:title="@string/preference_use_native_media_picker_ui" />
+
+
 </PreferenceScreen>

@@ -7,10 +7,9 @@ import android.view.ViewGroup
 import androidx.recyclerview.widget.LinearLayoutManager
 import de.intektor.mercury.R
 import de.intektor.mercury.android.mercuryClient
-import de.intektor.mercury.chat.getUserChat
 import de.intektor.mercury.chat.readContacts
 import de.intektor.mercury.client.ClientPreferences
-import de.intektor.mercury.ui.chat.ChatActivity
+import de.intektor.mercury.ui.ContactInfoDialog
 import de.intektor.mercury.ui.overview_activity.fragment.ContactAdapter
 import kotlinx.android.synthetic.main.fragment_contact_list.*
 
@@ -39,7 +38,9 @@ class FragmentContactsOverview : androidx.fragment.app.Fragment() {
             val contact = wrapper.contact
             if (contact.userUUID == client) return@ContactAdapter
 
-            ChatActivity.launch(requireContext(), getUserChat(mercuryClient, mercuryClient.dataBase, contact))
+            ContactInfoDialog().setUserUUID(contact.userUUID).setOnCancelListener {
+                updateContacts()
+            }.show(fragmentManager, "")
         }, callbackClickCheckBox = { _, _ -> }, registerForContextMenu = { false })
 
         fragment_contact_list_rv_contacts.adapter = adapter
@@ -48,6 +49,10 @@ class FragmentContactsOverview : androidx.fragment.app.Fragment() {
     override fun onResume() {
         super.onResume()
 
+        updateContacts()
+    }
+
+    private fun updateContacts() {
         currentContacts.clear()
 
         currentContacts += readContacts(requireContext().mercuryClient().dataBase).map { ContactAdapter.ContactWrapper(it, false) }

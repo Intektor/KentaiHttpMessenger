@@ -15,7 +15,6 @@ class DbHelper(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, 2) {
 
     override fun onCreate(dB: SQLiteDatabase) {
         dB.execSQL("CREATE TABLE IF NOT EXISTS chats (" +
-                "chat_name VARCHAR(20) NOT NULL, " +
                 "chat_uuid VARCHAR(45) NOT NULL, " +
                 "type INT NOT NULL, " +
                 "PRIMARY KEY (chat_uuid));")

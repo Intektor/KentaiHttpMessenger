@@ -5,7 +5,7 @@
     android:layout_height="match_parent"
     tools:context=".ui.register.RegisterActivity">
 
-    <androidx.viewpager.widget.ViewPager
+    <de.intektor.mercury.ui.view.UnswipableViewPager
         android:id="@+id/activity_register_vp"
         android:layout_width="match_parent"
         android:layout_height="match_parent"

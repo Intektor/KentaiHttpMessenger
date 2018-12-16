@@ -5,10 +5,12 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import de.intektor.mercury.R
-import de.intektor.mercury.chat.model.ChatInfo
+import de.intektor.mercury.android.mercuryClient
 import de.intektor.mercury.chat.ChatMessageInfo
+import de.intektor.mercury.chat.ChatUtil
 import de.intektor.mercury.chat.MessageUtil
-import de.intektor.mercury.ui.overview_activity.fragment.ChatListViewAdapter
+import de.intektor.mercury.chat.model.ChatInfo
+import de.intektor.mercury.ui.overview_activity.fragment.ChatListAdapter
 import de.intektor.mercury.ui.util.BindableViewHolder
 import java.text.SimpleDateFormat
 import java.util.*
@@ -27,7 +29,7 @@ class SearchAdapter(private val list: List<Any>, private val clickResponse: (Any
     override fun getItemViewType(position: Int): Int {
         val item = list[position]
         return when (item) {
-            is ChatListViewAdapter.ChatItem -> CHAT_ID
+            is ChatListAdapter.ChatItem -> CHAT_ID
             is ChatMessageSearch -> CHAT_MESSAGE_ID
             is SearchHeader -> HEADER_ID
             else -> throw IllegalArgumentException()
@@ -36,7 +38,7 @@ class SearchAdapter(private val list: List<Any>, private val clickResponse: (Any
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BindableViewHolder<Any> {
         return when (viewType) {
-            CHAT_ID -> ChatListViewAdapter.ChatItemViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_item, parent, false), {})
+            CHAT_ID -> ChatListAdapter.ChatItemViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_item, parent, false), {})
             CHAT_MESSAGE_ID -> ChatMessageViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.chat_message_search_item, parent, false))
             HEADER_ID -> SearchLabelViewHolder(LayoutInflater.from(parent.context).inflate(R.layout.search_label, parent, false))
             else -> throw IllegalArgumentException()
@@ -65,7 +67,8 @@ class SearchAdapter(private val list: List<Any>, private val clickResponse: (Any
         }
 
         override fun bind(item: ChatMessageSearch) {
-            chatLabel.text = item.chatInfo.chatName
+            val context = itemView.context
+            chatLabel.text = ChatUtil.getChatName(context, context.mercuryClient().dataBase, item.chatInfo.chatUUID)
             messageLabel.text = MessageUtil.getPreviewText(itemView.context, item.message.message)
             timeLabel.text = dateFormat.format(Date(item.message.message.messageCore.timeCreated))
         }

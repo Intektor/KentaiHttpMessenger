@@ -12,23 +12,26 @@ import android.media.MediaPlayer
 import android.media.MediaRecorder
 import android.net.Uri
 import android.os.*
+import android.provider.MediaStore
 import android.text.Editable
 import android.text.TextWatcher
 import android.text.format.DateUtils
 import android.view.*
 import android.widget.CheckBox
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationManagerCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.SimpleItemAnimator
 import com.google.common.hash.Hashing
-import com.squareup.picasso.MemoryPolicy
 import com.squareup.picasso.Picasso
 import com.squareup.picasso.Target
 import de.intektor.mercury.MercuryClient
 import de.intektor.mercury.R
 import de.intektor.mercury.action.ActionMessageStatusChange
+import de.intektor.mercury.action.chat.ActionChatMessageNotification
 import de.intektor.mercury.action.chat.ActionChatMessageReceived
 import de.intektor.mercury.action.chat.ActionUserViewChat
 import de.intektor.mercury.action.group.ActionGroupModificationReceived
@@ -46,6 +49,7 @@ import de.intektor.mercury.client.setBackgroundImage
 import de.intektor.mercury.connection.DirectConnectionService
 import de.intektor.mercury.contacts.Contact
 import de.intektor.mercury.io.download.IOService
+import de.intektor.mercury.media.ExternalStorageFile
 import de.intektor.mercury.media.MediaFile
 import de.intektor.mercury.media.MediaType
 import de.intektor.mercury.media.ThumbnailUtil
@@ -71,6 +75,7 @@ import de.intektor.mercury_common.tcp.client_to_server.TypingPacketToServer
 import de.intektor.mercury_common.tcp.client_to_server.ViewChatPacketToServer
 import de.intektor.mercury_common.tcp.server_to_client.Status
 import de.intektor.mercury_common.tcp.server_to_client.UserChange
+import de.intektor.mercury_common.users.ProfilePictureType
 import de.intektor.mercury_common.util.generateAESKey
 import de.intektor.mercury_common.util.generateInitVector
 import kotlinx.android.synthetic.main.activity_chat.*
@@ -102,6 +107,7 @@ class ChatActivity : AppCompatActivity() {
     private val updateProfilePictureReceiver = UploadProfilePictureReceiver()
     private val chatMessageReceiver = ChatMessageReceiver()
     private val messageStatusChangeReceiver = MessageStatusChangeReceiver()
+    private val chatNotificationReceiver = ChatNotificationReceiver()
 
     private val typingReceiver: BroadcastReceiver = TypingReceiver()
     private val userStatusChangeReceiver: BroadcastReceiver = UserStatusChangeReceiver()
@@ -164,8 +170,6 @@ class ChatActivity : AppCompatActivity() {
         private const val ACTION_PICK_BACKGROUND_IMAGE = 1104
         private const val ACTION_TAKE_IMAGE = 1105
 
-        private val calendar = Calendar.getInstance()
-
         private const val EXTRA_CHAT_INFO = "de.intektor.mercury.extra.EXTRA_CHAT_INFO"
         private const val EXTRA_MESSAGE_UUID = "de.intektor.mercury.extra.MESSAGE_UUID"
 
@@ -195,8 +199,6 @@ class ChatActivity : AppCompatActivity() {
 
         setContentView(R.layout.activity_chat)
 
-        val mercuryClient = mercuryClient()
-
         val (chatInfo, messageUUID) = getData(intent)
         this.chatInfo = chatInfo
 
@@ -213,7 +215,7 @@ class ChatActivity : AppCompatActivity() {
 
         val actionBar = supportActionBar
 
-        actionBar?.title = chatInfo.chatName
+        actionBar?.title = ChatUtil.getChatName(this, mercuryClient().dataBase, chatInfo.chatUUID)
 
 //        if (chatInfo.chatType.isGroup()) {
 //            for ((receiverUUID) in chatInfo.participants) {
@@ -228,10 +230,10 @@ class ChatActivity : AppCompatActivity() {
 //                }
 //            }
 //        } else {
-//            for ((receiverUUID) in chatInfo.participants) {
-//                val contact = getContact(mercuryClient.dataBase, receiverUUID)
-//                contactMap[receiverUUID] = contact
-//            }
+        for ((receiverUUID) in chatInfo.participants) {
+            val contact = getContact(mercuryClient().dataBase, receiverUUID)
+            contactMap[receiverUUID] = contact
+        }
 //        }
 
         val clientUUID = ClientPreferences.getClientUUID(this)
@@ -278,7 +280,14 @@ class ChatActivity : AppCompatActivity() {
 
         chatActivityButtonPickMedia.setOnClickListener {
             if (checkWriteStoragePermission(this, PERMISSION_REQUEST_EXTERNAL_STORAGE)) {
-                startActivityForResult(PickGalleryActivity.createIntent(this, chatInfo), ACTION_SEND_MEDIA)
+                if (PreferenceManager.getDefaultSharedPreferences(this).getBoolean(getString(R.string.preference_use_native_media_picker), false)) {
+                    val i = Intent(Intent.ACTION_PICK)
+                    i.type = "*/*"
+                    i.putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*"))
+                    startActivityForResult(i, ACTION_PICK_MEDIA)
+                } else {
+                    startActivityForResult(PickGalleryActivity.createIntent(this, chatInfo), ACTION_SEND_MEDIA)
+                }
             }
         }
 
@@ -330,7 +339,7 @@ class ChatActivity : AppCompatActivity() {
 
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
-        applyBackgroundImage(getBackgroundChatFile(this, chatInfo.chatUUID))
+//        applyBackgroundImage(getBackgroundChatFile(this, chatInfo.chatUUID))
     }
 
     private fun sendMessage() {
@@ -398,24 +407,20 @@ class ChatActivity : AppCompatActivity() {
 
         val accountItem = menu.findItem(R.id.chatActivityMenuAccount)
         if (chatInfo.chatType == ChatType.TWO_PEOPLE) {
-            Picasso.get()
-                    .load(ProfilePictureUtil.getProfilePicture(chatInfo.participants.first { it.receiverUUID != clientUUID }.receiverUUID, this))
-                    .memoryPolicy(MemoryPolicy.NO_CACHE)
-                    .resize(80, 80)
-                    .into(object : Target {
-                        override fun onBitmapFailed(e: Exception?, errorDrawable: Drawable?) {
+            ProfilePictureUtil.loadProfilePicture(chatInfo.getOthers(clientUUID).first().receiverUUID, ProfilePictureType.SMALL, object : Target {
+                override fun onBitmapFailed(e: Exception?, errorDrawable: Drawable?) {
 
-                        }
+                }
 
-                        override fun onPrepareLoad(placeHolderDrawable: Drawable?) {
+                override fun onPrepareLoad(placeHolderDrawable: Drawable?) {
 
-                        }
+                }
 
-                        override fun onBitmapLoaded(bitmap: Bitmap, from: Picasso.LoadedFrom?) {
-                            accountItem.icon = BitmapDrawable(resources, bitmap)
+                override fun onBitmapLoaded(bitmap: Bitmap, from: Picasso.LoadedFrom?) {
+                    accountItem.icon = BitmapDrawable(resources, bitmap)
 
-                        }
-                    })
+                }
+            })
         }
         return super.onCreateOptionsMenu(menu)
     }
@@ -435,11 +440,7 @@ class ChatActivity : AppCompatActivity() {
                 return true
             }
             R.id.chatActivityNativeGallery -> {
-                val i = Intent(Intent.ACTION_PICK)
-                i.type = "*/*"
-                i.putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*"))
-                startActivityForResult(i, ACTION_PICK_MEDIA)
-                return true
+
             }
             R.id.chatActivitySetBackgroundColor -> {
 
@@ -476,10 +477,23 @@ class ChatActivity : AppCompatActivity() {
             }
             ACTION_PICK_MEDIA -> {
                 if (resultCode == Activity.RESULT_OK && data != null) {
-                    val startMedia = Intent(this, SendMediaActivity::class.java)
-                    startMedia.putExtra(KEY_CHAT_INFO, chatInfo)
-                    startMedia.putParcelableArrayListExtra(KEY_MEDIA_URL, ArrayList(listOf(data.data)))
-                    startActivityForResult(startMedia, ACTION_SEND_MEDIA)
+                    contentResolver.query(data.data,
+                            arrayOf(MediaStore.Files.FileColumns._ID, MediaStore.Files.FileColumns.MEDIA_TYPE, MediaStore.Files.FileColumns.DATE_ADDED),
+                            null,
+                            null,
+                            null).use { cursor ->
+                        if (cursor != null && cursor.moveToNext()) {
+                            val id = cursor.getLong(0)
+                            val mediaType = cursor.getInt(1)
+                            val dateAdded = cursor.getLong(2)
+                            startActivityForResult(SendMediaActivity.createIntent(this,
+                                    chatInfo,
+                                    listOf(ExternalStorageFile(id, mediaType, dateAdded))),
+                                    ACTION_SEND_MEDIA)
+                            return
+                        }
+                    }
+                    Toast.makeText(this, "Looks like something went wrong", Toast.LENGTH_LONG).show()
                 }
             }
             ACTION_PICK_BACKGROUND_IMAGE -> {
@@ -661,6 +675,11 @@ class ChatActivity : AppCompatActivity() {
 //            registerReceiver(updateProfilePictureReceiver, )
         }
 
+        val chatNotificationIntentFilter = ActionChatMessageNotification.getFilter()
+        chatNotificationIntentFilter.priority = 1
+
+        registerReceiver(chatNotificationReceiver, chatNotificationIntentFilter)
+
         viewChat(true)
 
         addInterestedChatUsers(true)
@@ -708,6 +727,8 @@ class ChatActivity : AppCompatActivity() {
             unregisterReceiver(userStatusChangeReceiver)
         }
 
+        unregisterReceiver(chatNotificationReceiver)
+
         viewChat(false)
 
         addInterestedChatUsers(false)
@@ -749,7 +770,7 @@ class ChatActivity : AppCompatActivity() {
             } catch (t: Throwable) {
             }
 
-            chatActivityRecordingLayout.visibility = View.VISIBLE
+            activity_chat_cv_recording.visibility = View.VISIBLE
 
             val handler = Handler()
             handler.post(object : Runnable {
@@ -764,7 +785,7 @@ class ChatActivity : AppCompatActivity() {
                         seconds -= 60
                     }
 
-                    chatActivityRecordingText.text = getString(R.string.chat_activity_voice_record, min, seconds)
+                    activity_chat_tv_record_audio_timer.text = getString(R.string.chat_activity_voice_record, min, seconds)
 
                     handler.postDelayed(this, 1000L)
                 }
@@ -780,7 +801,7 @@ class ChatActivity : AppCompatActivity() {
         if (isRecording) {
             isRecording = false
 
-            chatActivityRecordingLayout.visibility = View.GONE
+            activity_chat_cv_recording.visibility = View.GONE
 
             try {
 
@@ -1008,7 +1029,6 @@ class ChatActivity : AppCompatActivity() {
     fun updateChatName(chatUUID: UUID, newName: String) {
         if (chatUUID != chatInfo.chatUUID) return
         supportActionBar?.title = newName
-        chatInfo = chatInfo.copy(chatName = newName)
     }
 
     override fun onNewIntent(intent: Intent?) {
@@ -1214,45 +1234,41 @@ class ChatActivity : AppCompatActivity() {
             val client = ClientPreferences.getClientUUID(this@ChatActivity)
 
 
-//            (Math.max(0, firstVisibleIndex)..Math.min(lastVisibleIndex, componentList.size))
-//                    .map { componentList[it].item }
-//                    .filter { it is ChatMessageWrapper || it is ReferenceHolder }
-//                    .filter {
-//                        val wrapper = (it as? ReferenceHolder)?.chatMessageInfo
-//                                ?: it as ChatMessageWrapper
-//                        wrapper.latestStatus != MessageStatus.SEEN
-//                    }
-//                    .forEach {
-//                        val wrapper = (it as? ReferenceHolder)?.chatMessageInfo
-//                                ?: it as ChatMessageWrapper
-//                        if (!wrapper.chatMessageInfo.client) {
-//                            wrapper.latestStatus = MessageStatus.SEEN
-//
-//                            val mercuryClient = mercuryClient()
-//
-//                            val core = wrapper.chatMessageInfo.message.messageCore
-//
-//                            val messageUUID = core.messageUUID
-//
-//                            updateMessageStatus(mercuryClient.dataBase, messageUUID, MessageStatus.SEEN, System.currentTimeMillis())
-//
-//                            for (s in chatInfo.getOthers(client)) {
-//                                val changeCore = MessageCore(client, System.currentTimeMillis(), UUID.randomUUID())
-//                                val changeData = MessageStatusUpdate(messageUUID, MessageStatus.SEEN, System.currentTimeMillis())
-//
-//                                sendMessageToServer(this@ChatActivity, PendingMessage(ChatMessage(changeCore, changeData), chatInfo.chatUUID, chatInfo.getOthers(client)), mercuryClient.dataBase)
-//                            }
-//                            recyclerView.adapter?.notifyItemChanged(componentList.indexOf(it))
-//                        }
-//                    }
+            (Math.max(0, firstVisibleIndex)..Math.min(lastVisibleIndex, componentList.size))
+                    .asSequence()
+                    .map { componentList[it].item }
+                    .filter { chatAdapterSubItem -> chatAdapterSubItem is ChatAdapterMessage }
+                    .filter {
+                        it as ChatAdapterMessage
+                        it.message.latestStatus != MessageStatus.SEEN
+                    }
+                    .forEach { chatAdapterSubItem ->
+                        chatAdapterSubItem as ChatAdapterMessage
+                        val wrapper = chatAdapterSubItem.message
+                        if (!wrapper.chatMessageInfo.client) {
+                            wrapper.latestStatus = MessageStatus.SEEN
+
+                            val mercuryClient = mercuryClient()
+
+                            val core = wrapper.chatMessageInfo.message.messageCore
+
+                            val messageUUID = core.messageUUID
+
+                            updateMessageStatus(mercuryClient.dataBase, messageUUID, MessageStatus.SEEN, System.currentTimeMillis())
+
+                            for (s in chatInfo.getOthers(client)) {
+                                val changeCore = MessageCore(client, System.currentTimeMillis(), UUID.randomUUID())
+                                val changeData = MessageStatusUpdate(messageUUID, MessageStatus.SEEN, System.currentTimeMillis())
+
+                                sendMessageToServer(this@ChatActivity, PendingMessage(ChatMessage(changeCore, changeData), chatInfo.chatUUID, chatInfo.getOthers(client)), mercuryClient.dataBase)
+                            }
+                            chatAdapter.notifyItemChanged(componentList.indexOfFirst { it.item == chatAdapterSubItem })
+                        }
+                    }
 
             if (firstVisibleIndex < 10 && !currentlyLoadingMore) {
                 loadMoreMessagesTop(true)
             }
-
-//            if (lastVisibleIndex >= componentList.size - 10 && !currentlyLoadingMore && !upToDate) {
-//                loadMore(false)
-//            }
 
             if (onBottom) {
                 upToDate = true
@@ -1352,8 +1368,10 @@ class ChatActivity : AppCompatActivity() {
 
             if (chatUuid == chatInfo.chatUUID) {
                 if (userUuid == ClientPreferences.getClientUUID(context)) return
+
                 val contact = contactMap[userUuid] ?: return
                 val viewingUser = ViewingUser(contact, UserState.VIEWING)
+
                 if (isViewing) {
                     if (viewingUsersList.any { it.contact.userUUID == userUuid }) return
                     viewingUsersList += viewingUser
@@ -1421,6 +1439,15 @@ class ChatActivity : AppCompatActivity() {
     inner class UploadProgressReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
 
+        }
+    }
+
+    inner class ChatNotificationReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val (chatUuid, _) = ActionChatMessageNotification.getData(intent)
+            if (chatUuid == chatInfo.chatUUID) {
+                abortBroadcast()
+            }
         }
     }
 

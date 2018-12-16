@@ -33,10 +33,11 @@ import com.google.firebase.iid.FirebaseInstanceId
 import de.intektor.mercury.MercuryClient
 import de.intektor.mercury.R
 import de.intektor.mercury.action.group.ActionGroupModificationReceived
-import de.intektor.mercury.android.getAttrDrawable
 import de.intektor.mercury.android.getSelectedTheme
+import de.intektor.mercury.android.mercuryClient
 import de.intektor.mercury.backup.BackupService
 import de.intektor.mercury.backup.BackupService.Companion.PREF_ACCOUNT_NAME
+import de.intektor.mercury.chat.ChatUtil
 import de.intektor.mercury.chat.MessageUtil
 import de.intektor.mercury.chat.readChats
 import de.intektor.mercury.client.ClientPreferences
@@ -44,7 +45,7 @@ import de.intektor.mercury.firebase.UploadTokenTask
 import de.intektor.mercury.ui.*
 import de.intektor.mercury.ui.chat.ChatActivity
 import de.intektor.mercury.ui.chat.adapter.chat.HeaderItemDecoration
-import de.intektor.mercury.ui.overview_activity.fragment.ChatListViewAdapter
+import de.intektor.mercury.ui.overview_activity.fragment.ChatListAdapter
 import de.intektor.mercury.ui.register.RegisterActivity
 import de.intektor.mercury_common.chat.MessageStatus
 import de.intektor.mercury_common.chat.data.group_modification.GroupModificationChangeName
@@ -83,7 +84,7 @@ class OverviewActivity : AppCompatActivity() {
 
     private var currentMessagesOffset = 0
 
-    private val chatList = mutableListOf<ChatListViewAdapter.ChatItem>()
+    private val chatList = mutableListOf<ChatListAdapter.ChatItem>()
     private var currentQuery = ""
 
     companion object {
@@ -125,7 +126,7 @@ class OverviewActivity : AppCompatActivity() {
         activity_overview_tablayout.setupWithViewPager(activity_overview_viewpager)
 
         searchAdapter = SearchAdapter(searchList) { item ->
-            if (item is ChatListViewAdapter.ChatItem) {
+            if (item is ChatListAdapter.ChatItem) {
                 ChatActivity.launch(this, item.chatInfo)
             } else if (item is SearchAdapter.ChatMessageSearch) {
                 ChatActivity.launch(this, item.chatInfo, item.message.message.messageCore.messageUUID)
@@ -166,8 +167,6 @@ class OverviewActivity : AppCompatActivity() {
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.menu_overview, menu)
-        menu.findItem(R.id.new_chat).icon = getAttrDrawable(this, R.attr.ic_message)
-        menu.findItem(R.id.new_contact).icon = getAttrDrawable(this, R.attr.ic_person_add)
         val searchItem = menu.findItem(R.id.menu_activity_overview_item_search)
 
         val searchView = searchItem.actionView as SearchView
@@ -201,7 +200,9 @@ class OverviewActivity : AppCompatActivity() {
                         chatList += readChats(mercuryClient.dataBase, this@OverviewActivity)
                     }
 
-                    val foundChats = chatList.filter { it.chatInfo.chatName.contains(query, true) }
+                    val foundChats = chatList.filter {
+                        ChatUtil.getChatName(this@OverviewActivity, mercuryClient().dataBase, it.chatInfo.chatUUID).contains(query, true)
+                    }
 
                     searchList.clear()
                     searchList += SearchAdapter.SearchHeader(SearchAdapter.SearchHeader.SearchHeaderType.CHATS)
@@ -268,7 +269,7 @@ class OverviewActivity : AppCompatActivity() {
         return super.onOptionsItemSelected(item)
     }
 
-    fun addChat(item: ChatListViewAdapter.ChatItem) {
+    fun addChat(item: ChatListAdapter.ChatItem) {
         val fragment = supportFragmentManager.findFragmentByTag("android:switcher:" + R.id.activity_overview_viewpager + ":0") as FragmentChatsOverview
         fragment.addChat(item)
         fragment.shownChatList.sortBy {
@@ -277,7 +278,7 @@ class OverviewActivity : AppCompatActivity() {
         fragment.fragment_chat_list_rv_chats.adapter?.notifyDataSetChanged()
     }
 
-    fun getCurrentChats(): List<ChatListViewAdapter.ChatItem> {
+    fun getCurrentChats(): List<ChatListAdapter.ChatItem> {
         val fragment = supportFragmentManager.findFragmentByTag("android:switcher:" + R.id.activity_overview_viewpager + ":0") as FragmentChatsOverview
         return fragment.shownChatList
     }
@@ -295,7 +296,6 @@ class OverviewActivity : AppCompatActivity() {
     fun updateChatName(chatUUID: UUID, name: String) {
         val fragment = supportFragmentManager.findFragmentByTag("android:switcher:" + R.id.activity_overview_viewpager + ":0") as FragmentChatsOverview
         val chatItem = fragment.chatMap[chatUUID]!!
-        chatItem.chatInfo = chatItem.chatInfo.copy(chatName = name)
         fragment.fragment_chat_list_rv_chats.adapter?.notifyDataSetChanged()
     }
 

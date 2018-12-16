@@ -9,18 +9,19 @@ import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.provider.MediaStore
 import androidx.appcompat.app.AppCompatActivity
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import androidx.preference.PreferenceFragment
 import com.squareup.picasso.MemoryPolicy
 import com.squareup.picasso.Picasso
 import com.theartofdev.edmodo.cropper.CropImage
 import de.intektor.mercury.MercuryClient
 import de.intektor.mercury.R
+import de.intektor.mercury.action.profpic.ActionProfilePictureUploaded
 import de.intektor.mercury.android.checkWriteStoragePermission
 import de.intektor.mercury.android.getSelectedTheme
-import de.intektor.mercury.android.isUsingLightTheme
 import de.intektor.mercury.android.setSelectedTheme
 import de.intektor.mercury.client.ClientPreferences
 import de.intektor.mercury.io.ChatMessageService
-import de.intektor.mercury.util.ACTION_PROFILE_PICTURE_UPLOADED
 import de.intektor.mercury.util.ProfilePictureUtil
 import kotlinx.android.synthetic.main.activity_settings_overview.*
 
@@ -39,22 +40,18 @@ class SettingsOverviewActivity : AppCompatActivity() {
 
         setContentView(R.layout.activity_settings_overview)
 
-        val mercuryClient = applicationContext as MercuryClient
-
         val client = ClientPreferences.getClientUUID(this)
 
         if (ProfilePictureUtil.hasProfilePicture(client, this)) {
             val clientFile = ProfilePictureUtil.getProfilePicture(client, this)
-            settingsOverviewActivityProfilePicture.setImageBitmap(BitmapFactory.decodeFile(clientFile.path))
+            activity_settings_overview_iv_pp.setImageBitmap(BitmapFactory.decodeFile(clientFile.path))
         }
 
-        settingsOverviewActivityProfilePicture.setOnClickListener {
+        activity_settings_overview_cl_change_pp_parent.setOnClickListener {
             changeProfilePicture()
         }
 
-        settingsOverviewActivityChangeProfilePictureButton.setOnClickListener {
-            changeProfilePicture()
-        }
+        activity_settings_overview_tv_username.text = ClientPreferences.getUsername(this)
 
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
@@ -63,20 +60,16 @@ class SettingsOverviewActivity : AppCompatActivity() {
                 Picasso.get()
                         .load(ProfilePictureUtil.getProfilePicture(client, context))
                         .memoryPolicy(MemoryPolicy.NO_CACHE)
-                        .into(settingsOverviewActivityProfilePicture)
+                        .into(activity_settings_overview_iv_pp)
             }
         }
 
-        settingsOverviewLightThemeSwitch.isChecked = isUsingLightTheme(this)
-
-        settingsOverviewLightThemeSwitch.setOnCheckedChangeListener { _, isChecked ->
-            setSelectedTheme(this, isChecked)
-            setTheme(getSelectedTheme(this))
-
-            val i = Intent(this, SettingsOverviewActivity::class.java)
-            startActivity(i)
-            finish()
-        }
+        fragmentManager.beginTransaction()
+                .replace(R.id.activity_settings_overview_fl_settings, SettingsFragment().setOnChangeThemeCallback {
+                    finish()
+                    startActivity(Intent(this, SettingsOverviewActivity::class.java))
+                })
+                .commit()
     }
 
     private fun changeProfilePicture() {
@@ -109,17 +102,43 @@ class SettingsOverviewActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        registerReceiver(receiverUploadedProfilePicture, IntentFilter(ACTION_PROFILE_PICTURE_UPLOADED))
+        LocalBroadcastManager.getInstance(this).apply {
+            registerReceiver(receiverUploadedProfilePicture, IntentFilter(ActionProfilePictureUploaded.getFilter()))
+        }
     }
 
     override fun onPause() {
         super.onPause()
-
-        unregisterReceiver(receiverUploadedProfilePicture)
+        LocalBroadcastManager.getInstance(this).apply {
+            unregisterReceiver(receiverUploadedProfilePicture)
+        }
     }
 
     override fun onSupportNavigateUp(): Boolean {
         finish()
         return true
+    }
+
+    class SettingsFragment : PreferenceFragment() {
+
+        private var onChangeTheme: (() -> Unit)? = null
+
+        override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
+            setPreferencesFromResource(R.xml.preferences, rootKey)
+            findPreference(getString(R.string.preference_use_light_theme)).setOnPreferenceChangeListener { preference, newValue ->
+                if (newValue is Boolean) {
+                    setSelectedTheme(preference.context, newValue)
+
+                    onChangeTheme?.invoke()
+                    return@setOnPreferenceChangeListener true
+                }
+                return@setOnPreferenceChangeListener false
+            }
+        }
+
+        fun setOnChangeThemeCallback(callback: () -> Unit): SettingsFragment {
+            this.onChangeTheme = callback
+            return this
+        }
     }
 }

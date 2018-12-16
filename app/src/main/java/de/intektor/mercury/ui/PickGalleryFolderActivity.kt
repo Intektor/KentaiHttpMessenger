@@ -4,10 +4,10 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.view.ActionMode
 import android.view.Menu
 import android.view.MenuItem
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.view.ActionMode
 import de.intektor.mercury.R
 import de.intektor.mercury.android.getChatInfoExtra
 import de.intektor.mercury.android.getSelectedTheme
@@ -25,27 +25,30 @@ class PickGalleryFolderActivity : AppCompatActivity(), FragmentListMedia.UserInt
         private const val EXTRA_FOLDER_ID = "de.intektor.mercury.EXTRA_FOLDER_ID"
         private const val EXTRA_CHAT_INFO = "de.intektor.mercury.EXTRA_CHAT_INFO"
         private const val EXTRA_FOLDER_NAME = "de.intektor.mercury.EXTRA_FOLDER_NAME"
+        private const val EXTRA_SELECT_MULTIPLE_SUPPORTED = "de.intektor.mercury.EXTRA_SELECT_MULTIPLE_SUPPORTED"
 
-        fun createIntent(context: Context, folderId: Long, chatInfo: ChatInfo, folderName: String): Intent {
+        fun createIntent(context: Context, folderId: Long, chatInfo: ChatInfo?, folderName: String, selectMultipleSupported: Boolean): Intent {
             return Intent(context, PickGalleryFolderActivity::class.java)
                     .putExtra(EXTRA_FOLDER_ID, folderId)
                     .putExtra(EXTRA_CHAT_INFO, chatInfo)
                     .putExtra(EXTRA_FOLDER_NAME, folderName)
+                    .putExtra(EXTRA_SELECT_MULTIPLE_SUPPORTED, selectMultipleSupported)
         }
 
-        fun launch(context: Context, folderId: Long, chatInfo: ChatInfo, folderName: String) {
-            context.startActivity(createIntent(context, folderId, chatInfo, folderName))
+        fun launch(context: Context, folderId: Long, chatInfo: ChatInfo, folderName: String, selectMultipleSupported: Boolean) {
+            context.startActivity(createIntent(context, folderId, chatInfo, folderName, selectMultipleSupported))
         }
 
         fun getData(intent: Intent): Holder {
             val folderId = intent.getLongExtra(EXTRA_FOLDER_ID, 0)
-            val chatInfo = intent.getChatInfoExtra(EXTRA_CHAT_INFO)
+            val chatInfo: ChatInfo? = intent.getChatInfoExtra(EXTRA_CHAT_INFO)
             val folderName = intent.getStringExtra(EXTRA_FOLDER_NAME)
+            val selectMultipleSupported = intent.getBooleanExtra(EXTRA_SELECT_MULTIPLE_SUPPORTED, false)
 
-            return Holder(folderId, chatInfo, folderName)
+            return Holder(folderId, chatInfo, folderName, selectMultipleSupported)
         }
 
-        data class Holder(val folderId: Long, val chatInfo: ChatInfo, val folderName: String)
+        data class Holder(val folderId: Long, val chatInfo: ChatInfo?, val folderName: String, val selectMultipleSupported: Boolean)
     }
 
 
@@ -75,7 +78,9 @@ class PickGalleryFolderActivity : AppCompatActivity(), FragmentListMedia.UserInt
             override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
                 when (item.itemId) {
                     R.id.menuPickGalleryActionModeSend -> {
-                        startActivityForResult(SendMediaActivity.createIntent(this@PickGalleryFolderActivity, chatInfo, folderId, fragment.selectedMediaFiles.map { it.file }), ACTION_SEND_MEDIA)
+                        if (chatInfo != null) {
+                            startActivityForResult(SendMediaActivity.createIntent(this@PickGalleryFolderActivity, chatInfo, fragment.selectedMediaFiles.map { it.file }), ACTION_SEND_MEDIA)
+                        }
                         return true
                     }
                 }
@@ -84,6 +89,8 @@ class PickGalleryFolderActivity : AppCompatActivity(), FragmentListMedia.UserInt
 
             override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
                 menuInflater.inflate(R.menu.menu_pick_gallery_action_mode, menu)
+
+                menu.findItem(R.id.menuPickGalleryActionModeSend).setIcon(if (chatInfo != null) R.drawable.baseline_send_24 else R.drawable.baseline_check_24)
                 return true
             }
 
@@ -104,10 +111,12 @@ class PickGalleryFolderActivity : AppCompatActivity(), FragmentListMedia.UserInt
     }
 
     override fun activatedActionMode() {
+        if (!getData(intent).selectMultipleSupported) return
         actionMode = startSupportActionMode(actionCallback)
     }
 
     override fun finishActionMode() {
+        if (!getData(intent).selectMultipleSupported) return
         actionMode?.finish()
         actionMode = null
     }
@@ -123,7 +132,9 @@ class PickGalleryFolderActivity : AppCompatActivity(), FragmentListMedia.UserInt
     override fun selectSingleItemAndContinue(mediaFile: MediaFile) {
         val (folderId, chatInfo, _) = getData(intent)
 
-        startActivityForResult(SendMediaActivity.createIntent(this, chatInfo, folderId, listOf(mediaFile)), PickGalleryFolderActivity.ACTION_SEND_MEDIA)
+        if (chatInfo != null) {
+            startActivityForResult(SendMediaActivity.createIntent(this, chatInfo, listOf(mediaFile)), PickGalleryFolderActivity.ACTION_SEND_MEDIA)
+        }
     }
 
     private fun updateActionModeLabel(selectedAmount: Int) {

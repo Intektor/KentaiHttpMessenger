@@ -8,14 +8,13 @@ import android.content.IntentFilter
 import android.database.sqlite.SQLiteDatabase
 import android.graphics.Color
 import android.os.Bundle
-import androidx.appcompat.app.AlertDialog
-import androidx.appcompat.app.AppCompatActivity
 import android.view.ContextMenu
 import android.view.MenuItem
 import android.view.View
 import android.widget.EditText
 import android.widget.LinearLayout
-import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
 import de.intektor.mercury.MercuryClient
 import de.intektor.mercury.R
 import de.intektor.mercury.action.group.ActionGroupModificationReceived
@@ -37,7 +36,6 @@ import de.intektor.mercury_common.chat.ChatMessage
 import de.intektor.mercury_common.chat.ChatType
 import de.intektor.mercury_common.chat.GroupRole
 import de.intektor.mercury_common.chat.MessageCore
-import de.intektor.mercury_common.chat.data.MessageGroupInvite
 import de.intektor.mercury_common.chat.data.group_modification.*
 import kotlinx.android.synthetic.main.activity_group_info.*
 import java.util.*
@@ -77,7 +75,7 @@ class GroupInfoActivity : AppCompatActivity() {
 
         val changeName: GroupModificationChangeName? = pending.firstOrNull { it is GroupModificationChangeName } as? GroupModificationChangeName
 
-        setGroupNameToUI(changeName?.newName ?: chatInfo.chatName, changeName != null)
+//        setGroupNameToUI(changeName?.newName ?: chatInfo.chatName, changeName != null)
 
         loadRoles()
 
@@ -121,7 +119,7 @@ class GroupInfoActivity : AppCompatActivity() {
 
             val editText = EditText(this@GroupInfoActivity)
             editText.hint = getString(R.string.group_info_edit_group_alert_group_name_hint)
-            editText.setText(chatInfo.chatName, TextView.BufferType.EDITABLE)
+//            editText.setText(chatInfo.chatName, TextView.BufferType.EDITABLE)
 
             val layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.MATCH_PARENT)
             editText.layoutParams = layoutParams
@@ -131,13 +129,13 @@ class GroupInfoActivity : AppCompatActivity() {
             dialogBuilder.setNegativeButton(R.string.group_info_edit_group_alert_cancel, null)
             dialogBuilder.setPositiveButton(R.string.group_info_edit_group_alert_edit) { _, _ ->
                 val newName = editText.text.toString()
-                if (newName != chatInfo.chatName) {
-                    val groupModification = GroupModificationChangeName(chatInfo.chatName, newName, chatInfo.chatUUID, UUID.randomUUID())
-                    sendGroupModification(groupModification)
-                    chatInfo = chatInfo.copy(chatName = newName)
-                    localHandleGroupModification(groupModification, mercuryClient.dataBase)
-                    setGroupNameToUI(newName, clientGroupRole != GroupRole.ADMIN)
-                }
+//                if (newName != chatInfo.chatName) {
+//                    val groupModification = GroupModificationChangeName(chatInfo.chatName, newName, chatInfo.chatUUID, UUID.randomUUID())
+//                    sendGroupModification(groupModification)
+//                    chatInfo = chatInfo.copy(chatName = newName)
+//                    localHandleGroupModification(groupModification, mercuryClient.dataBase)
+//                    setGroupNameToUI(newName, clientGroupRole != GroupRole.ADMIN)
+//                }
             }
             dialogBuilder.create().show()
         }
@@ -155,7 +153,7 @@ class GroupInfoActivity : AppCompatActivity() {
 
                 when (modification) {
                     is GroupModificationChangeName -> {
-                        chatInfo = chatInfo.copy(chatName = modification.newName)
+//                        chatInfo = chatInfo.copy(chatName = modification.newName)
                         setGroupNameToUI(modification.newName, false)
                     }
                     is GroupModificationAddUser -> {
@@ -376,11 +374,11 @@ class GroupInfoActivity : AppCompatActivity() {
                         val groupKey = getGroupKey(chatInfo.chatUUID, mercuryClient.dataBase)
                                 ?: return
 
-                        val groupInvite = if (chatInfo.chatType == ChatType.GROUP_DECENTRALIZED) {
-                            MessageGroupInvite.GroupInviteDecentralizedChat(roleMap, chatInfo.chatUUID, chatInfo.chatName, groupKey)
-                        } else MessageGroupInvite.GroupInviteCentralizedChat(chatInfo.chatUUID, chatInfo.chatName, groupKey)
-
-                        inviteUserToGroupChat(this, mercuryClient.dataBase, client, userUUID, groupInvite)
+//                        val groupInvite = if (chatInfo.chatType == ChatType.GROUP_DECENTRALIZED) {
+//                            MessageGroupInvite.GroupInviteDecentralizedChat(roleMap, chatInfo.chatUUID, chatInfo.chatName, groupKey)
+//                        } else MessageGroupInvite.GroupInviteCentralizedChat(chatInfo.chatUUID, chatInfo.chatName, groupKey)
+//
+//                        inviteUserToGroupChat(this, mercuryClient.dataBase, client, userUUID, groupInvite)
                     }
                 }
             }

@@ -109,7 +109,8 @@ class DirectConnectionService : Service() {
                 }
                 ActionDisconnect.isAction(intent) -> {
                     wantConnection = false
-                    disconnect()
+                    val socket = currentSocket
+                    if (socket != null) disconnect(socket)
                 }
             }
         }
@@ -155,7 +156,8 @@ class DirectConnectionService : Service() {
     }
 
     private fun onDisconnectedFromNetwork() {
-        disconnect()
+        val socket = currentSocket
+        if (socket != null) disconnect(socket)
     }
 
     @Synchronized
@@ -171,8 +173,8 @@ class DirectConnectionService : Service() {
     }
 
     @Synchronized
-    private fun disconnect() {
-        if (!isConnected) return
+    private fun disconnect(session: Socket) {
+        if (!isConnected || currentSocket != session) return
         keepConnection = false
         if (currentSocket?.isBound == true) {
             currentSocket?.close()
@@ -294,7 +296,7 @@ class DirectConnectionService : Service() {
                         } catch (t: Throwable) {
                             Logger.debug(TAG, "Error while receiving packet", t)
                             if (keepConnection && connectedSocket == connectedSocket && isConnected) {
-                                disconnect()
+                                disconnect(connectedSocket)
                             }
                         }
                         Thread.sleep(5000L)
@@ -305,7 +307,7 @@ class DirectConnectionService : Service() {
                     while (keepConnection && connectedSocket.isBound) {
                         Thread.sleep(10000)
                         if (System.currentTimeMillis() - 10000 > lastHeartbeatTime) {
-                            disconnect()
+                            disconnect(connectedSocket)
                         }
                     }
                 }
@@ -320,7 +322,7 @@ class DirectConnectionService : Service() {
                         }
                     } catch (t: Throwable) {
                         if (keepConnection && connectedSocket == connectedSocket && isConnected) {
-                            disconnect()
+                            disconnect(connectedSocket)
                         }
                     }
                 }
@@ -331,7 +333,7 @@ class DirectConnectionService : Service() {
                         handlePacket(packet, connectedSocket, ClientContext(this@DirectConnectionService))
                     } catch (t: Throwable) {
                         if (keepConnection && connectedSocket == connectedSocket && isConnected) {
-                            disconnect()
+                            disconnect(connectedSocket)
                         }
                     }
                 }

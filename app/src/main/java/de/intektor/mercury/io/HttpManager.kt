@@ -10,8 +10,8 @@ import java.util.concurrent.TimeUnit
 object HttpManager {
 
     val httpClient: OkHttpClient = OkHttpClient.Builder()
-            .readTimeout(5, TimeUnit.SECONDS)
-            .writeTimeout(5, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
             .build()
 
     fun rawPost(json: String, target: String): ResponseBody? {

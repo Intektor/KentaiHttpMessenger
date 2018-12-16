@@ -43,10 +43,28 @@ object ContactUtil {
         }
     }
 
+    fun setDisplayName(dataBase: SQLiteDatabase, userUUID: UUID, displayName: String) {
+        dataBase.compileStatement("UPDATE contacts SET alias = ? WHERE user_uuid = ?").use { statement ->
+            statement.bindString(1, displayName)
+            statement.bindString(2, userUUID.toString())
+            statement.execute()
+        }
+    }
+
     fun hasContact(dataBase: SQLiteDatabase, userUUID: UUID): Boolean =
             dataBase.isValuePresent("contacts", "user_uuid", userUUID)
 
-    fun getDisplayName(context: Context, dataBase: SQLiteDatabase, contact: Contact) = contact.name
+    fun getDisplayName(context: Context, dataBase: SQLiteDatabase, contact: Contact): String {
+        val alias = dataBase.rawQuery("SELECT alias FROM contacts WHERE user_uuid = ?", arrayOf(contact.userUUID.toString())).use { cursor ->
+            cursor.moveToNext()
+
+            cursor.getString(0)
+        }
+
+        return if (alias != null && alias.isNotBlank()) {
+            alias
+        } else contact.name
+    }
 
     fun getColors() = arrayOf("FFE100", "FF1000", "FF0797", "D000FF", "7200FF", "0050FF", "00C7FF", "00FF00", "AD5E30", "826BAA", "72A8A4")
 }

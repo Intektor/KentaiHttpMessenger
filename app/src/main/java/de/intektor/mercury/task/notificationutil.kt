@@ -7,6 +7,7 @@ import android.database.sqlite.SQLiteDatabase
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.graphics.Typeface
+import android.graphics.drawable.Icon
 import android.media.RingtoneManager
 import android.os.Build
 import android.text.Spannable
@@ -15,7 +16,9 @@ import android.text.style.StyleSpan
 import androidx.annotation.RequiresApi
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.app.Person
 import androidx.core.app.TaskStackBuilder
+import androidx.core.graphics.drawable.IconCompat
 import de.intektor.mercury.MercuryClient
 import de.intektor.mercury.R
 import de.intektor.mercury.action.notification.ActionNotificationReply
@@ -34,6 +37,7 @@ import de.intektor.mercury_common.chat.data.*
 import de.intektor.mercury_common.chat.data.group_modification.GroupModificationChangeName
 import de.intektor.mercury_common.chat.data.group_modification.GroupModificationChangeRole
 import de.intektor.mercury_common.chat.data.group_modification.MessageGroupModification
+import de.intektor.mercury_common.users.ProfilePictureType
 import java.util.*
 
 /**
@@ -84,7 +88,7 @@ fun popNotificationSDKUnderNougat(context: Context, list: List<NotificationHolde
 
 
     val builder = NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_NEW_MESSAGES)
-            .setSmallIcon(R.drawable.message_icon)
+            .setSmallIcon(R.drawable.baseline_message_24)
             .setContentTitle(context.getString(R.string.notification_amount_you_have_new_messages, list.size))
             .setContentText(format(context, true, true, newMessage))
             .setStyle(inboxStyle)
@@ -120,19 +124,25 @@ fun popNotificationSDK24(context: Context, list: List<NotificationHolder>, notif
     for ((chatUUID, notifications) in groupedByChat) {
         val firstNotification = notifications.lastOrNull() ?: continue
 
-        val (chatMessage, chatName, senderName, chatType) = firstNotification.getData(context, dataBase)
+        val (chatMessage, chatName, senderName, chatType, senderUUID) = firstNotification.getData(context, dataBase)
 
-        val inboxStyle = NotificationCompat.InboxStyle()
-        inboxStyle.setBigContentTitle(context.getString(R.string.notification_amount_messages, chatName, notifications.size))
-        inboxStyle.setSummaryText(format(context, false, chatType.isGroup(), newMessage))
+        val profilePictureFile = ProfilePictureUtil.getProfilePicture(senderUUID, context, ProfilePictureType.SMALL)
+        val personIcon = if (profilePictureFile.exists()) Icon.createWithFilePath(profilePictureFile.path) else Icon.createWithResource(context, R.drawable.baseline_account_circle_24)
+
+        val person = Person.Builder()
+                .setName(senderName)
+                .setIcon(IconCompat.createFromIcon(context, personIcon))
+                .build()
+        val style = NotificationCompat.MessagingStyle(person)
+
         for (notification in notifications) {
-            inboxStyle.addLine(format(context, false, chatType.isGroup(), notification))
+            style.addMessage(NotificationCompat.MessagingStyle.Message(MessageUtil.getPreviewText(context, chatMessage), chatMessage.messageCore.timeCreated, person))
         }
 
         val builder = NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_NEW_MESSAGES)
                 .setWhen(newMessage.time)
                 .setShowWhen(true)
-                .setSmallIcon(R.drawable.message_icon)
+                .setSmallIcon(R.drawable.baseline_message_24)
                 .setAutoCancel(true)
                 .setContentTitle(chatName)
                 .setContentText(format(context, false, chatType.isGroup(), newMessage))
@@ -142,7 +152,7 @@ fun popNotificationSDK24(context: Context, list: List<NotificationHolder>, notif
                 .setVibrate(longArrayOf(0L, 200L, 100L, 200L, 1000L))
                 .setGroupAlertBehavior(NotificationCompat.GROUP_ALERT_CHILDREN)
                 .setColor(Color.WHITE)
-                .setStyle(inboxStyle)
+                .setStyle(style)
                 .setSound(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION))
 
         if (ProfilePictureUtil.getProfilePicture(chatMessage.messageCore.senderUUID, context).exists()) {
@@ -161,16 +171,14 @@ fun popNotificationSDK24(context: Context, list: List<NotificationHolder>, notif
                 .setLabel(label)
                 .build()
 
-        val action = NotificationCompat.Action.Builder(R.drawable.message_icon, label, replyPendingIntent)
+        val action = NotificationCompat.Action.Builder(R.drawable.baseline_message_24, label, replyPendingIntent)
                 .addRemoteInput(remoteInput)
                 .setAllowGeneratedReplies(true)
                 .build()
 
         builder.addAction(action)
 
-        val resultIntent = Intent(context, ChatActivity::class.java)
-
-        resultIntent.putExtra(KEY_CHAT_INFO, ChatInfo(chatUUID, chatName, chatType, chatParticipants))
+        val resultIntent = ChatActivity.createIntent(context, ChatInfo(chatUUID, chatType, chatParticipants))
 
         val stackBuilder = TaskStackBuilder.create(context)
         stackBuilder.addParentStack(ChatActivity::class.java)
@@ -183,15 +191,13 @@ fun popNotificationSDK24(context: Context, list: List<NotificationHolder>, notif
 
         notificationManager.notify(id, builder.build())
     }
-
-//    popNotificationSDK24Summary(context, newMessage, count, notificationManager)
 }
 
 fun popNotificationSDK24Summary(context: Context, newMessage: NotificationHolder, count: Int, notificationManager: NotificationManagerCompat) {
     val builder = NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_NEW_MESSAGES)
     builder.setContentTitle(context.getString(R.string.notification_amount_you_have_new_messages, count))
     builder.setContentText(format(context, true, true, newMessage))
-    builder.setSmallIcon(R.drawable.message_icon)
+    builder.setSmallIcon(R.drawable.baseline_message_24)
     builder.setGroup(KENTAI_NEW_MESSAGES_GROUP_KEY)
     builder.setGroupSummary(true)
 
@@ -283,19 +289,21 @@ fun format(context: Context, addGroup: Boolean, addName: Boolean, notification: 
 
 data class NotificationHolder(val chatUUID: UUID, val time: Long, val messageUUID: UUID) {
     fun getData(context: Context, dataBase: SQLiteDatabase): NotificationHolderData {
-        val message = (getChatMessages(context, dataBase, "message_uuid = ?", arrayOf(messageUUID.toString()), limit = "1").firstOrNull()
+        val message = (getChatMessages(context, dataBase, "chat_message.message_uuid = ?", arrayOf(messageUUID.toString()), limit = "1").firstOrNull()
                 ?: throw IllegalStateException("No message found matching messageUUID=?$messageUUID")).chatMessageInfo.message
 
         val chatName = ChatUtil.getChatName(context, dataBase, chatUUID)
         val senderName = ContactUtil.getDisplayName(context, dataBase, getContact(dataBase, message.messageCore.senderUUID))
 
+        val senderUUID = message.messageCore.senderUUID
+
         val chatType = getChatType(dataBase, chatUUID)
                 ?: throw IllegalArgumentException("No such chat found matching chatUUID=$chatUUID")
 
-        return NotificationHolderData(message, chatName, senderName, chatType)
+        return NotificationHolderData(message, chatName, senderName, chatType, senderUUID)
     }
 
-    data class NotificationHolderData(val chatMessage: ChatMessage, val chatName: String, val senderName: String, val chatType: ChatType)
+    data class NotificationHolderData(val chatMessage: ChatMessage, val chatName: String, val senderName: String, val chatType: ChatType, val senderUUID: UUID)
 }
 
 fun writeNotificationToDatabase(dataBase: SQLiteDatabase, chatMessage: ChatMessage, chatUUID: UUID, time: Long) {
@@ -309,8 +317,11 @@ fun writeNotificationToDatabase(dataBase: SQLiteDatabase, chatMessage: ChatMessa
 }
 
 fun readPreviousNotificationsFromDataBase(chatUUID: UUID?, dataBase: SQLiteDatabase): MutableList<NotificationHolder> {
-    return dataBase.rawQuery("SELECT message_uuid, time, chat_uuid FROM notification_messages WHERE chat_uuid = ?", arrayOf((chatUUID
-            ?: "*").toString())).use { cursor ->
+    return if (chatUUID == null) {
+        dataBase.rawQuery("SELECT message_uuid, time, chat_uuid FROM notification_messages", arrayOf())
+    } else {
+        dataBase.rawQuery("SELECT message_uuid, time, chat_uuid FROM notification_messages WHERE chat_uuid = ?", arrayOf(chatUUID.toString()))
+    }.use { cursor ->
         val previousNotifications = mutableListOf<NotificationHolder>()
 
         while (cursor.moveToNext()) {

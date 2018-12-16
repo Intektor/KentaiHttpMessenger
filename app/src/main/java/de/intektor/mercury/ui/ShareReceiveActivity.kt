@@ -4,13 +4,12 @@ import android.content.Intent
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.view.Menu
-import android.view.View
-import android.view.ViewGroup
+import android.view.*
 import android.widget.ImageView
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.common.hash.Hashing
 import com.squareup.picasso.MemoryPolicy
 import com.squareup.picasso.Picasso
@@ -19,6 +18,8 @@ import de.intektor.mercury.R
 import de.intektor.mercury.android.getRealImagePath
 import de.intektor.mercury.android.getRealVideoPath
 import de.intektor.mercury.android.getSelectedTheme
+import de.intektor.mercury.android.mercuryClient
+import de.intektor.mercury.chat.ChatUtil
 import de.intektor.mercury.chat.PendingMessage
 import de.intektor.mercury.chat.readChats
 import de.intektor.mercury.chat.sendMessageToServer
@@ -30,8 +31,7 @@ import de.intektor.mercury.task.getVideoDimension
 import de.intektor.mercury.task.getVideoDuration
 import de.intektor.mercury.task.saveMediaFileInAppStorage
 import de.intektor.mercury.ui.chat.ChatActivity
-import de.intektor.mercury.ui.overview_activity.fragment.ChatListViewAdapter
-import de.intektor.mercury.util.KEY_CHAT_INFO
+import de.intektor.mercury.ui.overview_activity.fragment.ChatListAdapter
 import de.intektor.mercury.util.ProfilePictureUtil
 import de.intektor.mercury_common.chat.ChatMessage
 import de.intektor.mercury_common.chat.ChatType
@@ -49,13 +49,15 @@ import java.util.*
 
 class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
 
-    private val totalList = mutableListOf<ChatListViewAdapter.ChatItem>()
-    private val currentList = mutableListOf<ChatListViewAdapter.ChatItem>()
+    private val totalList = mutableListOf<ChatListAdapter.ChatItem>()
+    private val currentList = mutableListOf<ChatListAdapter.ChatItem>()
 
-    private val selectedList = mutableListOf<ChatListViewAdapter.ChatItem>()
+    private val selectedList = mutableListOf<ChatListAdapter.ChatItem>()
 
-    private lateinit var allListAdapter: ChatListViewAdapter
+    private lateinit var allListAdapter: ChatListAdapter
     private lateinit var selectedAdapter: SelectedChatsAdapter
+
+    private var sendItem: MenuItem? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -66,14 +68,14 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
 
         val mercuryClient = applicationContext as MercuryClient
 
-        shareReceiveList.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
+        activity_share_receive_rv_selectable.layoutManager = LinearLayoutManager(this)
 
         totalList += readChats(mercuryClient.dataBase, this).sortedByDescending {
             it.lastChatMessage?.chatMessageInfo?.message?.messageCore?.timeCreated ?: 0L
         }
         currentList += totalList
 
-        allListAdapter = ChatListViewAdapter(currentList, { item ->
+        allListAdapter = ChatListAdapter(currentList, { item ->
             item.selected = !item.selected
             if (item.selected) {
                 selectedAdapter.notifyItemInserted(selectedList.size - 1)
@@ -82,10 +84,12 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
             }
             if (item.selected) selectedList += item else selectedList -= item
 
+            sendItem?.isEnabled = selectedList.isNotEmpty()
+
             allListAdapter.notifyItemChanged(currentList.indexOf(item))
         })
 
-        shareReceiveList.adapter = allListAdapter
+        activity_share_receive_rv_selectable.adapter = allListAdapter
 
         selectedAdapter = SelectedChatsAdapter(selectedList) { item ->
             val selectedIndex = selectedList.indexOf(item)
@@ -99,14 +103,10 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
             }
         }
 
-        shareReceiveSelected.adapter = selectedAdapter
-        shareReceiveSelected.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this, androidx.recyclerview.widget.LinearLayoutManager.HORIZONTAL, false)
+        activity_share_receive_rv_selected.adapter = selectedAdapter
+        activity_share_receive_rv_selected.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
 
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
-
-        shareReceiveSendButton.setOnClickListener {
-            send(mercuryClient)
-        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -114,19 +114,33 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
         val searchItem = menu.findItem(R.id.menuShareReceiveActivitySearch)
         val searchView = searchItem.actionView as SearchView
         searchView.setOnQueryTextListener(this)
+
+        sendItem = menu.findItem(R.id.menu_share_receive_send)
+
         return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        when (item.itemId) {
+            R.id.menu_share_receive_send -> {
+                send()
+                return true
+            }
+        }
+
+        return false
     }
 
     override fun onQueryTextSubmit(query: String): Boolean {
         currentList.clear()
-        currentList += totalList.filter { query in it.chatInfo.chatName }
+        currentList += totalList.filter { query in ChatUtil.getChatName(this, mercuryClient().dataBase, it.chatInfo.chatUUID) }
         allListAdapter.notifyDataSetChanged()
         return true
     }
 
     override fun onQueryTextChange(newText: String): Boolean {
         currentList.clear()
-        currentList += totalList.filter { it.chatInfo.chatName.contains(newText, true) }
+        currentList += totalList.filter { ChatUtil.getChatName(this, mercuryClient().dataBase, it.chatInfo.chatUUID).contains(newText, true) }
         allListAdapter.notifyDataSetChanged()
         return true
     }
@@ -136,7 +150,7 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
         return true
     }
 
-    private fun send(mercuryClient: MercuryClient) {
+    private fun send() {
         val action = intent.action
         val type = intent.type
 
@@ -215,10 +229,10 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
 
                         val referenceUUID = UUID.randomUUID()
 
-                        val referenceFile = saveMediaFileInAppStorage(referenceUUID, uri, mercuryClient, FileType.IMAGE)
+                        val referenceFile = saveMediaFileInAppStorage(referenceUUID, uri, this, FileType.IMAGE)
 
-                        val videoDuration = getVideoDuration(referenceFile, mercuryClient)
-                        val dimension = getVideoDimension(mercuryClient, referenceFile)
+                        val videoDuration = getVideoDuration(referenceFile, this)
+                        val dimension = getVideoDimension(this, referenceFile)
 
                         val message = MessageVideo(videoDuration,
                                 false,
@@ -255,7 +269,7 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
                 }
             }.flatten()
 
-            sendMessageToServer(this, mercuryClient.dataBase, pendingMessages)
+            sendMessageToServer(this, mercuryClient().dataBase, pendingMessages)
 
             for (pendingMessage in pendingMessages) {
                 val wrapper = pendingMessage.message
@@ -273,15 +287,13 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
             }
 
             if (selectedList.size == 1) {
-                val i = Intent(this@ShareReceiveActivity, ChatActivity::class.java)
-                i.putExtra(KEY_CHAT_INFO, selectedList.first().chatInfo)
-                startActivity(i)
+                ChatActivity.launch(this, selectedList.first().chatInfo)
             }
         }
         finish()
     }
 
-    private class SelectedChatsAdapter(val selectedList: MutableList<ChatListViewAdapter.ChatItem>, val onClick: (ChatListViewAdapter.ChatItem) -> (Unit)) : androidx.recyclerview.widget.RecyclerView.Adapter<SelectedViewHolder>() {
+    private class SelectedChatsAdapter(val selectedList: MutableList<ChatListAdapter.ChatItem>, val onClick: (ChatListAdapter.ChatItem) -> (Unit)) : androidx.recyclerview.widget.RecyclerView.Adapter<SelectedViewHolder>() {
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SelectedViewHolder {
             val view = LayoutInflater.from(parent.context).inflate(R.layout.chat_item_small, parent, false)
@@ -306,6 +318,8 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
                         .into(holder.image)
             }
 
+            holder.label.text = ChatUtil.getChatName(mercuryClient, mercuryClient.dataBase, item.chatInfo.chatUUID)
+
             holder.itemView.setOnClickListener {
                 onClick.invoke(item)
             }
@@ -313,6 +327,7 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
     }
 
     private class SelectedViewHolder(view: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {
-        val image: ImageView = view.findViewById(R.id.chatItemSmallProfilePicture)
+        val image: ImageView = view.findViewById(R.id.item_chat_small_iv_pp)
+        val label: TextView = view.findViewById(R.id.item_chat_small_tv_label)
     }
 }

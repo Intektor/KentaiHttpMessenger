@@ -11,15 +11,9 @@ const val KEY_MEDIA_URL = "de.intektor.mercury.media.url.key"
 const val KEY_USER_UUID = "de.intektor.mercury.user_uuid.key"
 const val KEY_FILE_URI = "de.intektor.mercury.file_uri.key"
 
-const val KEY_MEDIA_DATA = "de.intektor.mercury.media_data.key"
-
-const val ACTION_USER_VIEW_CHAT = "de.intektor.mercury.user_view_chat.action"
 const val KEY_CHAT_UUID = "de.intektor.mercury.chat_uuid.key"
-const val KEY_USER_VIEW = "de.intektor.mercury.user_view_chat.user_view.key"
 
 const val ACTION_DIRECT_CONNECTION_CONNECTED = "de.intektor.mercury.direct_connection_reconnected.action"
-
-const val KEY_FOLDER = "de.intektor.mercury.folder.key"
 
 const val ACTION_CANCEL_UPLOAD_PROFILE_PICTURE = "de.intektor.mercury.upload_profile_picture.cancel.action"
 

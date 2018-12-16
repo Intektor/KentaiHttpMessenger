@@ -9,6 +9,7 @@ import android.widget.ImageView
 import com.squareup.picasso.Picasso
 import com.squareup.picasso.Request
 import com.squareup.picasso.RequestHandler
+import com.squareup.picasso.Target
 import de.intektor.mercury.io.HttpManager
 import de.intektor.mercury_common.client_to_server.DownloadProfilePictureRequest
 import de.intektor.mercury_common.gson.genGson
@@ -22,6 +23,8 @@ object ProfilePictureUtil {
     private const val PROFILE_PICTURE_FOLDER = "profile_pictures"
 
     private const val SCHEME_PROFILE_PICTURE = "profile_picture"
+
+    private const val SHARED_PREFERENCES_INVALID_PROFILE_PICTURE = "de.intektor.mercury.SHARED_PREFERENCES_INVALID_PROFILE_PICTURE"
 
     fun getProfilePicture(userUUID: UUID, context: Context, type: ProfilePictureType? = null): File {
         File(context.filesDir, PROFILE_PICTURE_FOLDER).mkdirs()
@@ -51,7 +54,15 @@ object ProfilePictureUtil {
     fun loadProfilePicture(userUUID: UUID, type: ProfilePictureType, target: ImageView, placeholder: Drawable? = null) {
         val uri = Uri.Builder()
                 .scheme(SCHEME_PROFILE_PICTURE)
-                .path("${userUUID}/${type.ordinal}")
+                .path("$userUUID/${type.ordinal}")
+                .build()
+        if (placeholder == null) Picasso.get().load(uri).into(target) else Picasso.get().load(uri).placeholder(placeholder).into(target)
+    }
+
+    fun loadProfilePicture(userUUID: UUID, type: ProfilePictureType, target: Target, placeholder: Drawable? = null) {
+        val uri = Uri.Builder()
+                .scheme(SCHEME_PROFILE_PICTURE)
+                .path("$userUUID/${type.ordinal}")
                 .build()
         if (placeholder == null) Picasso.get().load(uri).into(target) else Picasso.get().load(uri).placeholder(placeholder).into(target)
     }
@@ -60,7 +71,6 @@ object ProfilePictureUtil {
         override fun canHandleRequest(data: Request?): Boolean = data?.uri?.scheme == SCHEME_PROFILE_PICTURE
 
         override fun load(request: Request, networkPolicy: Int): Result? {
-
             val path = request.uri.path ?: return null
 
             val parts = path.split("/")
@@ -68,15 +78,55 @@ object ProfilePictureUtil {
             val userUUID = parts[1].toUUID()
             val type = ProfilePictureType.values()[parts[2].toInt()]
 
-            val response = try {
-                HttpManager.rawPost(genGson().toJson(DownloadProfilePictureRequest(userUUID, type)), DownloadProfilePictureRequest.TARGET)
-            } catch (t: Throwable) {
-                null
-            } ?: return null
+            val needNewProfilePicture = !getProfilePicture(userUUID, context).exists() || isProfilePictureInvalid(context, userUUID)
 
-            val bitmap = BitmapFactory.decodeStream(response.byteStream())
+            val (bitmap, loadedFrom) = if (needNewProfilePicture) {
+                val response = try {
+                    HttpManager.rawPost(genGson().toJson(DownloadProfilePictureRequest(userUUID, type)), DownloadProfilePictureRequest.TARGET)
+                } catch (t: Throwable) {
+                    null
+                }
 
-            return Result(bitmap, Picasso.LoadedFrom.NETWORK)
+                (if (response != null) {
+                    val downloadedBitmap = BitmapFactory.decodeStream(response.byteStream())
+
+                    val ppFile = getProfilePicture(userUUID, context, type)
+
+                    downloadedBitmap.compress(Bitmap.CompressFormat.JPEG, 100, ppFile.outputStream())
+
+                    markProfilePictureInvalid(context, userUUID, false)
+
+                    downloadedBitmap
+                } else null) to Picasso.LoadedFrom.NETWORK
+            } else {
+                BitmapFactory.decodeFile(getProfilePicture(userUUID, context, type).path) to Picasso.LoadedFrom.DISK
+            }
+
+            if (bitmap == null) {
+                return if (ProfilePictureUtil.getProfilePicture(userUUID, context).exists()) {
+                    Result(BitmapFactory.decodeFile(getProfilePicture(userUUID, context, type).path), Picasso.LoadedFrom.DISK)
+                } else null
+            }
+            return Result(bitmap, loadedFrom)
         }
+    }
+
+    /**
+     * Returns the preferences that should be used to mark a profile picture invalid
+     */
+    private fun invalidPreferences(context: Context) = context.getSharedPreferences(SHARED_PREFERENCES_INVALID_PROFILE_PICTURE, Context.MODE_PRIVATE)
+
+    fun markProfilePictureInvalid(context: Context, userUUID: UUID, invalid: Boolean) {
+        val preferences = invalidPreferences(context)
+
+        preferences.edit()
+                .putBoolean(userUUID.toString(), invalid)
+                .apply()
+    }
+
+    private fun isProfilePictureInvalid(context: Context, userUUID: UUID): Boolean {
+        val preferences = invalidPreferences(context)
+
+        return preferences.getBoolean(userUUID.toString(), false)
     }
 }

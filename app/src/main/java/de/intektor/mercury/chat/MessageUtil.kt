@@ -9,6 +9,8 @@ import de.intektor.mercury.database.getUUID
 import de.intektor.mercury_common.chat.ChatMessage
 import de.intektor.mercury_common.chat.data.MessageImage
 import de.intektor.mercury_common.chat.data.MessageText
+import de.intektor.mercury_common.chat.data.MessageVideo
+import de.intektor.mercury_common.chat.data.MessageVoiceMessage
 
 /**
  * @author Intektor
@@ -23,6 +25,8 @@ object MessageUtil {
             is MessageImage -> {
                 if (data.text.isNotBlank()) data.text else context.getString(R.string.notification_image_message)
             }
+            is MessageVideo -> context.getString(R.string.notification_video_message)
+            is MessageVoiceMessage -> context.getString(R.string.notification_voice_message)
             else -> "No preview text found"
         }
     }

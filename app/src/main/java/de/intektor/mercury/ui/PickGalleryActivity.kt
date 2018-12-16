@@ -6,15 +6,15 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.provider.MediaStore
-import androidx.appcompat.app.AppCompatActivity
-import androidx.recyclerview.widget.GridLayoutManager
-import androidx.appcompat.widget.SearchView
 import android.view.LayoutInflater
 import android.view.Menu
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.SearchView
+import androidx.recyclerview.widget.GridLayoutManager
 import com.squareup.picasso.Picasso
 import de.intektor.mercury.R
 import de.intektor.mercury.android.getChatInfoExtra
@@ -37,17 +37,17 @@ class PickGalleryActivity : AppCompatActivity(), SearchView.OnQueryTextListener 
 
         private const val EXTRA_CHAT_INFO = "de.intektor.mercury.EXTRA_CHAT_INFO"
 
-        fun createIntent(context: Context, chatInfo: ChatInfo): Intent {
+        fun createIntent(context: Context, chatInfo: ChatInfo?): Intent {
             return Intent(context, PickGalleryActivity::class.java)
                     .putExtra(EXTRA_CHAT_INFO, chatInfo)
         }
 
         private fun getData(intent: Intent): Holder {
-            val chatInfo = intent.getChatInfoExtra(EXTRA_CHAT_INFO)
+            val chatInfo: ChatInfo? = intent.getChatInfoExtra(EXTRA_CHAT_INFO)
             return Holder(chatInfo)
         }
 
-        private data class Holder(val chatInfo: ChatInfo)
+        private data class Holder(val chatInfo: ChatInfo?)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -174,7 +174,7 @@ class PickGalleryActivity : AppCompatActivity(), SearchView.OnQueryTextListener 
         return true
     }
 
-    private class GalleryFolderAdapter(private val folders: List<GalleryFolder>, private val activity: Activity, private val chatInfo: ChatInfo) : androidx.recyclerview.widget.RecyclerView.Adapter<GalleryFolderViewHolder>() {
+    private class GalleryFolderAdapter(private val folders: List<GalleryFolder>, private val activity: Activity, private val chatInfo: ChatInfo?) : androidx.recyclerview.widget.RecyclerView.Adapter<GalleryFolderViewHolder>() {
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): GalleryFolderViewHolder {
             val view = LayoutInflater.from(parent.context).inflate(R.layout.gallery_folder_item, parent, false)
             return GalleryFolderViewHolder(view)
@@ -194,7 +194,7 @@ class PickGalleryActivity : AppCompatActivity(), SearchView.OnQueryTextListener 
             ThumbnailUtil.loadThumbnail(item.mediaFile, holder.image, MediaStore.Images.Thumbnails.MINI_KIND)
 
             val clickListener = View.OnClickListener {
-                activity.startActivityForResult(PickGalleryFolderActivity.createIntent(context, item.folderId, chatInfo, item.label), ACTION_PICK_FROM_GALLERY_FOLDER)
+                activity.startActivityForResult(PickGalleryFolderActivity.createIntent(context, item.folderId, chatInfo, item.label, true), ACTION_PICK_FROM_GALLERY_FOLDER)
             }
 
             holder.itemView.setOnClickListener(clickListener)

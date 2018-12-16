@@ -16,8 +16,8 @@ import de.intektor.mercury.android.mercuryClient
 import de.intektor.mercury.chat.*
 import de.intektor.mercury.io.ChatMessageService
 import de.intektor.mercury.ui.chat.ChatActivity
-import de.intektor.mercury.ui.overview_activity.fragment.ChatListViewAdapter
-import de.intektor.mercury.ui.overview_activity.fragment.ChatListViewAdapter.ChatItem
+import de.intektor.mercury.ui.overview_activity.fragment.ChatListAdapter
+import de.intektor.mercury.ui.overview_activity.fragment.ChatListAdapter.ChatItem
 import de.intektor.mercury_common.chat.data.group_modification.GroupModificationChangeName
 import kotlinx.android.synthetic.main.fragment_chat_list.*
 import java.util.*
@@ -26,10 +26,10 @@ import kotlin.collections.HashMap
 
 class FragmentChatsOverview : androidx.fragment.app.Fragment() {
 
-    val shownChatList: MutableList<ChatListViewAdapter.ChatItem> = mutableListOf()
+    val shownChatList: MutableList<ChatListAdapter.ChatItem> = mutableListOf()
     val chatMap: HashMap<UUID, ChatItem> = HashMap()
 
-    private lateinit var chatsAdapter: ChatListViewAdapter
+    private lateinit var chatsAdapter: ChatListAdapter
 
     private val messageStatusChangeListener = MessageStatusChangeListener()
     private val chatMessageListener = ChatMessageListener()
@@ -47,7 +47,7 @@ class FragmentChatsOverview : androidx.fragment.app.Fragment() {
 
         val mercuryClient = context.mercuryClient()
 
-        chatsAdapter = ChatListViewAdapter(shownChatList, { item ->
+        chatsAdapter = ChatListAdapter(shownChatList, { item ->
             val missingUsers = readChatParticipants(mercuryClient.dataBase, item.chatInfo.chatUUID).filter { it.publicKey == null }
 
             if (missingUsers.isNotEmpty()) {
@@ -167,11 +167,11 @@ class FragmentChatsOverview : androidx.fragment.app.Fragment() {
 
             val chatInfo = getChatInfo(chatUuid, mercuryClient.dataBase) ?: return
 
-            val latestMessage = getChatMessages(context, mercuryClient.dataBase, "chat_uuid = ?", arrayOf(chatUuid.toString()), "time DESC", "1")
+            val latestMessage = getChatMessages(context, mercuryClient.dataBase, "chat_uuid = ?", arrayOf(chatUuid.toString()), "time_created DESC", "1")
             val unreadMessages = ChatUtil.getUnreadMessagesFromChat(mercuryClient.dataBase, chatUuid)
 
             if (shownChatList.none { it.chatInfo.chatUUID == chatUuid }) {
-                addChat(ChatListViewAdapter.ChatItem(chatInfo, latestMessage.firstOrNull(), unreadMessages, ChatUtil.isChatInitialized(mercuryClient.dataBase, chatUuid)))
+                addChat(ChatListAdapter.ChatItem(chatInfo, latestMessage.firstOrNull(), unreadMessages, ChatUtil.isChatInitialized(mercuryClient.dataBase, chatUuid)))
             } else {
                 val presentItemIndex = shownChatList.indexOfFirst { it.chatInfo.chatUUID == chatUuid }
                 val presentItem = shownChatList[presentItemIndex]
@@ -192,10 +192,7 @@ class FragmentChatsOverview : androidx.fragment.app.Fragment() {
         override fun onReceive(context: Context, intent: Intent) {
             val (chatUuid, modification) = ActionGroupModificationReceived.getData(intent)
 
-            val chatItem = shownChatList.firstOrNull { it.chatInfo.chatUUID == chatUuid } ?: return
             if (modification is GroupModificationChangeName) {
-                chatItem.chatInfo = chatItem.chatInfo.copy(chatName = modification.newName)
-
                 chatsAdapter.notifyItemChanged(shownChatList.indexOfFirst { it.chatInfo.chatUUID == chatUuid })
             }
         }

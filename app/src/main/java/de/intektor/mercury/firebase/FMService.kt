@@ -5,14 +5,13 @@ import com.google.common.io.BaseEncoding
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import de.intektor.mercury.action.ActionMessageStatusChange
+import de.intektor.mercury.action.chat.ActionChatMessageNotification
 import de.intektor.mercury.action.chat.ActionChatMessageReceived
-import de.intektor.mercury.action.group.ActionGroupInvite
 import de.intektor.mercury.android.mercuryClient
 import de.intektor.mercury.chat.*
 import de.intektor.mercury.chat.model.ChatInfo
 import de.intektor.mercury.chat.model.ChatReceiver
 import de.intektor.mercury.client.ClientPreferences
-import de.intektor.mercury.contacts.ContactUtil
 import de.intektor.mercury.io.HttpManager
 import de.intektor.mercury.io.download.IOService
 import de.intektor.mercury.media.MediaType
@@ -32,7 +31,6 @@ import de.intektor.mercury_common.util.*
 import java.security.interfaces.RSAPublicKey
 import java.util.*
 import javax.crypto.BadPaddingException
-import kotlin.concurrent.thread
 
 /**
  * @author Intektor
@@ -162,7 +160,7 @@ class FMService : FirebaseMessagingService() {
                 val chatInfo = getChatInfo(chatUUID, dataBase) ?: aswell {
                     val senderContact = getContact(dataBase, message.senderUUID)
 
-                    val newChat = ChatInfo(chatUUID, ContactUtil.getDisplayName(this, dataBase, senderContact),
+                    val newChat = ChatInfo(chatUUID,
                             ChatType.TWO_PEOPLE,
                             listOf(ChatReceiver.fromContact(senderContact),
                                     ChatReceiver(clientUUID, null, ChatReceiver.ReceiverType.USER))
@@ -207,26 +205,26 @@ class FMService : FirebaseMessagingService() {
 
                         if (groupInvite is MessageGroupInvite.GroupInviteDecentralizedChat) {
 
-                            val newInfo = ChatInfo(groupInvite.chatUUID, groupInvite.groupName,
-                                    ChatType.GROUP_DECENTRALIZED, groupInvite.roleMap.keys.map { ChatReceiver(it, null, ChatReceiver.ReceiverType.USER) })
-
-                            putGroupRoles(groupInvite.roleMap, groupInvite.chatUUID, dataBase)
-
-                            if (!hasChat(chatUUID, dataBase)) {
-                                createGroupChat(newInfo, groupInvite.roleMap, groupInvite.groupKey, dataBase, clientUUID)
-
-                                ActionGroupInvite.launch(this, groupInvite.groupName, message.senderUUID, newInfo, chatUUID)
-
-                                val missing = groupInvite.roleMap.keys.filterNot { hasContact(dataBase, it) }
-                                if (missing.isNotEmpty()) {
-                                    thread {
-                                        requestUsers(missing, dataBase)
-                                    }
-                                }
-                            } else {
-                                addChatParticipant(groupInvite.chatUUID, clientUUID, dataBase)
-                            }
-                            updateChatAndSendBroadcast(chatMessage, chatInfo)
+//                            val newInfo = ChatInfo(groupInvite.chatUUID, groupInvite.groupName,
+//                                    ChatType.GROUP_DECENTRALIZED, groupInvite.roleMap.keys.map { ChatReceiver(it, null, ChatReceiver.ReceiverType.USER) })
+//
+//                            putGroupRoles(groupInvite.roleMap, groupInvite.chatUUID, dataBase)
+//
+//                            if (!hasChat(chatUUID, dataBase)) {
+//                                createGroupChat(newInfo, groupInvite.roleMap, groupInvite.groupKey, dataBase, clientUUID)
+//
+//                                ActionGroupInvite.launch(this, groupInvite.groupName, message.senderUUID, newInfo, chatUUID)
+//
+//                                val missing = groupInvite.roleMap.keys.filterNot { hasContact(dataBase, it) }
+//                                if (missing.isNotEmpty()) {
+//                                    thread {
+//                                        requestUsers(missing, dataBase)
+//                                    }
+//                                }
+//                            } else {
+//                                addChatParticipant(groupInvite.chatUUID, clientUUID, dataBase)
+//                            }
+//                            updateChatAndSendBroadcast(chatMessage, chatInfo)
                         }
                     }
                     is MessageGroupModification -> {
@@ -304,11 +302,11 @@ class FMService : FirebaseMessagingService() {
 
                     roleMap += Pair(groupModification.addedUser, GroupRole.DEFAULT)
 
-                    val groupInvite = if (chatInfo.chatType == ChatType.GROUP_DECENTRALIZED)
-                        MessageGroupInvite.GroupInviteDecentralizedChat(roleMap, chatUUID, chatInfo.chatName, groupKey)
-                    else MessageGroupInvite.GroupInviteCentralizedChat(chatUUID, chatInfo.chatName, groupKey)
-
-                    inviteUserToGroupChat(this, dataBase, clientUUID, groupModification.addedUser, groupInvite)
+//                    val groupInvite = if (chatInfo.chatType == ChatType.GROUP_DECENTRALIZED)
+//                        MessageGroupInvite.GroupInviteDecentralizedChat(roleMap, chatUUID, chatInfo.chatName, groupKey)
+//                    else MessageGroupInvite.GroupInviteCentralizedChat(chatUUID, chatInfo.chatName, groupKey)
+//
+//                    inviteUserToGroupChat(this, dataBase, clientUUID, groupModification.addedUser, groupInvite)
                 }
             }
         }
@@ -318,6 +316,7 @@ class FMService : FirebaseMessagingService() {
 
     private fun updateChatAndSendBroadcast(message: ChatMessage, chatInfo: ChatInfo) {
         ActionChatMessageReceived.launch(this, message, chatInfo.chatUUID)
+        ActionChatMessageNotification.launch(this, chatInfo.chatUUID, message.messageCore.messageUUID)
     }
 
     override fun onDeletedMessages() {

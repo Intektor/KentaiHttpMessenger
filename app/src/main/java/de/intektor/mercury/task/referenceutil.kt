@@ -55,10 +55,10 @@ private class ResponseInputStream(inputStream: InputStream, private val totalToR
     }
 }
 
-fun getVideoDuration(referenceFile: File, mercuryClient: MercuryClient): Int {
+fun getVideoDuration(referenceFile: File, context: Context): Int {
     val time: Long = try {
         val retriever = MediaMetadataRetriever()
-        retriever.setDataSource(mercuryClient, Uri.fromFile(referenceFile))
+        retriever.setDataSource(context, Uri.fromFile(referenceFile))
         val time = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
 
         retriever.release()

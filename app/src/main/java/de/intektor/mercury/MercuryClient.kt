@@ -5,6 +5,7 @@ import android.app.Activity
 import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.database.sqlite.SQLiteDatabase
@@ -21,10 +22,14 @@ import android.util.Log
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.NotificationManagerCompat
 import com.squareup.picasso.Picasso
+import de.intektor.mercury.action.chat.ActionChatMessageNotification
+import de.intektor.mercury.android.mercuryClient
+import de.intektor.mercury.chat.getChatMessages
 import de.intektor.mercury.client.ClientPreferences
 import de.intektor.mercury.connection.DirectConnectionService
 import de.intektor.mercury.database.DbHelper
 import de.intektor.mercury.io.HttpManager
+import de.intektor.mercury.task.handleNotification
 import de.intektor.mercury.util.*
 import de.intektor.mercury_common.client_to_server.CurrentVersionRequest
 import de.intektor.mercury_common.gson.genGson
@@ -55,6 +60,8 @@ class MercuryClient : Application() {
     val currentLoadingTable = mutableMapOf<UUID, Double>()
 
     private val interestedUsers = mutableSetOf<UUID>()
+
+    private val notificationReceiver = ChatMessageNotificationReceiver()
 
     override fun onCreate() {
         super.onCreate()
@@ -128,6 +135,8 @@ class MercuryClient : Application() {
         })
 
         Picasso.setSingletonInstance(PicassoUtil.buildPicasso(this))
+
+        registerReceiver(notificationReceiver, ActionChatMessageNotification.getFilter())
     }
 
     class CheckForNewVersionTask : AsyncTask<MercuryClient, Unit, Pair<CurrentVersionResponse?, MercuryClient>>() {
@@ -226,5 +235,21 @@ class MercuryClient : Application() {
     fun isScreenOn(): Boolean {
         val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
         return powerManager.isScreenOn
+    }
+
+    override fun onTerminate() {
+        super.onTerminate()
+
+        unregisterReceiver(notificationReceiver)
+    }
+
+    private class ChatMessageNotificationReceiver : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val (chatUuid, messageUuid) = ActionChatMessageNotification.getData(intent)
+
+            val message = getChatMessages(context, context.mercuryClient().dataBase, "chat_message.message_uuid = ?", arrayOf(messageUuid.toString())).first().message
+
+            handleNotification(context, chatUuid, message)
+        }
     }
 }

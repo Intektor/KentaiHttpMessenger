@@ -10,9 +10,10 @@ import android.widget.TextView
 import com.squareup.picasso.Picasso
 import de.intektor.mercury.MercuryClient
 import de.intektor.mercury.R
+import de.intektor.mercury.android.mercuryClient
 import de.intektor.mercury.contacts.Contact
+import de.intektor.mercury.contacts.ContactUtil
 import de.intektor.mercury.util.ProfilePictureUtil
-import de.intektor.mercury.util.getName
 
 class ContactAdapter(val contacts: List<ContactWrapper>, private val callbackClickView: (ContactWrapper, ViewHolder) -> Unit, private val showCheckBox: Boolean = false, val callbackClickCheckBox: (ContactWrapper, ViewHolder) -> Unit, private val registerForContextMenu: (Contact) -> Boolean) : androidx.recyclerview.widget.RecyclerView.Adapter<ContactAdapter.ViewHolder>() {
 
@@ -28,7 +29,7 @@ class ContactAdapter(val contacts: List<ContactWrapper>, private val callbackCli
         holder.itemView.tag = contact
 
         holder.item = contact
-        holder.text.text = getName(contact, holder.itemView.context, true)
+        holder.text.text = ContactUtil.getDisplayName(holder.itemView.context, holder.itemView.context.mercuryClient().dataBase, contact)
 
         holder.checkBox.visibility = if (showCheckBox) View.VISIBLE else View.GONE
 

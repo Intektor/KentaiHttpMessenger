@@ -2,6 +2,8 @@ package de.intektor.mercury.chat
 
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
+import de.intektor.mercury.client.ClientPreferences
+import de.intektor.mercury.contacts.ContactUtil
 import java.util.*
 
 /**
@@ -10,9 +12,10 @@ import java.util.*
 object ChatUtil {
 
     fun getChatName(context: Context, database: SQLiteDatabase, chatUUID: UUID): String {
-        val chatInfo = getChatInfo(chatUUID, database)
+        val chatInfo = getChatInfo(chatUUID, database) ?: return "No chat found"
 
-        return chatInfo?.chatName ?: "No chat found"
+        val other = chatInfo.getOthers(ClientPreferences.getClientUUID(context)).first()
+        return ContactUtil.getDisplayName(context, database, getContact(database, other.receiverUUID))
     }
 
     fun getUnreadMessagesFromChat(database: SQLiteDatabase, chatUUID: UUID): Int {

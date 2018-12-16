@@ -1,17 +1,17 @@
 package de.intektor.mercury.ui
 
 import android.os.Bundle
+import android.view.Menu
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
-import android.view.Menu
 import de.intektor.mercury.MercuryClient
 import de.intektor.mercury.R
 import de.intektor.mercury.android.getSelectedTheme
-import de.intektor.mercury.chat.model.ChatInfo
-import de.intektor.mercury.chat.model.ChatReceiver
 import de.intektor.mercury.chat.createChat
 import de.intektor.mercury.chat.getChatUUIDForUserChat
+import de.intektor.mercury.chat.model.ChatInfo
+import de.intektor.mercury.chat.model.ChatReceiver
 import de.intektor.mercury.client.ClientPreferences
 import de.intektor.mercury.contacts.Contact
 import de.intektor.mercury.ui.chat.ChatActivity
@@ -71,7 +71,7 @@ class NewChatUserActivity : AppCompatActivity(), androidx.appcompat.widget.Searc
 
         val client = ClientPreferences.getClientUUID(this)
 
-        val chatInfo = ChatInfo(getChatUUIDForUserChat(client, contact.userUUID), contact.name, ChatType.TWO_PEOPLE,
+        val chatInfo = ChatInfo(getChatUUIDForUserChat(client, contact.userUUID), ChatType.TWO_PEOPLE,
                 listOf(ChatReceiver(client, ClientPreferences.getPublicMessageKey(this), ChatReceiver.ReceiverType.USER),
                         ChatReceiver(contact.userUUID, contact.message_key, ChatReceiver.ReceiverType.USER)))
         createChat(chatInfo, mercuryClient.dataBase, client)
