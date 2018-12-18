@@ -17,4 +17,8 @@ fun setBackgroundImage(context: Context, path: String, chatUUID: UUID?) {
     }
 }
 
+fun resetBackgroundImage(context: Context, chatUUID: UUID?) {
+    getBackgroundChatFile(context, chatUUID).delete()
+}
+
 fun getBackgroundChatFile(context: Context, chatUUID: UUID?): File = File(context.filesDir, "backgrounds/$chatUUID")

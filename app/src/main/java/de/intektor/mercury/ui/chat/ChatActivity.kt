@@ -21,6 +21,7 @@ import android.widget.CheckBox
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.FileProvider
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.preference.PreferenceManager
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -45,17 +46,14 @@ import de.intektor.mercury.chat.model.ChatInfo
 import de.intektor.mercury.chat.model.ChatReceiver
 import de.intektor.mercury.client.ClientPreferences
 import de.intektor.mercury.client.getBackgroundChatFile
+import de.intektor.mercury.client.resetBackgroundImage
 import de.intektor.mercury.client.setBackgroundImage
 import de.intektor.mercury.connection.DirectConnectionService
 import de.intektor.mercury.contacts.Contact
 import de.intektor.mercury.io.download.IOService
-import de.intektor.mercury.media.ExternalStorageFile
-import de.intektor.mercury.media.MediaFile
-import de.intektor.mercury.media.MediaType
-import de.intektor.mercury.media.ThumbnailUtil
+import de.intektor.mercury.media.*
 import de.intektor.mercury.reference.ReferenceUtil
 import de.intektor.mercury.task.*
-import de.intektor.mercury.ui.CameraActivity
 import de.intektor.mercury.ui.ContactInfoActivity
 import de.intektor.mercury.ui.PickGalleryActivity
 import de.intektor.mercury.ui.SendMediaActivity
@@ -66,7 +64,10 @@ import de.intektor.mercury.ui.chat.adapter.viewing.UserState
 import de.intektor.mercury.ui.chat.adapter.viewing.ViewingAdapter
 import de.intektor.mercury.ui.chat.adapter.viewing.ViewingUser
 import de.intektor.mercury.ui.group_info_activity.GroupInfoActivity
-import de.intektor.mercury.util.*
+import de.intektor.mercury.util.ACTION_DIRECT_CONNECTION_CONNECTED
+import de.intektor.mercury.util.KEY_CHAT_INFO
+import de.intektor.mercury.util.KEY_USER_UUID
+import de.intektor.mercury.util.ProfilePictureUtil
 import de.intektor.mercury_common.chat.*
 import de.intektor.mercury_common.chat.data.*
 import de.intektor.mercury_common.chat.data.group_modification.GroupModificationChangeName
@@ -140,6 +141,7 @@ class ChatActivity : AppCompatActivity() {
     private var secondsRecording = 0
 
     private var currentAudioUUID: UUID? = null
+    private var currentPhotoUUID: UUID? = null
 
     private val mediaPlayer = MediaPlayer()
     private var currentPlaying: VoiceReferenceHolder? = null
@@ -199,7 +201,7 @@ class ChatActivity : AppCompatActivity() {
 
         setContentView(R.layout.activity_chat)
 
-        val (chatInfo, messageUUID) = getData(intent)
+        val (chatInfo, _) = getData(intent)
         this.chatInfo = chatInfo
 
 //        if (messageUUID != null) {
@@ -281,10 +283,14 @@ class ChatActivity : AppCompatActivity() {
         chatActivityButtonPickMedia.setOnClickListener {
             if (checkWriteStoragePermission(this, PERMISSION_REQUEST_EXTERNAL_STORAGE)) {
                 if (PreferenceManager.getDefaultSharedPreferences(this).getBoolean(getString(R.string.preference_use_native_media_picker), false)) {
-                    val i = Intent(Intent.ACTION_PICK)
-                    i.type = "*/*"
-                    i.putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*"))
-                    startActivityForResult(i, ACTION_PICK_MEDIA)
+                    if (Build.VERSION.SDK_INT >= 19) {
+                        val i = Intent(Intent.ACTION_PICK)
+                        i.type = "*/*"
+                        i.putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*"))
+                        startActivityForResult(i, ACTION_PICK_MEDIA)
+                    } else {
+                        Toast.makeText(this, R.string.chat_activity_native_gallery_not_supported, Toast.LENGTH_LONG).show()
+                    }
                 } else {
                     startActivityForResult(PickGalleryActivity.createIntent(this, chatInfo), ACTION_SEND_MEDIA)
                 }
@@ -301,11 +307,7 @@ class ChatActivity : AppCompatActivity() {
         }
 
         chatActivityButtonTakePicture.setOnClickListener {
-            if (checkCameraPermission(this, PERMISSION_REQUEST_CAMERA)) {
-                val takePicture = Intent(this, CameraActivity::class.java)
-
-                startActivityForResult(takePicture, ACTION_TAKE_IMAGE)
-            }
+            takePhoto()
         }
 
         chatActivityMessageList.addItemDecoration(HeaderItemDecoration(chatActivityMessageList, object : HeaderItemDecoration.StickyHeaderInterface {
@@ -339,7 +341,7 @@ class ChatActivity : AppCompatActivity() {
 
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
 
-//        applyBackgroundImage(getBackgroundChatFile(this, chatInfo.chatUUID))
+        applyBackgroundImage(getBackgroundChatFile(this, chatInfo.chatUUID))
     }
 
     private fun sendMessage() {
@@ -442,14 +444,16 @@ class ChatActivity : AppCompatActivity() {
             R.id.chatActivityNativeGallery -> {
 
             }
-            R.id.chatActivitySetBackgroundColor -> {
-
-            }
-            R.id.chatActivitySetBackgroundImage -> {
+            R.id.menu_chat_set_background_image -> {
                 val i = Intent(Intent.ACTION_PICK)
                 i.type = "image/*"
                 startActivityForResult(i, ACTION_PICK_BACKGROUND_IMAGE)
                 return true
+            }
+            R.id.menu_chat_reset_background -> {
+                resetBackgroundImage(this, chatInfo.chatUUID)
+
+                recreate()
             }
             R.id.chatActivityEdit -> {
                 startActionMode(editActionMode)
@@ -504,11 +508,12 @@ class ChatActivity : AppCompatActivity() {
             }
             ACTION_TAKE_IMAGE -> {
                 if (resultCode == Activity.RESULT_OK && data != null) {
+                    val photoUUID = currentPhotoUUID ?: return
 
-                    val i = Intent(this, SendMediaActivity::class.java)
-                    i.putParcelableArrayListExtra(KEY_MEDIA_URL, ArrayList(listOf(data.getParcelableExtra<Uri>(KEY_FILE_URI))))
-                    i.putExtra(KEY_CHAT_INFO, chatInfo)
-                    startActivityForResult(i, ACTION_SEND_MEDIA)
+                    startActivityForResult(SendMediaActivity.createIntent(this,
+                            chatInfo,
+                            listOf(ReferenceFile(photoUUID, chatInfo.chatUUID, MediaType.MEDIA_TYPE_IMAGE, System.currentTimeMillis() / 1000))),
+                            ACTION_SEND_MEDIA)
                 }
             }
         }
@@ -521,9 +526,35 @@ class ChatActivity : AppCompatActivity() {
                     startActivityForResult(PickGalleryActivity.createIntent(this, chatInfo), ACTION_SEND_MEDIA)
                 }
             }
+            PERMISSION_REQUEST_CAMERA -> {
+                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    takePhoto()
+                }
+            }
         }
 
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+    }
+
+    private fun takePhoto() {
+        if (checkCameraPermission(this, PERMISSION_REQUEST_CAMERA)) {
+            Intent(MediaStore.ACTION_IMAGE_CAPTURE).also { takePictureIntent ->
+                takePictureIntent.resolveActivity(packageManager)?.also {
+                    val photoUUID = UUID.randomUUID()
+
+                    currentPhotoUUID = photoUUID
+
+                    val referenceFile = ReferenceUtil.getFileForReference(this, photoUUID)
+
+                    referenceFile.createNewFile()
+
+                    takePictureIntent.putExtra(MediaStore.EXTRA_OUTPUT,
+                            FileProvider.getUriForFile(this, "de.intektor.mercury.android.GenericFileProvider", referenceFile))
+
+                    startActivityForResult(takePictureIntent, ACTION_TAKE_IMAGE)
+                }
+            }
+        }
     }
 
     private fun sendPhoto(uri: Uri, text: String) {
@@ -561,8 +592,6 @@ class ChatActivity : AppCompatActivity() {
 
             val referenceFile = ReferenceUtil.getFileForReference(mercuryClient, referenceUUID)
             byteOut.writeTo(referenceFile.outputStream())
-
-            saveImageExternalMercury(referenceUUID.toString(), bitmap, mercuryClient)
 
             val aes = generateAESKey()
             val iV = generateInitVector()
@@ -1016,9 +1045,7 @@ class ChatActivity : AppCompatActivity() {
 
     private fun applyBackgroundImage(backgroundFile: File) {
         if (backgroundFile.exists()) {
-            val drawable = BitmapDrawable(resources, BitmapFactory.decodeStream(backgroundFile.inputStream()))
-            drawable.gravity = Gravity.FILL
-            chatActivityBackgroundImage.setImageDrawable(drawable)
+            window.setBackgroundDrawable(BitmapDrawable(resources, BitmapFactory.decodeStream(backgroundFile.inputStream())))
         }
     }
 
@@ -1430,7 +1457,8 @@ class ChatActivity : AppCompatActivity() {
 
             val messageUUID = referenceUUIDToMessageUUID[referenceUuid]
 
-            val holder = messageObjects[messageUUID]?.first { it.item is ReferenceHolder } ?: return
+            val holder = messageObjects[messageUUID]?.first { it.item is ReferenceHolder }
+                    ?: return
 
             val item = holder.item as ReferenceHolder
             item.referenceState = if (successful) ReferenceState.FINISHED else ReferenceState.NOT_STARTED
@@ -1459,7 +1487,8 @@ class ChatActivity : AppCompatActivity() {
 
             val messageUUID = referenceUUIDToMessageUUID[referenceUuid]
 
-            val holder = messageObjects[messageUUID]?.first { it.item is ReferenceHolder } ?: return
+            val holder = messageObjects[messageUUID]?.first { it.item is ReferenceHolder }
+                    ?: return
 
             val item = holder.item as ReferenceHolder
             item.referenceState = if (successful) ReferenceState.FINISHED else ReferenceState.NOT_STARTED

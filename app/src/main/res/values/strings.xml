@@ -157,6 +157,7 @@
     <string name="chat_activity_menu_profile">Chat Profile</string>
     <string name="chat_activity_menu_native_gallery">Pick from native gallery</string>
     <string name="chat_activity_menu_change_background">Change background</string>
+    <string name="chat_activity_menu_reset_background">Reset background</string>
     <string name="chat_activity_menu_change_background_color">Color</string>
     <string name="chat_activity_menu_change_background_image">Image</string>
     <string name="chat_activity_menu_edit">Edit Chat</string>
@@ -176,6 +177,7 @@
     <string name="chat_activity_new_messages_received">New messages</string>
     <string name="chat_activity_recording_audio">Recording audio</string>
     <string name="chat_activity_user_typing">typing</string>
+    <string name="chat_activity_native_gallery_not_supported">Native gallery is not supported on your device. You need at least Android 4.4 (KitKat) installed. Please use the native gallery.</string>
 
     <!-- Strings related to message status -->
     <string name="message_status_waiting">Waiting</string>

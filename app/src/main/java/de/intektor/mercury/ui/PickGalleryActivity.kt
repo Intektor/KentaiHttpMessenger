@@ -23,6 +23,7 @@ import de.intektor.mercury.chat.model.ChatInfo
 import de.intektor.mercury.media.ExternalStorageFile
 import de.intektor.mercury.media.MediaFile
 import de.intektor.mercury.media.ThumbnailUtil
+import de.intektor.mercury.util.Logger
 import kotlinx.android.synthetic.main.activity_pick_gallery.*
 
 class PickGalleryActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
@@ -33,6 +34,8 @@ class PickGalleryActivity : AppCompatActivity(), SearchView.OnQueryTextListener 
     private lateinit var adapter: GalleryFolderAdapter
 
     companion object {
+        private const val TAG = "PickGalleryActivity"
+
         private const val ACTION_PICK_FROM_GALLERY_FOLDER = 0
 
         private const val EXTRA_CHAT_INFO = "de.intektor.mercury.EXTRA_CHAT_INFO"
@@ -99,35 +102,39 @@ class PickGalleryActivity : AppCompatActivity(), SearchView.OnQueryTextListener 
         }
 
         for (galleryFolder in parentDirectories) {
-            contentResolver.query(ContentUris.withAppendedId(fileUri, galleryFolder),
-                    arrayOf(MediaStore.MediaColumns.DATA, MediaStore.MediaColumns.TITLE),
-                    null,
-                    null,
-                    null).use { cursor ->
-                if (cursor == null) return@use
+            try {
+                contentResolver.query(ContentUris.withAppendedId(fileUri, galleryFolder),
+                        arrayOf(MediaStore.MediaColumns.DATA, MediaStore.MediaColumns.TITLE),
+                        null,
+                        null,
+                        null).use { cursor ->
+                    if (cursor == null) return@use
 
-                cursor.moveToNext()
+                    cursor.moveToNext()
 
-                val parentDirectory = cursor.getString(0)
+                    val parentDirectory = cursor.getString(0)
 
-                val mediaFile: MediaFile? = contentResolver.query(fileUri,
-                        arrayOf(MediaStore.MediaColumns._ID, MediaStore.Files.FileColumns.MEDIA_TYPE, MediaStore.Files.FileColumns.DATE_ADDED),
-                        "${MediaStore.Files.FileColumns.PARENT} = ? " +
-                                "AND ${MediaStore.Files.FileColumns.MEDIA_TYPE} IN (${MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE}, ${MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO})",
-                        arrayOf("$galleryFolder"),
-                        "${MediaStore.MediaColumns.DATE_ADDED} DESC LIMIT 1").use firstItem@{ firstItemCursor ->
-                    if (firstItemCursor == null || !firstItemCursor.moveToNext()) return@firstItem null
+                    val mediaFile: MediaFile? = contentResolver.query(fileUri,
+                            arrayOf(MediaStore.MediaColumns._ID, MediaStore.Files.FileColumns.MEDIA_TYPE, MediaStore.Files.FileColumns.DATE_ADDED),
+                            "${MediaStore.Files.FileColumns.PARENT} = ? " +
+                                    "AND ${MediaStore.Files.FileColumns.MEDIA_TYPE} IN (${MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE}, ${MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO})",
+                            arrayOf("$galleryFolder"),
+                            "${MediaStore.MediaColumns.DATE_ADDED} DESC LIMIT 1").use firstItem@{ firstItemCursor ->
+                        if (firstItemCursor == null || !firstItemCursor.moveToNext()) return@firstItem null
 
-                    val id = firstItemCursor.getLong(0)
-                    val mimeType = firstItemCursor.getString(1).toInt()
-                    val dateAdded = firstItemCursor.getLong(2)
+                        val id = firstItemCursor.getLong(0)
+                        val mimeType = firstItemCursor.getString(1).toInt()
+                        val dateAdded = firstItemCursor.getLong(2)
 
-                    ExternalStorageFile(id, mimeType, dateAdded)
+                        ExternalStorageFile(id, mimeType, dateAdded)
+                    }
+
+                    if (mediaFile != null) {
+                        totalList += GalleryFolder(mediaFile, parentDirectory.substringAfterLast('/'), galleryFolder)
+                    }
                 }
-
-                if (mediaFile != null) {
-                    totalList += GalleryFolder(mediaFile, parentDirectory.substringAfterLast('/'), galleryFolder)
-                }
+            } catch (t: Throwable) {
+                Logger.error(TAG, "Error while trying to read directory", t)
             }
         }
 

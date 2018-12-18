@@ -255,6 +255,9 @@ class IOService : Service() {
                             }
                         }
                     }
+
+//                    GalleryUtil.copyImageAndAddToGallery(this@IOService, GalleryUtil.FOLDER_RECEIVED_MEDIA, file)
+
                     mercuryClient.currentLoadingTable -= referenceUUID
                 } catch (t: Throwable) {
                     ActionUploadReferenceFinished.launch(this@IOService, request.reference, false)
