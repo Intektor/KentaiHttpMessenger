@@ -61,27 +61,16 @@
             android:theme="@style/AppTheme" />
         <activity android:name=".ui.AddContactActivity" />
         <activity android:name=".ui.NewChatUserActivity" />
-        <activity android:name=".ui.chat.ChatActivity"
-            android:parentActivityName=".ui.overview_activity.OverviewActivity"
-            android:launchMode="singleTask"/>
+        <activity
+            android:name=".ui.chat.ChatActivity"
+            android:launchMode="singleTask"
+            android:parentActivityName=".ui.overview_activity.OverviewActivity" />
         <activity
             android:name=".ui.ContactInfoActivity"
             android:label="@string/contact_info_label" />
         <activity
             android:name=".ui.NewChatGroupActivity"
             android:label="@string/new_chat_group_activity_label" />
-
-        <receiver
-            android:name=".chat.ChatMessageNotificationReceiver"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="de.intektor.mercury.ACTION_CHAT_MESSAGE_NOTIFICATION" />
-            </intent-filter>
-        </receiver>
-        <receiver
-            android:name=".firebase.NotificationBroadcastReceiver"
-            android:enabled="true"
-            android:exported="false" />
         <receiver
             android:name=".voip.VoIPCallReceiver"
             android:label="Call Receiver" />

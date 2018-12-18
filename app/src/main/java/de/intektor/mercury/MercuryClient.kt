@@ -23,11 +23,13 @@ import androidx.appcompat.app.AlertDialog
 import androidx.core.app.NotificationManagerCompat
 import com.squareup.picasso.Picasso
 import de.intektor.mercury.action.chat.ActionChatMessageNotification
+import de.intektor.mercury.action.notification.ActionNotificationReply
 import de.intektor.mercury.android.mercuryClient
 import de.intektor.mercury.chat.getChatMessages
 import de.intektor.mercury.client.ClientPreferences
 import de.intektor.mercury.connection.DirectConnectionService
 import de.intektor.mercury.database.DbHelper
+import de.intektor.mercury.firebase.NotificationBroadcastReceiver
 import de.intektor.mercury.io.HttpManager
 import de.intektor.mercury.task.PushNotificationUtil
 import de.intektor.mercury.util.*
@@ -137,6 +139,7 @@ class MercuryClient : Application() {
         Picasso.setSingletonInstance(PicassoUtil.buildPicasso(this))
 
         registerReceiver(notificationReceiver, ActionChatMessageNotification.getFilter())
+        registerReceiver(NotificationBroadcastReceiver, ActionNotificationReply.getFilter())
     }
 
     class CheckForNewVersionTask : AsyncTask<MercuryClient, Unit, Pair<CurrentVersionResponse?, MercuryClient>>() {
@@ -241,6 +244,7 @@ class MercuryClient : Application() {
         super.onTerminate()
 
         unregisterReceiver(notificationReceiver)
+        unregisterReceiver(NotificationBroadcastReceiver)
     }
 
     private class ChatMessageNotificationReceiver : BroadcastReceiver() {

@@ -21,7 +21,7 @@ import java.util.*
 /**
  * @author Intektor
  */
-class NotificationBroadcastReceiver : BroadcastReceiver() {
+object NotificationBroadcastReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         val mercuryClient = context.applicationContext as MercuryClient
@@ -38,12 +38,12 @@ class NotificationBroadcastReceiver : BroadcastReceiver() {
 
             val message = ChatMessage(core, data)
 
-            sendMessageToServer(context, PendingMessage(message, chatUuid, chatInfo.getOthers(clientUUID)), mercuryClient.dataBase)
-
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.cancel(notificationId)
 
             PushNotificationUtil.cancelChatNotifications(context, chatUuid)
+
+            sendMessageToServer(context, PendingMessage(message, chatUuid, chatInfo.getOthers(clientUUID)), mercuryClient.dataBase)
         }
     }
 
