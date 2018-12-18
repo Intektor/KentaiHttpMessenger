@@ -248,7 +248,7 @@ class ChatActivity : AppCompatActivity() {
 
         chatActivityMessageList.addOnScrollListener(ChatListScrollListener())
 
-        loadMoreMessagesTop(false)
+        loadMoreMessagesTop(false, LoadType.TOP)
 
         chatActivityTextInput.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(newText: Editable) {
@@ -644,20 +644,13 @@ class ChatActivity : AppCompatActivity() {
         super.onResume()
 
         val mercuryClient = applicationContext as MercuryClient
+        if (componentList.isNotEmpty() && upToDate) {
+            val mostBottomMessage = componentList.lastOrNull { it.item is ChatAdapterMessage }
 
-        //TODO
-//        if (componentList.isNotEmpty() && upToDate) {
-//            val (_: Long, lastMessageUUID: UUID) = if (componentList.any { it.item is ChatMessageWrapper }) {
-//                val message = (componentList.last { it.item is ChatMessageWrapper }.item as ChatMessageWrapper).chatMessageInfo
-//                message.message.messageCore.timeCreated to message.message.messageCore.messageUUID
-//            } else 0L to UUID.randomUUID()
-//
-//            val newMessages = getChatMessages(this, mercuryClient.dataBase, "chat_uuid = '${chatInfo.chatUUID}' AND time_created > $firstMessageTime")
-//
-//            addMessages(newMessages.filter { it.chatMessageInfo.message.messageCore.messageUUID != lastMessageUUID }, true)
-//
-//            if (onBottom) scrollToBottom()
-//        }
+            if (mostBottomMessage != null) {
+                loadMoreMessagesTop(true, LoadType.BOTTOM, Int.MAX_VALUE)
+            }
+        }
 
         LocalBroadcastManager.getInstance(this).apply {
             registerReceiver(uploadProgressReceiver, ActionUploadReferenceProgress.getFilter())
@@ -1120,7 +1113,6 @@ class ChatActivity : AppCompatActivity() {
 
                 }
                 R.id.menuChatEditCopy -> {
-                    //TODO()
 //                    val text = if (selectedItems.size == 1) {
 //                        val wrapper = selectedItems.first().item as ChatMessageWrapper
 //                        wrapper.message.text
@@ -1162,49 +1154,84 @@ class ChatActivity : AppCompatActivity() {
         }
     }
 
-    private fun loadMoreMessagesTop(loadAsync: Boolean) {
+    private enum class LoadType {
+        TOP,
+        BOTTOM
+    }
+
+    private fun loadMoreMessagesTop(loadAsync: Boolean, type: LoadType, limit: Int = 20) {
         if (currentlyLoadingMore) return
 
         currentlyLoadingMore = true
 
-        val currentTopMessage = componentList.firstOrNull { it.item is ChatAdapterMessage }?.item
+        val currentEdgeMessage = when (type) {
+            LoadType.TOP -> componentList.firstOrNull { it.item is ChatAdapterMessage }?.item
+            LoadType.BOTTOM -> componentList.lastOrNull { it.item is ChatAdapterMessage }?.item
+        }
 
-        val currentTopTimeEpochMilli = if (currentTopMessage is ChatAdapterMessage) {
-            currentTopMessage.message.message.messageCore.timeCreated
+        val currentEdgeTimeEpochMilli = if (currentEdgeMessage is ChatAdapterMessage) {
+            currentEdgeMessage.message.message.messageCore.timeCreated
         } else System.currentTimeMillis()
 
         val insertItems =
-                { (loadedItems, messageUUIDToItems, referenceUUIDToMessageUUID): ChatLoader.MessageTransform ->
-                    componentList.addAll(0, loadedItems)
+                { (loadedItems,
+                          messageUUIDToItems,
+                          referenceUUIDToMessageUUID): ChatLoader.MessageTransform ->
+                    when (type) {
+                        LoadType.TOP -> {
+                            //Add at the very start of list
+                            componentList.addAll(0, loadedItems)
+
+                            chatAdapter.notifyItemRangeInserted(0, loadedItems.size)
+
+                            ChatLoader.filterDuplicatedDateItems(chatAdapter, componentList, 0, loadedItems.size)
+                        }
+                        LoadType.BOTTOM -> {
+                            val prevSize = componentList.size
+                            //Just append to the list
+                            componentList += loadedItems
+
+                            chatAdapter.notifyItemRangeInserted(prevSize, loadedItems.size)
+
+                            ChatLoader.filterDuplicatedDateItems(chatAdapter, componentList, prevSize, prevSize + loadedItems.size)
+                        }
+                    }
 
                     messageObjects += messageUUIDToItems
 
                     this.referenceUUIDToMessageUUID += referenceUUIDToMessageUUID
 
-                    chatAdapter.notifyItemRangeInserted(0, loadedItems.size)
-
-                    ChatLoader.filterDuplicatedDateItems(chatAdapter, componentList, 0, loadedItems.size)
-
                     currentlyLoadingMore = false
                 }
+
+        val min = when (type) {
+            LoadType.TOP -> 0L
+            LoadType.BOTTOM -> currentEdgeTimeEpochMilli
+        }
+
+        val max = when (type) {
+            LoadType.TOP -> currentEdgeTimeEpochMilli
+            LoadType.BOTTOM -> System.currentTimeMillis()
+        }
 
         if (loadAsync) {
             ChatLoader.loadMessageItemsForAdapterAsync(this, mercuryClient().dataBase,
                     chatInfo,
-                    0L,
-                    currentTopTimeEpochMilli,
+                    min,
+                    max,
                     ChatLoader.LoadType.DESC,
                     0L,
                     { result ->
                         insertItems(result)
-                    })
+                    }, limit)
         } else {
             insertItems(ChatLoader.loadMessageItemsForAdapter(this, mercuryClient().dataBase,
                     chatInfo,
-                    0L,
-                    currentTopTimeEpochMilli,
+                    min,
+                    max,
                     ChatLoader.LoadType.DESC,
-                    0L
+                    0L,
+                    limit
             ))
         }
     }
@@ -1272,7 +1299,7 @@ class ChatActivity : AppCompatActivity() {
                     }
 
             if (firstVisibleIndex < 10 && !currentlyLoadingMore) {
-                loadMoreMessagesTop(true)
+                loadMoreMessagesTop(true, LoadType.TOP)
             }
 
             if (onBottom) {

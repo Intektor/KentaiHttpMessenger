@@ -78,7 +78,7 @@ object ProfilePictureUtil {
             val userUUID = parts[1].toUUID()
             val type = ProfilePictureType.values()[parts[2].toInt()]
 
-            val needNewProfilePicture = !getProfilePicture(userUUID, context).exists() || isProfilePictureInvalid(context, userUUID)
+            val needNewProfilePicture = !getProfilePicture(userUUID, context, type).exists() || isProfilePictureInvalid(context, userUUID)
 
             val (bitmap, loadedFrom) = if (needNewProfilePicture) {
                 val response = try {

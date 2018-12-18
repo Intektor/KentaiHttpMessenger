@@ -124,6 +124,27 @@ object ChatLoader {
                 }
             }
         }
+
+        val latestPartHighestItem = (0 until affectedAreaStart)
+                .map { currentLoadedItems[it] to it }
+                .lastOrNull { (item, _) -> item.item is DateInfo }
+
+        if (latestPartHighestItem != null) {
+            val latestDateItem = (affectedAreaStart until affectedAreaEnd)
+                    .map { currentLoadedItems[it] to it }
+                    .firstOrNull { (item, _) -> item.item is DateInfo }
+
+            if (latestDateItem != null) {
+                val lowestDate = LocalDateTime.ofInstant(Instant.ofEpochMilli((latestPartHighestItem.first.item as DateInfo).time), ZoneId.systemDefault()).toLocalDate()
+                val latest = LocalDateTime.ofInstant(Instant.ofEpochMilli((latestDateItem.first.item as DateInfo).time), ZoneId.systemDefault()).toLocalDate()
+
+                if (lowestDate == latest && latestPartHighestItem.second != latestDateItem.second) {
+                    currentLoadedItems.removeAt(latestDateItem.second)
+
+                    adapter.notifyItemRemoved(latestDateItem.second)
+                }
+            }
+        }
     }
 
 //    fun orderDateItems(adapter: ChatAdapter, currentLoadedItems: List<ChatAdapter.ChatAdapterWrapper<ChatAdapterSubItem>>, startIndex: Int, endIndex: Int) {

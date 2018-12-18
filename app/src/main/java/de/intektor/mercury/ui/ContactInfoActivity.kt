@@ -1,11 +1,14 @@
 package de.intektor.mercury.ui
 
 import android.content.*
+import android.graphics.Bitmap
+import android.graphics.drawable.Drawable
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.squareup.picasso.MemoryPolicy
 import com.squareup.picasso.Picasso
+import com.squareup.picasso.Target
 import de.intektor.mercury.MercuryClient
 import de.intektor.mercury.R
 import de.intektor.mercury.android.getSelectedTheme
@@ -19,6 +22,7 @@ import de.intektor.mercury.ui.util.MediaAdapter
 import de.intektor.mercury.util.ACTION_PROFILE_PICTURE_UPDATED
 import de.intektor.mercury.util.KEY_USER_UUID
 import de.intektor.mercury.util.ProfilePictureUtil
+import de.intektor.mercury_common.users.ProfilePictureType
 import kotlinx.android.synthetic.main.activity_user_chat_info.*
 import java.util.*
 
@@ -63,7 +67,21 @@ class ContactInfoActivity : AppCompatActivity() {
 
         supportActionBar?.title = ContactUtil.getDisplayName(this, mercuryClient.dataBase, contact)
 
-        Picasso.get().load(ProfilePictureUtil.getProfilePicture(userUUID, this)).placeholder(R.drawable.baseline_account_circle_24).memoryPolicy(MemoryPolicy.NO_CACHE).into(activity_user_chat_info_iv_profile_picture)
+        ProfilePictureUtil.loadProfilePicture(userUUID, ProfilePictureType.NORMAL, object : Target {
+            override fun onPrepareLoad(placeHolderDrawable: Drawable?) {
+                println()
+            }
+
+            override fun onBitmapFailed(e: Exception?, errorDrawable: Drawable?) {
+                println()
+            }
+
+            override fun onBitmapLoaded(bitmap: Bitmap, from: Picasso.LoadedFrom?) {
+                activity_user_chat_info_iv_profile_picture.setImageBitmap(bitmap)
+
+                activity_user_chat_info_iv_profile_picture.layoutParams.height = resources.displayMetrics.widthPixels
+            }
+        })
 
         val chatInfo = getUserChat(this, mercuryClient.dataBase, contact)
 

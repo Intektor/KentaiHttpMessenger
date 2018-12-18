@@ -189,7 +189,7 @@ fun updateMessageStatus(dataBase: SQLiteDatabase, messageUUID: UUID, messageStat
 }
 
 fun getLatestMessageStatus(dataBase: SQLiteDatabase, messageUUID: UUID): MessageStatusHolder {
-    return dataBase.rawQuery("SELECT status, time FROM message_status WHERE message_uuid = ? ORDER BY time DESC LIMIT 1", arrayOf(messageUUID.toString())).use { cursor ->
+    return dataBase.rawQuery("SELECT status, time FROM message_status WHERE message_uuid = ? ORDER BY status DESC LIMIT 1", arrayOf(messageUUID.toString())).use { cursor ->
         if (cursor.moveToNext()) {
             val status = cursor.getEnum<MessageStatus>(0)
             val time = cursor.getLong(1)
