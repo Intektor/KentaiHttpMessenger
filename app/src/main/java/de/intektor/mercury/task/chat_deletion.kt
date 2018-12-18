@@ -28,7 +28,7 @@ class DeleteMessagesTask(private val toRemove: List<ChatMessageInfo>, private va
                 .setSmallIcon(R.drawable.baseline_delete_white_24)
                 .setOngoing(true)
 
-        notificationID = getNextFreeNotificationId(mercuryClient)
+        notificationID = PushNotificationUtil.getNextFreeNotificationId(mercuryClient)
 
         notificationManager.notify(NOTIFICATION_ID_DELETING_CHAT_MESSAGES, notification.build())
     }

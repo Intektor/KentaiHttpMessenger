@@ -686,7 +686,7 @@ class ChatActivity : AppCompatActivity() {
 
         setUnreadMessages(mercuryClient.dataBase, chatInfo.chatUUID, 0)
 
-        cancelChatNotifications(this, chatInfo.chatUUID)
+        PushNotificationUtil.cancelChatNotifications(this, chatInfo.chatUUID)
 
         val clientUUID = ClientPreferences.getClientUUID(this)
 
@@ -712,7 +712,7 @@ class ChatActivity : AppCompatActivity() {
         super.onPause()
         val mercuryClient = applicationContext as MercuryClient
 
-        androidx.localbroadcastmanager.content.LocalBroadcastManager.getInstance(this).apply {
+        LocalBroadcastManager.getInstance(this).apply {
             unregisterReceiver(uploadProgressReceiver)
             unregisterReceiver(uploadReferenceFinishedReceiver)
             unregisterReceiver(downloadProgressReceiver)
@@ -791,7 +791,11 @@ class ChatActivity : AppCompatActivity() {
                 }
             })
 
-            mediaRecorder.start()
+            try {
+                mediaRecorder.start()
+            } catch (t: Throwable) {
+                isRecording = false
+            }
         }
     }
 
@@ -804,7 +808,6 @@ class ChatActivity : AppCompatActivity() {
             activity_chat_cv_recording.visibility = View.GONE
 
             try {
-
                 val recorder = mediaRecorder ?: return
 
                 recorder.stop()
@@ -1033,7 +1036,9 @@ class ChatActivity : AppCompatActivity() {
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
-        recreate()
+
+        finish()
+        startActivity(intent)
     }
 
     fun select(item: ChatAdapter.ChatAdapterWrapper<*>, selected: Boolean) {

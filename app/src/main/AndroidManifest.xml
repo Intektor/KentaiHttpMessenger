@@ -61,7 +61,9 @@
             android:theme="@style/AppTheme" />
         <activity android:name=".ui.AddContactActivity" />
         <activity android:name=".ui.NewChatUserActivity" />
-        <activity android:name=".ui.chat.ChatActivity" />
+        <activity android:name=".ui.chat.ChatActivity"
+            android:parentActivityName=".ui.overview_activity.OverviewActivity"
+            android:launchMode="singleTask"/>
         <activity
             android:name=".ui.ContactInfoActivity"
             android:label="@string/contact_info_label" />

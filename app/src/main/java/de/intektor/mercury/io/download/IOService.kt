@@ -17,7 +17,7 @@ import de.intektor.mercury.io.AddressHolder
 import de.intektor.mercury.io.ChatMessageService
 import de.intektor.mercury.io.HttpManager
 import de.intektor.mercury.reference.ReferenceUtil
-import de.intektor.mercury.task.getNextFreeNotificationId
+import de.intektor.mercury.task.PushNotificationUtil
 import de.intektor.mercury.util.NOTIFICATION_CHANNEL_DOWNLOAD_MEDIA
 import de.intektor.mercury_common.client_to_server.DownloadReferenceRequest
 import de.intektor.mercury_common.gson.genGson
@@ -118,7 +118,7 @@ class IOService : Service() {
 
     private fun popUpdateIOReference(progress: Int, io: IO) {
         val notificationID = (if (io == IO.DOWNLOAD) currentDownloadNotificationId else currentUploadNotificationId)
-                ?: getNextFreeNotificationId(this)
+                ?: PushNotificationUtil.getNextFreeNotificationId(this)
 
         when (io) {
             IOService.IO.UPLOAD -> currentUploadNotificationId = notificationID
@@ -195,6 +195,7 @@ class IOService : Service() {
 
                             val responseInputStream = ResponseInputStream(input, totalToReceive) { progress ->
                                 ActionDownloadReferenceProgress.launch(this, request.reference, progress)
+                                popUpdateIOReference((progress * 100).toInt(), IO.DOWNLOAD)
                             }
 
 //                            BufferedInputStream(CipherInputStream(responseInputStream, cipher)).use { cipherIn ->
@@ -215,9 +216,7 @@ class IOService : Service() {
             mercuryClient.currentLoadingTable -= request.reference
 
             referenceFile.delete()
-        }
-
-        if (downloadQueue.isEmpty()) {
+        } finally {
             cancelNotification(IO.DOWNLOAD)
         }
     }
@@ -243,7 +242,7 @@ class IOService : Service() {
                         cipher.init(Cipher.ENCRYPT_MODE, request.aesKey, IvParameterSpec(request.initVector))
 
                         BufferedInputStream(file.inputStream()).use { input ->
-//                            val responseStream = ResponseOutputStream(BufferedOutputStream(CipherOutputStream(dataOut, cipher)), file.length()) { current ->
+                            //                            val responseStream = ResponseOutputStream(BufferedOutputStream(CipherOutputStream(dataOut, cipher)), file.length()) { current ->
                             val responseStream = ResponseOutputStream(BufferedOutputStream(dataOut), file.length()) { current ->
                                 ActionUploadReferenceProgress.launch(this@IOService, referenceUUID, current)
 
@@ -284,10 +283,7 @@ class IOService : Service() {
             ActionUploadReferenceFinished.launch(this, request.reference, false)
 
             ReferenceUtil.setReferenceUploaded(mercuryClient.dataBase, request.reference, false)
-
-        }
-
-        if (uploadQueue.isEmpty()) {
+        } finally {
             cancelNotification(IO.UPLOAD)
         }
 

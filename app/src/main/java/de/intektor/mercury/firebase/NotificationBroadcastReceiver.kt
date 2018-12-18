@@ -11,7 +11,7 @@ import de.intektor.mercury.chat.PendingMessage
 import de.intektor.mercury.chat.getChatInfo
 import de.intektor.mercury.chat.sendMessageToServer
 import de.intektor.mercury.client.ClientPreferences
-import de.intektor.mercury.task.cancelChatNotifications
+import de.intektor.mercury.task.PushNotificationUtil
 import de.intektor.mercury.util.KEY_NOTIFICATION_REPLY
 import de.intektor.mercury_common.chat.ChatMessage
 import de.intektor.mercury_common.chat.MessageCore
@@ -43,7 +43,7 @@ class NotificationBroadcastReceiver : BroadcastReceiver() {
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.cancel(notificationId)
 
-            cancelChatNotifications(context, chatUuid)
+            PushNotificationUtil.cancelChatNotifications(context, chatUuid)
         }
     }
 

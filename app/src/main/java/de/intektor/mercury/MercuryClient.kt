@@ -29,7 +29,7 @@ import de.intektor.mercury.client.ClientPreferences
 import de.intektor.mercury.connection.DirectConnectionService
 import de.intektor.mercury.database.DbHelper
 import de.intektor.mercury.io.HttpManager
-import de.intektor.mercury.task.handleNotification
+import de.intektor.mercury.task.PushNotificationUtil
 import de.intektor.mercury.util.*
 import de.intektor.mercury_common.client_to_server.CurrentVersionRequest
 import de.intektor.mercury_common.gson.genGson
@@ -249,7 +249,7 @@ class MercuryClient : Application() {
 
             val message = getChatMessages(context, context.mercuryClient().dataBase, "chat_message.message_uuid = ?", arrayOf(messageUuid.toString())).first().message
 
-            handleNotification(context, chatUuid, message)
+            PushNotificationUtil.handleNotification(context, chatUuid, message)
         }
     }
 }
