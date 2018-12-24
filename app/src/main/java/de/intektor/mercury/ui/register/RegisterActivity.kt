@@ -102,7 +102,7 @@ class RegisterActivity : AppCompatActivity(), IArrowPressedListener {
 
                 registerCallback(true)
             }
-        }, messagePair, authPair, username, captchaToken ?: return).execute()
+        }, messagePair, authPair, username, captchaToken ?: "").execute()
     }
 
     class AttemptRegisterTask(val callback: (RegisterRequestResponseToClient?) -> (Unit),

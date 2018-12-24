@@ -29,7 +29,6 @@ class FragmentPerformRegister : Fragment() {
         fragment_perform_register_account_cl_register.setOnClickListener {
             val context = requireContext()
             if (context is RegisterActivity) {
-
                 val dialog = AlertDialog.Builder(context)
                         .setView(layoutInflater.inflate(R.layout.dialog_registering, null))
                         .show()

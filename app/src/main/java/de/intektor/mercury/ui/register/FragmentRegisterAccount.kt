@@ -12,6 +12,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import com.google.android.gms.safetynet.SafetyNet
+import de.intektor.mercury.BuildConfig
 import de.intektor.mercury.R
 import de.intektor.mercury.io.HttpManager
 import de.intektor.mercury.util.getCompatColor
@@ -28,11 +29,6 @@ class FragmentRegisterAccount : Fragment() {
     private var usernameValid: Boolean = false
         set(value) {
             fragment_register_account_cl_verify?.isEnabled = value
-        }
-
-    private var captchaToken: String? = null
-        set(value) {
-
         }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? =
@@ -65,7 +61,12 @@ class FragmentRegisterAccount : Fragment() {
         })
 
         fragment_register_account_cl_verify.setOnClickListener {
-            doCaptcha()
+            val context = context
+            if (!BuildConfig.DEBUG) {
+                doCaptcha()
+            } else if (context is IArrowPressedListener) {
+                context.onPressedForward()
+            }
         }
 
         fragment_register_account_cl_help.setOnClickListener {

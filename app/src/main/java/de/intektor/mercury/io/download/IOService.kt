@@ -53,10 +53,17 @@ class IOService : Service() {
 
             NotificationManagerCompat.from(context).cancel(notificationId)
 
-            accessDownloadStreams().forEach {
-                try {
-                    it.close()
-                } catch (t: Throwable) {
+            val toClose = when (io) {
+                IO.DOWNLOAD -> accessDownloadStreams()
+                IO.UPLOAD -> accessUploadStreams()
+            }
+
+            synchronized(toClose) {
+                toClose.forEach {
+                    try {
+                        it.close()
+                    } catch (t: Throwable) {
+                    }
                 }
             }
         }

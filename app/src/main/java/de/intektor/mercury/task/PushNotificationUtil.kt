@@ -1,5 +1,6 @@
 package de.intektor.mercury.task
 
+import android.annotation.TargetApi
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
@@ -125,18 +126,20 @@ object PushNotificationUtil {
 
             val (chatMessage, chatName, senderName, chatType, senderUUID) = firstNotification.getData(context, dataBase)
 
-            val profilePictureFile = ProfilePictureUtil.getProfilePicture(senderUUID, context, ProfilePictureType.SMALL)
-            val personIcon = if (profilePictureFile.exists()) Icon.createWithFilePath(profilePictureFile.path) else Icon.createWithResource(context, R.drawable.baseline_account_circle_24)
-
             val person = Person.Builder()
                     .setName(senderName)
-                    .setIcon(IconCompat.createFromIcon(context, personIcon))
+                    .setIcon(getIconForUser(context, senderUUID))
                     .build()
             val style = NotificationCompat.MessagingStyle(person)
 
             for (notification in notifications) {
-                val (notificationChatMessage, _, _, _, _) = notification.getData(context, dataBase)
-                style.addMessage(NotificationCompat.MessagingStyle.Message(MessageUtil.getPreviewText(context, notificationChatMessage), chatMessage.messageCore.timeCreated, person))
+                val (notificationChatMessage, _, notSenderName, _, notSenderUUID) = notification.getData(context, dataBase)
+
+                val notPerson = Person.Builder()
+                        .setName(notSenderName)
+                        .setIcon(getIconForUser(context, notSenderUUID))
+                        .build()
+                style.addMessage(NotificationCompat.MessagingStyle.Message(MessageUtil.getPreviewText(context, notificationChatMessage), chatMessage.messageCore.timeCreated, notPerson))
             }
 
             val builder = NotificationCompat.Builder(context, NOTIFICATION_CHANNEL_NEW_MESSAGES)
@@ -378,5 +381,16 @@ object PushNotificationUtil {
         } else {
             popNotificationSDKUnderNougat(context, readPreviousNotificationsFromDataBase(null, mercuryClient.dataBase), notificationManager)
         }
+    }
+
+    @TargetApi(23)
+    private fun getIconForUser(context: Context, userUUID: UUID): IconCompat? {
+        val profilePictureFile = ProfilePictureUtil.getProfilePicture(userUUID, context, ProfilePictureType.SMALL)
+        val icon = if (profilePictureFile.exists()) {
+            val bitmap = BitmapFactory.decodeFile(profilePictureFile.path)
+            Icon.createWithBitmap(bitmap)
+        } else Icon.createWithResource(context, R.drawable.baseline_account_circle_24)
+
+        return IconCompat.createFromIcon(context, icon)
     }
 }
