@@ -5,7 +5,6 @@
     <attr name="ic_error_outline" format="reference" />
     <attr name="ic_file_download" format="reference" />
     <attr name="ic_file_upload" format="reference" />
-    <attr name="ic_perm_media" format="reference" />
     <attr name="ic_photo" format="reference" />
     <attr name="ic_settings" format="reference" />
     <attr name="ic_pause" format="reference" />
@@ -32,7 +31,6 @@
         <item name="ic_error_outline">@drawable/ic_error_outline_white_24dp</item>
         <item name="ic_file_download">@drawable/ic_file_download_white_24dp</item>
         <item name="ic_file_upload">@drawable/ic_file_upload_white_24dp</item>
-        <item name="ic_perm_media">@drawable/ic_perm_media_white_24dp</item>
         <item name="ic_photo">@drawable/ic_photo_white_24dp</item>
         <item name="ic_settings">@drawable/ic_settings_white_24dp</item>
         <item name="ic_pause">@drawable/ic_pause_white_24dp</item>
@@ -57,7 +55,6 @@
         <item name="ic_error_outline">@drawable/ic_error_outline_black_24dp</item>
         <item name="ic_file_download">@drawable/ic_file_download_black_24dp</item>
         <item name="ic_file_upload">@drawable/ic_file_upload_black_24dp</item>
-        <item name="ic_perm_media">@drawable/ic_perm_media_black_24dp</item>
         <item name="ic_photo">@drawable/ic_photo_black_24dp</item>
         <item name="ic_settings">@drawable/ic_settings_black_24dp</item>
         <item name="ic_pause">@drawable/ic_pause_black_24dp</item>

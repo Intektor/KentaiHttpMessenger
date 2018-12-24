@@ -6,7 +6,8 @@
     android:layout_width="fill_parent"
     android:layout_height="fill_parent"
     android:gravity="end"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    tools:layout_editor_absoluteY="81dp">
 
     <androidx.cardview.widget.CardView
         android:id="@+id/activity_chat_cv_new_messages_parent"
@@ -51,18 +52,15 @@
 
     <ImageView
         android:id="@+id/chatActivityBackgroundImage"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="@+id/chatActivityMessageList" />
+        android:layout_width="411dp"
+        android:layout_height="603dp" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/chatActivityMessageList"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        app:layout_constraintBottom_toTopOf="@+id/chatActivityButtonTakePicture"
+        android:layout_marginBottom="8dp"
+        app:layout_constraintBottom_toTopOf="@+id/chatActivityTextInputLayout"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
@@ -71,88 +69,156 @@
     </androidx.recyclerview.widget.RecyclerView>
 
     <androidx.cardview.widget.CardView
-        android:id="@+id/chatActivitySendMessageParent"
-        android:layout_width="45dp"
-        android:layout_height="45dp"
+        android:id="@+id/activity_chat_cv_send_message"
+        android:layout_width="46dp"
+        android:layout_height="46dp"
         android:layout_marginEnd="8dp"
-        app:cardCornerRadius="25dp"
+        android:layout_marginRight="8dp"
+        app:cardCornerRadius="23dp"
         app:layout_constraintBottom_toBottomOf="@+id/chatActivityTextInputLayout"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toTopOf="@+id/chatActivityTextInputLayout">
 
-        <ImageView
-            android:id="@+id/chatActivitySendMessage"
-            android:layout_width="30dp"
-            android:layout_height="30dp"
-            android:layout_gravity="center"
-            app:srcCompat="@drawable/baseline_send_24" />
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/activity_chat_cl_send_message"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="?attr/selectableItemBackground"
+            android:clickable="true"
+            android:focusable="true">
+
+            <ImageView
+                android:id="@+id/activity_chat_iv_send_message"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:layout_gravity="center"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:srcCompat="@drawable/baseline_mic_24" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+
     </androidx.cardview.widget.CardView>
-
-    <ImageButton
-        android:id="@+id/chatActivityButtonTakePicture"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:layout_marginStart="8dp"
-        android:src="?attr/ic_camera"
-        app:layout_constraintBottom_toTopOf="@+id/chatActivityTextInputLayout"
-        app:layout_constraintStart_toStartOf="parent" />
-
-    <ImageButton
-        android:id="@+id/chatActivityButtonPickMedia"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:layout_marginStart="8dp"
-        android:src="?attr/ic_perm_media"
-        app:layout_constraintBottom_toTopOf="@+id/chatActivityTextInputLayout"
-        app:layout_constraintStart_toEndOf="@+id/chatActivityButtonTakePicture" />
-
-    <ImageButton
-        android:id="@+id/chatActivityButtonRecordVoice"
-        android:layout_width="80dp"
-        android:layout_height="40dp"
-        android:src="?attr/ic_mic"
-        app:layout_constraintBottom_toTopOf="@+id/chatActivityTextInputLayout"
-        app:layout_constraintEnd_toEndOf="parent" />
 
     <androidx.cardview.widget.CardView
         android:id="@+id/chatActivityTextInputLayout"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
+        android:layout_marginLeft="8dp"
         android:layout_marginEnd="8dp"
+        android:layout_marginRight="8dp"
         android:layout_marginBottom="8dp"
         app:cardCornerRadius="20dp"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toStartOf="@+id/chatActivitySendMessageParent"
+        app:layout_constraintEnd_toStartOf="@+id/activity_chat_cv_send_message"
         app:layout_constraintStart_toStartOf="parent">
 
-        <de.intektor.mercury.ui.view.RichEditText
-            android:id="@+id/chatActivityTextInput"
+        <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:layout_marginEnd="8dp"
-            android:ems="10"
-            android:hint="@string/chat_activity_write_message"
-            android:inputType="textMultiLine"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toStartOf="@+id/chatActivitySendMessageParent"
-            app:layout_constraintStart_toStartOf="parent" />
+            android:layout_height="wrap_content">
+
+            <androidx.cardview.widget.CardView
+                android:id="@+id/activity_chat_cv_take_picture"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:layout_marginEnd="2dp"
+                android:layout_marginRight="2dp"
+                android:layout_marginBottom="8dp"
+                app:cardCornerRadius="13dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@+id/activity_chat_cv_pick_media"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/activity_chat_cl_take_picture"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_marginStart="4dp"
+                        android:layout_marginLeft="4dp"
+                        android:layout_marginTop="4dp"
+                        android:layout_marginEnd="4dp"
+                        android:layout_marginRight="4dp"
+                        android:layout_marginBottom="4dp"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:srcCompat="@drawable/baseline_photo_camera_24" />
+                </androidx.constraintlayout.widget.ConstraintLayout>
+            </androidx.cardview.widget.CardView>
+
+            <androidx.cardview.widget.CardView
+                android:id="@+id/activity_chat_cv_pick_media"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="4dp"
+                android:layout_marginRight="4dp"
+                app:cardCornerRadius="13dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/activity_chat_cl_pick_media"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_marginStart="4dp"
+                        android:layout_marginLeft="4dp"
+                        android:layout_marginTop="4dp"
+                        android:layout_marginEnd="4dp"
+                        android:layout_marginRight="4dp"
+                        android:layout_marginBottom="4dp"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintEnd_toEndOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        app:srcCompat="@drawable/baseline_perm_media_24" />
+                </androidx.constraintlayout.widget.ConstraintLayout>
+            </androidx.cardview.widget.CardView>
+
+            <de.intektor.mercury.ui.view.RichEditText
+                android:id="@+id/activity_chat_et_input"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_marginLeft="8dp"
+                android:layout_marginEnd="4dp"
+                android:layout_marginRight="4dp"
+                android:ems="10"
+                android:hint="@string/chat_activity_write_message"
+                android:inputType="textMultiLine"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@+id/activity_chat_cv_take_picture"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
     </androidx.cardview.widget.CardView>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/chatActivityViewingUsersList"
-        android:layout_width="0dp"
+        android:layout_width="403dp"
         android:layout_height="wrap_content"
-        android:layout_marginEnd="8dp"
-        android:layout_marginRight="8dp"
-        android:scrollbars="vertical"
-        app:layout_constraintBottom_toBottomOf="@+id/chatActivityMessageList"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.0">
+        android:scrollbars="vertical">
 
     </androidx.recyclerview.widget.RecyclerView>
 
@@ -161,8 +227,10 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="8dp"
+        android:layout_marginLeft="8dp"
         android:layout_marginTop="8dp"
         android:layout_marginEnd="8dp"
+        android:layout_marginRight="8dp"
         android:layout_marginBottom="8dp"
         android:background="@color/colorPrimaryDarkTheme"
         android:visibility="gone"

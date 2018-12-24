@@ -93,9 +93,6 @@ class ChatActivity : AppCompatActivity() {
     lateinit var chatInfo: ChatInfo
         private set
 
-    private var firstMessageTime = System.currentTimeMillis()
-    private var lastMessageTime = 0L
-
     private val contactMap: MutableMap<UUID, Contact> = HashMap()
 
     private val uploadProgressReceiver = UploadProgressReceiver()
@@ -252,9 +249,9 @@ class ChatActivity : AppCompatActivity() {
 
         loadMoreMessagesTop(false, LoadType.TOP)
 
-        chatActivityTextInput.addTextChangedListener(object : TextWatcher {
+        activity_chat_et_input.addTextChangedListener(object : TextWatcher {
             override fun afterTextChanged(newText: Editable) {
-                chatActivitySendMessage.isEnabled = newText.isNotBlank()
+                applySendMessageLogic(newText)
             }
 
             override fun beforeTextChanged(p0: CharSequence?, p1: Int, p2: Int, p3: Int) {
@@ -268,10 +265,7 @@ class ChatActivity : AppCompatActivity() {
             }
         })
 
-        chatActivitySendMessage.setOnClickListener {
-            sendMessage()
-            chatActivityTextInput.text.clear()
-        }
+        applySendMessageLogic("")
 
         val handler = Handler()
         TypingUpdater(handler).run()
@@ -280,7 +274,7 @@ class ChatActivity : AppCompatActivity() {
 
         scrollToBottom()
 
-        chatActivityButtonPickMedia.setOnClickListener {
+        activity_chat_cv_pick_media.setOnClickListener {
             if (checkWriteStoragePermission(this, PERMISSION_REQUEST_EXTERNAL_STORAGE)) {
                 if (PreferenceManager.getDefaultSharedPreferences(this).getBoolean(getString(R.string.preference_use_native_media_picker), false)) {
                     if (Build.VERSION.SDK_INT >= 19) {
@@ -297,16 +291,7 @@ class ChatActivity : AppCompatActivity() {
             }
         }
 
-        chatActivityButtonRecordVoice.setOnTouchListener { _, motionEvent ->
-            if (motionEvent.action == MotionEvent.ACTION_DOWN) {
-                startRecording()
-            } else if (motionEvent.action == MotionEvent.ACTION_UP) {
-                stopRecording(true)
-            }
-            true
-        }
-
-        chatActivityButtonTakePicture.setOnClickListener {
+        activity_chat_cl_take_picture.setOnClickListener {
             takePhoto()
         }
 
@@ -344,12 +329,37 @@ class ChatActivity : AppCompatActivity() {
         applyBackgroundImage(getBackgroundChatFile(this, chatInfo.chatUUID))
     }
 
+    private fun applySendMessageLogic(currentText: CharSequence) {
+        activity_chat_iv_send_message.setImageResource(if (currentText.isBlank()) R.drawable.baseline_mic_24 else R.drawable.baseline_send_24)
+
+        if (currentText.isBlank()) {
+            activity_chat_cl_send_message.setOnTouchListener { _, motionEvent ->
+                if (activity_chat_et_input.text.isEmpty()) {
+                    if (motionEvent.action == MotionEvent.ACTION_DOWN) {
+                        startRecording()
+                    } else if (motionEvent.action == MotionEvent.ACTION_UP) {
+                        stopRecording(true)
+                    }
+                }
+                true
+            }
+        } else {
+            activity_chat_cl_send_message.setOnTouchListener(null)
+            activity_chat_cl_send_message.setOnClickListener {
+                if (activity_chat_et_input.text.isNotEmpty()) {
+                    sendMessage()
+                    activity_chat_et_input.text.clear()
+                }
+            }
+        }
+    }
+
     private fun sendMessage() {
         val mercuryClient = applicationContext as MercuryClient
 
         val clientUUID = ClientPreferences.getClientUUID(this)
 
-        var current = chatActivityTextInput.text.toString()
+        var current = activity_chat_et_input.text.toString()
 
         while (current.startsWith('\n')) current = current.substring(1)
         while (current.endsWith('\n')) current = current.substring(0, current.length - 1)
@@ -520,7 +530,7 @@ class ChatActivity : AppCompatActivity() {
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-        when (requestCode) {
+        if (grantResults.isNotEmpty()) when (requestCode) {
             PERMISSION_REQUEST_EXTERNAL_STORAGE -> {
                 if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                     startActivityForResult(PickGalleryActivity.createIntent(this, chatInfo), ACTION_SEND_MEDIA)
@@ -719,14 +729,14 @@ class ChatActivity : AppCompatActivity() {
         } else false
 
         if (userNoMember || adminNoMember) {
-            chatActivityTextInput.isEnabled = false
-            chatActivitySendMessage.isEnabled = false
+            activity_chat_et_input.isEnabled = false
+            activity_chat_iv_send_message.isEnabled = false
         }
         if (userNoMember) {
-            chatActivityTextInput.setText(R.string.chat_group_no_member)
+            activity_chat_et_input.setText(R.string.chat_group_no_member)
         }
         if (adminNoMember) {
-            chatActivityTextInput.setText(R.string.chat_group_no_admin)
+            activity_chat_et_input.setText(R.string.chat_group_no_admin)
         }
     }
 
