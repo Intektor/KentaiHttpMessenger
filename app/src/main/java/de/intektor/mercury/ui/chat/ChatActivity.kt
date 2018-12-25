@@ -295,6 +295,10 @@ class ChatActivity : AppCompatActivity() {
             takePhoto()
         }
 
+        activity_chat_cl_pick_media.setOnClickListener {
+            pickMedia()
+        }
+
         chatActivityMessageList.addItemDecoration(HeaderItemDecoration(chatActivityMessageList, object : HeaderItemDecoration.StickyHeaderInterface {
             override fun getHeaderPositionForItem(itemPosition: Int): Int {
                 var i = itemPosition
@@ -338,7 +342,21 @@ class ChatActivity : AppCompatActivity() {
                     if (motionEvent.action == MotionEvent.ACTION_DOWN) {
                         startRecording()
                     } else if (motionEvent.action == MotionEvent.ACTION_UP) {
-                        stopRecording(true)
+                        val x = motionEvent.x
+                        val y = motionEvent.y
+
+                        val button = activity_chat_cl_send_message
+
+                        val length = (button.right - button.left)
+
+                        val middleX = button.left + length / 2
+                        val middleY = button.bottom + (button.top - button.bottom) / 2
+
+                        val dX = x - middleX
+                        val dY = y - middleY
+
+                        val stillOnButton = Math.sqrt((dX * dX + dY * dY).toDouble()) <= length
+                        stopRecording(stillOnButton)
                     }
                 }
                 true
@@ -533,7 +551,7 @@ class ChatActivity : AppCompatActivity() {
         if (grantResults.isNotEmpty()) when (requestCode) {
             PERMISSION_REQUEST_EXTERNAL_STORAGE -> {
                 if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    startActivityForResult(PickGalleryActivity.createIntent(this, chatInfo), ACTION_SEND_MEDIA)
+                    pickMedia()
                 }
             }
             PERMISSION_REQUEST_CAMERA -> {
@@ -563,6 +581,23 @@ class ChatActivity : AppCompatActivity() {
 
                     startActivityForResult(takePictureIntent, ACTION_TAKE_IMAGE)
                 }
+            }
+        }
+    }
+
+    private fun pickMedia() {
+        if (checkWriteStoragePermission(this, PERMISSION_REQUEST_EXTERNAL_STORAGE)) {
+            if (PreferenceManager.getDefaultSharedPreferences(this).getBoolean(getString(R.string.preference_use_native_media_picker), false)) {
+                if (Build.VERSION.SDK_INT >= 19) {
+                    val i = Intent(Intent.ACTION_PICK)
+                    i.type = "*/*"
+                    i.putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*"))
+                    startActivityForResult(i, ACTION_PICK_MEDIA)
+                } else {
+                    Toast.makeText(this, R.string.chat_activity_native_gallery_not_supported, Toast.LENGTH_LONG).show()
+                }
+            } else {
+                startActivityForResult(PickGalleryActivity.createIntent(this, chatInfo), ACTION_SEND_MEDIA)
             }
         }
     }
