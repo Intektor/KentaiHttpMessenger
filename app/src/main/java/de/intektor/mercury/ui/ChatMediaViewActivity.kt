@@ -75,7 +75,8 @@ class ChatMediaViewActivity : AppCompatActivity(), FragmentViewImage.BindCallbac
         }
 
         val targetIndex = if (targetReferenceTime != null) {
-            val targetIndex = mercuryClient.dataBase.rawQuery("SELECT COUNT(reference_uuid) FROM reference WHERE time < ? ORDER BY time ASC", arrayOf(targetReferenceTime.toString())).use { cursor ->
+            val targetIndex = mercuryClient.dataBase.rawQuery("SELECT COUNT(reference_uuid) FROM reference WHERE time < ? AND chat_uuid = ? ORDER BY time ASC",
+                    arrayOf(targetReferenceTime.toString(), chatUuid.toString())).use { cursor ->
                 cursor.moveToNext()
                 cursor.getInt(0)
             }
