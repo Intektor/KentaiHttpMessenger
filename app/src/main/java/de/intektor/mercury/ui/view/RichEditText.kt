@@ -1,32 +1,21 @@
 package de.intektor.mercury.ui.view
 
 import android.content.Context
-import android.graphics.BitmapFactory
 import android.util.AttributeSet
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import android.widget.EditText
 import androidx.core.view.inputmethod.EditorInfoCompat
 import androidx.core.view.inputmethod.InputConnectionCompat
-import com.google.common.hash.Hashing
 import de.intektor.mercury.MercuryClient
-import de.intektor.mercury.chat.ChatMessageInfo
 import de.intektor.mercury.chat.ChatMessageWrapper
 import de.intektor.mercury.chat.PendingMessage
 import de.intektor.mercury.chat.sendMessageToServer
 import de.intektor.mercury.client.ClientPreferences
+import de.intektor.mercury.media.MediaSendUtil
 import de.intektor.mercury.media.MediaType
-import de.intektor.mercury.media.ThumbnailUtil
-import de.intektor.mercury.reference.ReferenceUtil
-import de.intektor.mercury.task.getVideoDuration
 import de.intektor.mercury.ui.chat.ChatActivity
-import de.intektor.mercury_common.chat.ChatMessage
-import de.intektor.mercury_common.chat.MessageCore
 import de.intektor.mercury_common.chat.MessageStatus
-import de.intektor.mercury_common.chat.data.MessageImage
-import de.intektor.mercury_common.chat.data.MessageVideo
-import de.intektor.mercury_common.util.generateAESKey
-import de.intektor.mercury_common.util.generateInitVector
 import java.util.*
 
 
@@ -46,6 +35,8 @@ class RichEditText(context: Context, attrs: AttributeSet) : EditText(context, at
                 try {
                     inputContentInfo.requestPermission()
 
+                    val clientUUID = ClientPreferences.getClientUUID(context)
+
                     val mediaType = when (inputContentInfo.description.getMimeType(0)) {
                         "image/gif" -> MediaType.MEDIA_TYPE_VIDEO
                         "image/png" -> MediaType.MEDIA_TYPE_IMAGE
@@ -54,48 +45,22 @@ class RichEditText(context: Context, attrs: AttributeSet) : EditText(context, at
 
                     if (context is ChatActivity) {
                         val referenceUUID = UUID.randomUUID()
-                        val referenceFile = ReferenceUtil.getFileForReference(context, referenceUUID)
 
-                        val client = ClientPreferences.getClientUUID(context)
-
-                        val contentBytes = context.contentResolver.openInputStream(inputContentInfo.contentUri).readBytes()
-
-                        val hash = Hashing.sha512().hashBytes(contentBytes)
-
-                        val aes = generateAESKey()
-                        val iV = generateInitVector()
-
-                        val core = MessageCore(client, System.currentTimeMillis(), UUID.randomUUID())
-
-                        referenceFile.outputStream().write(contentBytes)
-
-                        val data = when (mediaType) {
+                        val createdMessages = when (mediaType) {
                             MediaType.MEDIA_TYPE_IMAGE -> {
-                                val bitmap = BitmapFactory.decodeByteArray(contentBytes, 0, contentBytes.size)
-
-                                MessageImage(ThumbnailUtil.createThumbnail(referenceFile, MediaType.MEDIA_TYPE_IMAGE), "", bitmap.width, bitmap.height, aes, iV, referenceUUID, hash.toString())
+                                MediaSendUtil.createImageMessages(mercuryClient, referenceUUID, listOf(context.chatInfo.chatUUID), inputContentInfo.contentUri, "")
                             }
                             MediaType.MEDIA_TYPE_VIDEO -> {
-                                val videoDuration = getVideoDuration(referenceFile, mercuryClient)
-
-                                val options = BitmapFactory.Options()
-                                val dimension = BitmapFactory.decodeByteArray(contentBytes, 0, contentBytes.size, options)
-
-                                MessageVideo(videoDuration,
-                                        true,
-                                        dimension.width,
-                                        dimension.height,
-                                        ThumbnailUtil.createThumbnail(referenceFile, MediaType.MEDIA_TYPE_IMAGE), "", aes, iV, referenceUUID, hash.toString())
+                                MediaSendUtil.createVideoMessages(mercuryClient, listOf(context.chatInfo.chatUUID), inputContentInfo.contentUri, "", true, referenceUUID)
                             }
                             else -> throw IllegalArgumentException()
-                        }
+                        } ?: return@OnCommitContentListener false
 
-                        val message = ChatMessage(core, data)
-                        val info = ChatMessageInfo(message, true, context.chatInfo.chatUUID)
-                        val wrapper = ChatMessageWrapper(info, MessageStatus.WAITING, System.currentTimeMillis())
+                        val messageInfo = createdMessages[0]
 
-                        context.addMessageToBottom(wrapper)
-                        sendMessageToServer(mercuryClient, PendingMessage(message, context.chatInfo.chatUUID, context.chatInfo.getOthers(client)), mercuryClient.dataBase)
+                        context.addMessageToBottom(ChatMessageWrapper(messageInfo, MessageStatus.WAITING, System.currentTimeMillis()))
+
+                        sendMessageToServer(mercuryClient, PendingMessage(messageInfo.message, context.chatInfo.chatUUID, context.chatInfo.getOthers(clientUUID)), mercuryClient.dataBase)
                     }
                 } catch (e: Exception) {
                     return@OnCommitContentListener false

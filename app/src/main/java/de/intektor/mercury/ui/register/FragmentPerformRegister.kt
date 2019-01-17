@@ -31,6 +31,7 @@ class FragmentPerformRegister : Fragment() {
             if (context is RegisterActivity) {
                 val dialog = AlertDialog.Builder(context)
                         .setView(layoutInflater.inflate(R.layout.dialog_registering, null))
+                        .setCancelable(false)
                         .show()
 
                 context.attemptRegister { successful ->

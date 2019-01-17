@@ -2,16 +2,19 @@ package de.intektor.mercury
 
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
+import android.view.View
 import androidx.test.espresso.Espresso
 import androidx.test.espresso.ViewAssertion
 import androidx.test.espresso.action.ViewActions
 import androidx.test.espresso.assertion.ViewAssertions
 import androidx.test.espresso.intent.matcher.IntentMatchers
 import androidx.test.espresso.matcher.ViewMatchers
-import android.view.View
-import de.intektor.mercury.chat.*
+import de.intektor.mercury.chat.MessageStatusChange
+import de.intektor.mercury.chat.getChatUUIDForUserChat
 import de.intektor.mercury.chat.model.ChatInfo
 import de.intektor.mercury.chat.model.ChatReceiver
+import de.intektor.mercury.chat.saveMessage
+import de.intektor.mercury.chat.saveMessageStatusChange
 import de.intektor.mercury.contacts.Contact
 import de.intektor.mercury.contacts.ContactUtil
 import de.intektor.mercury_common.chat.ChatMessage
@@ -65,15 +68,13 @@ fun createContact(name: String, dataBase: SQLiteDatabase, key: Key): Contact {
 
 fun createChat(name: String, client: Contact, partner: Contact, dataBase: SQLiteDatabase): ChatInfo {
     val chatUUID = getChatUUIDForUserChat(client.userUUID, partner.userUUID)
-    val chatInfo = ChatInfo(chatUUID, name, ChatType.TWO_PEOPLE, listOf(ChatReceiver.fromContact(client), ChatReceiver.fromContact(partner)))
+    val chatInfo = ChatInfo(chatUUID, ChatType.TWO_PEOPLE, listOf(ChatReceiver.fromContact(client), ChatReceiver.fromContact(partner)))
 
     de.intektor.mercury.chat.createChat(chatInfo, dataBase, client.userUUID)
 
     return chatInfo
 }
 
-fun createGroupChat(name: String, contacts: List<Contact>) =
-        ChatInfo(UUID.nameUUIDFromBytes(name.toByteArray()), name, ChatType.GROUP_DECENTRALIZED, contacts.map { ChatReceiver.fromContact(it) })
 
 fun addChatMessage(context: Context, dataBase: SQLiteDatabase, message: ChatMessage, chatUUID: UUID) {
     saveMessage(context, dataBase, message, chatUUID)

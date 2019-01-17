@@ -5,17 +5,24 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content">
 
-    <ImageView
-        android:id="@+id/item_chat_small_iv_pp"
+    <androidx.cardview.widget.CardView
+        android:id="@+id/item_chat_small_cv_pp"
         android:layout_width="60dp"
         android:layout_height="60dp"
         android:layout_marginStart="8dp"
         android:layout_marginTop="8dp"
         android:layout_marginEnd="8dp"
+        app:cardCornerRadius="30dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:srcCompat="@drawable/baseline_account_circle_24" />
+        app:layout_constraintTop_toTopOf="parent">
+
+        <ImageView
+            android:id="@+id/item_chat_small_iv_pp"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:srcCompat="@drawable/baseline_account_circle_24" />
+    </androidx.cardview.widget.CardView>
 
     <ImageView
         android:id="@+id/item_chat_small_iv_checked"
@@ -35,7 +42,7 @@
         android:singleLine="true"
         android:text="TextView"
         app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="@+id/item_chat_small_iv_pp"
-        app:layout_constraintStart_toStartOf="@+id/item_chat_small_iv_pp"
-        app:layout_constraintTop_toBottomOf="@+id/item_chat_small_iv_pp" />
+        app:layout_constraintEnd_toEndOf="@+id/item_chat_small_cv_pp"
+        app:layout_constraintStart_toStartOf="@+id/item_chat_small_cv_pp"
+        app:layout_constraintTop_toBottomOf="@+id/item_chat_small_cv_pp" />
 </androidx.constraintlayout.widget.ConstraintLayout>

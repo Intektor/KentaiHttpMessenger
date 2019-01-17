@@ -249,17 +249,17 @@ class FMService : FirebaseMessagingService() {
                         }
                     }
                     is MessageVoiceMessage -> {
-                        IOService.ActionDownloadReference.launch(this, messageData.reference, messageData.aesKey, messageData.initVector, MediaType.MEDIA_TYPE_AUDIO, chatUUID, messageUUID)
+                        IOService.ActionDownloadReference.launch(this, messageData.reference, messageData.aesKey, messageData.initVector, MediaType.MEDIA_TYPE_AUDIO)
                         updateChatAndSendBroadcast(chatMessage, chatInfo)
                     }
                     is MessageImage -> {
-                        IOService.ActionDownloadReference.launch(this, messageData.reference, messageData.aesKey, messageData.initVector, MediaType.MEDIA_TYPE_IMAGE, chatUUID, messageUUID)
+                        IOService.ActionDownloadReference.launch(this, messageData.reference, messageData.aesKey, messageData.initVector, MediaType.MEDIA_TYPE_IMAGE)
                         updateChatAndSendBroadcast(chatMessage, chatInfo)
 
                         ReferenceUtil.addReference(mercuryClient.dataBase, chatUUID, messageData.reference, messageUUID, MediaType.MEDIA_TYPE_IMAGE, System.currentTimeMillis())
                     }
                     is MessageVideo -> {
-                        IOService.ActionDownloadReference.launch(this, messageData.reference, messageData.aesKey, messageData.initVector, MediaType.MEDIA_TYPE_VIDEO, chatUUID, messageUUID)
+                        IOService.ActionDownloadReference.launch(this, messageData.reference, messageData.aesKey, messageData.initVector, MediaType.MEDIA_TYPE_VIDEO)
                         updateChatAndSendBroadcast(chatMessage, chatInfo)
 
                         ReferenceUtil.addReference(mercuryClient.dataBase, chatUUID, messageData.reference, messageUUID, MediaType.MEDIA_TYPE_VIDEO, System.currentTimeMillis())

@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.ContentUris
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
 import android.view.LayoutInflater
@@ -25,6 +26,7 @@ import de.intektor.mercury.media.MediaFile
 import de.intektor.mercury.media.ThumbnailUtil
 import de.intektor.mercury.util.Logger
 import kotlinx.android.synthetic.main.activity_pick_gallery.*
+import java.io.File
 
 class PickGalleryActivity : AppCompatActivity(), SearchView.OnQueryTextListener {
 
@@ -115,18 +117,18 @@ class PickGalleryActivity : AppCompatActivity(), SearchView.OnQueryTextListener 
                     val parentDirectory = cursor.getString(0)
 
                     val mediaFile: MediaFile? = contentResolver.query(fileUri,
-                            arrayOf(MediaStore.MediaColumns._ID, MediaStore.Files.FileColumns.MEDIA_TYPE, MediaStore.Files.FileColumns.DATE_ADDED),
+                            arrayOf(MediaStore.Files.FileColumns.DATA, MediaStore.Files.FileColumns.MEDIA_TYPE, MediaStore.Files.FileColumns.DATE_ADDED),
                             "${MediaStore.Files.FileColumns.PARENT} = ? " +
                                     "AND ${MediaStore.Files.FileColumns.MEDIA_TYPE} IN (${MediaStore.Files.FileColumns.MEDIA_TYPE_IMAGE}, ${MediaStore.Files.FileColumns.MEDIA_TYPE_VIDEO})",
                             arrayOf("$galleryFolder"),
                             "${MediaStore.MediaColumns.DATE_ADDED} DESC LIMIT 1").use firstItem@{ firstItemCursor ->
                         if (firstItemCursor == null || !firstItemCursor.moveToNext()) return@firstItem null
 
-                        val id = firstItemCursor.getLong(0)
+                        val path = firstItemCursor.getString(0)
                         val mimeType = firstItemCursor.getString(1).toInt()
                         val dateAdded = firstItemCursor.getLong(2)
 
-                        ExternalStorageFile(id, mimeType, dateAdded)
+                        ExternalStorageFile(Uri.fromFile(File(path)), mimeType, dateAdded)
                     }
 
                     if (mediaFile != null) {

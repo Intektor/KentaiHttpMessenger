@@ -21,6 +21,9 @@ import android.text.style.StyleSpan
 import android.util.Log
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.NotificationManagerCompat
+import com.crashlytics.android.Crashlytics
+import com.crashlytics.android.core.CrashlyticsCore
+import com.jakewharton.threetenabp.AndroidThreeTen
 import com.squareup.picasso.Picasso
 import de.intektor.mercury.action.chat.ActionChatMessageNotification
 import de.intektor.mercury.action.notification.ActionNotificationReply
@@ -39,6 +42,7 @@ import de.intektor.mercury_common.server_to_client.CurrentVersionResponse
 import de.intektor.mercury_common.tcp.client_to_server.InterestedUser
 import de.intektor.mercury_common.tcp.client_to_server.InterestedUserPacketToServer
 import de.intektor.mercury_common.tcp.server_to_client.UserChange
+import io.fabric.sdk.android.Fabric
 import java.io.File
 import java.util.*
 import kotlin.collections.HashMap
@@ -67,6 +71,12 @@ class MercuryClient : Application() {
 
     override fun onCreate() {
         super.onCreate()
+
+        Fabric.with(this, Crashlytics.Builder()
+                .core(CrashlyticsCore.Builder()
+                        .disabled(BuildConfig.DEBUG)
+                        .build())
+                .build())
 
         File(filesDir.path + "/resources/").mkdirs()
 
@@ -140,6 +150,8 @@ class MercuryClient : Application() {
 
         registerReceiver(notificationReceiver, ActionChatMessageNotification.getFilter())
         registerReceiver(NotificationBroadcastReceiver, ActionNotificationReply.getFilter())
+
+        AndroidThreeTen.init(this)
     }
 
     class CheckForNewVersionTask : AsyncTask<MercuryClient, Unit, Pair<CurrentVersionResponse?, MercuryClient>>() {

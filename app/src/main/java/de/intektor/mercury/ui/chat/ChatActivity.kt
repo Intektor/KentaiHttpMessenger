@@ -53,7 +53,9 @@ import de.intektor.mercury.contacts.Contact
 import de.intektor.mercury.io.download.IOService
 import de.intektor.mercury.media.*
 import de.intektor.mercury.reference.ReferenceUtil
-import de.intektor.mercury.task.*
+import de.intektor.mercury.task.DeleteMessagesTask
+import de.intektor.mercury.task.PushNotificationUtil
+import de.intektor.mercury.task.ReferenceState
 import de.intektor.mercury.ui.ContactInfoActivity
 import de.intektor.mercury.ui.PickGalleryActivity
 import de.intektor.mercury.ui.SendMediaActivity
@@ -69,9 +71,11 @@ import de.intektor.mercury.util.KEY_CHAT_INFO
 import de.intektor.mercury.util.KEY_USER_UUID
 import de.intektor.mercury.util.ProfilePictureUtil
 import de.intektor.mercury_common.chat.*
-import de.intektor.mercury_common.chat.data.*
+import de.intektor.mercury_common.chat.data.MessageReference
+import de.intektor.mercury_common.chat.data.MessageStatusUpdate
+import de.intektor.mercury_common.chat.data.MessageText
+import de.intektor.mercury_common.chat.data.MessageVoiceMessage
 import de.intektor.mercury_common.chat.data.group_modification.GroupModificationChangeName
-import de.intektor.mercury_common.reference.FileType
 import de.intektor.mercury_common.tcp.client_to_server.TypingPacketToServer
 import de.intektor.mercury_common.tcp.client_to_server.ViewChatPacketToServer
 import de.intektor.mercury_common.tcp.server_to_client.Status
@@ -80,8 +84,6 @@ import de.intektor.mercury_common.users.ProfilePictureType
 import de.intektor.mercury_common.util.generateAESKey
 import de.intektor.mercury_common.util.generateInitVector
 import kotlinx.android.synthetic.main.activity_chat.*
-import org.threeten.bp.Clock
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.text.DateFormat
 import java.util.*
@@ -498,10 +500,10 @@ class ChatActivity : AppCompatActivity() {
                     val (selectedMedia) = ActionPickMedia.getData(data)
 
                     selectedMedia.forEach { media ->
-                        val uri = Uri.fromFile(File(media.mediaFile.getPath(this@ChatActivity)))
+                        val uri = media.mediaFile.getUri(this)
 
                         when (media.mediaFile.mediaType) {
-                            MediaType.MEDIA_TYPE_IMAGE -> sendPhoto(uri, media.text)
+                            MediaType.MEDIA_TYPE_IMAGE -> sendImage(uri, media.text)
                             MediaType.MEDIA_TYPE_VIDEO -> sendVideo(uri, media.text, media.isGif)
                         }
                     }
@@ -509,21 +511,15 @@ class ChatActivity : AppCompatActivity() {
             }
             ACTION_PICK_MEDIA -> {
                 if (resultCode == Activity.RESULT_OK && data != null) {
-                    contentResolver.query(data.data,
-                            arrayOf(MediaStore.Files.FileColumns._ID, MediaStore.Files.FileColumns.MEDIA_TYPE, MediaStore.Files.FileColumns.DATE_ADDED),
-                            null,
-                            null,
-                            null).use { cursor ->
-                        if (cursor != null && cursor.moveToNext()) {
-                            val id = cursor.getLong(0)
-                            val mediaType = cursor.getInt(1)
-                            val dateAdded = cursor.getLong(2)
-                            startActivityForResult(SendMediaActivity.createIntent(this,
-                                    chatInfo,
-                                    listOf(ExternalStorageFile(id, mediaType, dateAdded))),
-                                    ACTION_SEND_MEDIA)
-                            return
-                        }
+                    val mime = contentResolver.getType(data.data) ?: "unknown"
+                    val mediaType = MediaType.getMediaTypeFromMime(mime)
+
+                    if (mediaType != MediaType.MEDIA_TYPE_NONE) {
+                        startActivityForResult(SendMediaActivity.createIntent(this,
+                                chatInfo,
+                                listOf(ExternalStorageFile(data.data, mediaType, System.currentTimeMillis()))),
+                                ACTION_SEND_MEDIA)
+                        return
                     }
                     Toast.makeText(this, "Looks like something went wrong", Toast.LENGTH_LONG).show()
                 }
@@ -602,109 +598,53 @@ class ChatActivity : AppCompatActivity() {
         }
     }
 
-    private fun sendPhoto(uri: Uri, text: String) {
+    private fun sendImage(uri: Uri, text: String) {
         val mercuryClient = applicationContext as MercuryClient
 
-        SendPhotoTask({ result ->
-            val data = result.message.messageData as MessageReference
+        MediaSendUtil.saveImageAndCreateMessage(mercuryClient, listOf(chatInfo.chatUUID), uri, text) { result ->
+            if (result == null) {
+                Toast.makeText(this, "Looks like something went wrong trying to create an image message. This error has been reported to the developer", Toast.LENGTH_LONG).show()
+                return@saveImageAndCreateMessage
+            }
+
+            //We only send to this chat so only one message is present
+            val messageInfo = result[0]
+
+            val data = messageInfo.message.messageData as MessageReference
             mercuryClient.currentLoadingTable[data.reference] = 0.0
 
-            addMessageToBottom(ChatMessageWrapper(result, MessageStatus.WAITING, System.currentTimeMillis()))
+            addMessageToBottom(ChatMessageWrapper(messageInfo, MessageStatus.WAITING, System.currentTimeMillis()))
 
-            sendMessageToServer(this@ChatActivity, PendingMessage(result.message, chatInfo.chatUUID,
+            sendMessageToServer(this@ChatActivity, PendingMessage(messageInfo.message, chatInfo.chatUUID,
                     chatInfo.getOthers(ClientPreferences.getClientUUID(this))), mercuryClient.dataBase)
 
-            IOService.ActionUploadReference.launch(this, data.reference, data.aesKey, data.initVector, MediaType.MEDIA_TYPE_IMAGE, chatInfo.chatUUID, result.message.messageCore.messageUUID)
+            IOService.ActionUploadReference.launch(this, data.reference, data.aesKey, data.initVector, MediaType.MEDIA_TYPE_IMAGE)
 
             scrollToBottom()
-        }, mercuryClient, chatInfo.chatUUID, uri, text).execute()
-    }
-
-    private class SendPhotoTask(val execute: (ChatMessageInfo) -> (Unit), val mercuryClient: MercuryClient, val chatUUID: UUID, val uri: Uri, val text: String) : AsyncTask<Unit, Unit, ChatMessageInfo>() {
-        override fun doInBackground(vararg args: Unit): ChatMessageInfo {
-            Thread.sleep(1L)
-
-            val messageUUID = UUID.randomUUID()
-            val referenceUUID = UUID.randomUUID()
-
-            val clientUUID = ClientPreferences.getClientUUID(mercuryClient)
-
-            val bitmap = BitmapFactory.decodeStream(mercuryClient.contentResolver.openInputStream(uri))
-
-            val byteOut = ByteArrayOutputStream()
-
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 80, byteOut)
-
-            val referenceFile = ReferenceUtil.getFileForReference(mercuryClient, referenceUUID)
-            byteOut.writeTo(referenceFile.outputStream())
-
-            val aes = generateAESKey()
-            val iV = generateInitVector()
-
-            ReferenceUtil.setReferenceKey(mercuryClient.dataBase, referenceUUID, aes, iV)
-            ReferenceUtil.addReference(mercuryClient.dataBase, chatUUID, referenceUUID, messageUUID, MediaType.MEDIA_TYPE_IMAGE, Clock.systemDefaultZone().instant().toEpochMilli())
-
-            val hash = Hashing.sha512().hashBytes(byteOut.toByteArray()).toString()
-            val data = MessageImage(ThumbnailUtil.createThumbnail(referenceFile, MediaType.MEDIA_TYPE_IMAGE), text, bitmap.width, bitmap.height, aes, iV, referenceUUID, hash)
-            val core = MessageCore(clientUUID, System.currentTimeMillis(), messageUUID)
-
-            return ChatMessageInfo(ChatMessage(core, data), true, chatUUID)
-        }
-
-        override fun onPostExecute(result: ChatMessageInfo) {
-            execute.invoke(result)
         }
     }
 
     private fun sendVideo(uri: Uri, text: String, isGif: Boolean) {
-        val mercuryClient = applicationContext as MercuryClient
+        MediaSendUtil.saveVideoAndCreateMessage(mercuryClient(), listOf(chatInfo.chatUUID), uri, text, isGif) { result ->
+            if (result == null) {
+                Toast.makeText(this, "Looks like something went wrong trying to create a video message. This error has been reported to the developer", Toast.LENGTH_LONG).show()
+                return@saveVideoAndCreateMessage
+            }
 
-        SendVideoTask({ result ->
-            val data = result.message.messageData as MessageReference
-            mercuryClient.currentLoadingTable[data.reference] = 0.0
+            //We only send to this chat so only one message is present
+            val messageInfo = result[0]
 
-            addMessageToBottom(ChatMessageWrapper(result, MessageStatus.WAITING, System.currentTimeMillis()))
+            val data = messageInfo.message.messageData as MessageReference
+            mercuryClient().currentLoadingTable[data.reference] = 0.0
 
-            sendMessageToServer(this@ChatActivity, PendingMessage(result.message, chatInfo.chatUUID,
-                    chatInfo.getOthers(ClientPreferences.getClientUUID(this))), mercuryClient.dataBase)
+            addMessageToBottom(ChatMessageWrapper(messageInfo, MessageStatus.WAITING, System.currentTimeMillis()))
 
-            IOService.ActionUploadReference.launch(this, data.reference, data.aesKey, data.initVector, MediaType.MEDIA_TYPE_VIDEO, chatInfo.chatUUID, result.message.messageCore.messageUUID)
+            sendMessageToServer(this@ChatActivity, PendingMessage(messageInfo.message, chatInfo.chatUUID,
+                    chatInfo.getOthers(ClientPreferences.getClientUUID(this))), mercuryClient().dataBase)
+
+            IOService.ActionUploadReference.launch(this, data.reference, data.aesKey, data.initVector, MediaType.MEDIA_TYPE_VIDEO)
 
             scrollToBottom()
-        }, mercuryClient, uri, text, isGif, chatInfo.chatUUID).execute()
-    }
-
-    private class SendVideoTask(val execute: (ChatMessageInfo) -> Unit, val mercuryClient: MercuryClient, val uri: Uri, val text: String, val isGif: Boolean, val chatUUID: UUID) : AsyncTask<Unit, Unit, ChatMessageInfo>() {
-        override fun doInBackground(vararg args: Unit): ChatMessageInfo {
-            Thread.sleep(1L)
-            val referenceUUID = UUID.randomUUID()
-            val messageUUID = UUID.randomUUID()
-
-            val clientUUID = ClientPreferences.getClientUUID(mercuryClient)
-
-            val fileType = if (isGif) FileType.GIF else FileType.VIDEO
-            val referenceFile = saveMediaFileInAppStorage(referenceUUID, uri, mercuryClient, fileType)
-
-            val hash = Hashing.sha512().hashBytes(referenceFile.readBytes())
-
-            val dimension = getVideoDimension(mercuryClient, referenceFile)
-
-            val aesKey = generateAESKey()
-            val initVector = generateInitVector()
-
-            ReferenceUtil.setReferenceKey(mercuryClient.dataBase, referenceUUID, aesKey, initVector)
-            ReferenceUtil.addReference(mercuryClient.dataBase, chatUUID, referenceUUID, messageUUID, MediaType.MEDIA_TYPE_VIDEO, Clock.systemDefaultZone().instant().toEpochMilli())
-
-            val data = MessageVideo(getVideoDuration(referenceFile, mercuryClient), isGif, dimension.width, dimension.height, ThumbnailUtil.createThumbnail(referenceFile, MediaType.MEDIA_TYPE_VIDEO), text, aesKey, initVector, referenceUUID, hash.toString())
-            val core = MessageCore(clientUUID, System.currentTimeMillis(), messageUUID)
-
-            val message = ChatMessage(core, data)
-
-            return ChatMessageInfo(message, true, chatUUID)
-        }
-
-        override fun onPostExecute(result: ChatMessageInfo) {
-            execute.invoke(result)
         }
     }
 
@@ -901,7 +841,7 @@ class ChatActivity : AppCompatActivity() {
 
                     addMessageToBottom(ChatMessageWrapper(message, MessageStatus.WAITING, System.currentTimeMillis()))
 
-                    IOService.ActionUploadReference.launch(this, reference, aes, iV, MediaType.MEDIA_TYPE_AUDIO, chatInfo.chatUUID, core.messageUUID)
+                    IOService.ActionUploadReference.launch(this, reference, aes, iV, MediaType.MEDIA_TYPE_AUDIO)
 
                     scrollToBottom()
                 }
@@ -1058,9 +998,9 @@ class ChatActivity : AppCompatActivity() {
         val referenceUUID = data.reference
 
         if (upload) {
-            IOService.ActionUploadReference.launch(this, referenceUUID, data.aesKey, data.initVector, mediaType, chatInfo.chatUUID, message.messageCore.messageUUID)
+            IOService.ActionUploadReference.launch(this, referenceUUID, data.aesKey, data.initVector, mediaType)
         } else {
-            IOService.ActionDownloadReference.launch(this, referenceUUID, data.aesKey, data.initVector, mediaType, chatInfo.chatUUID, message.messageCore.messageUUID)
+            IOService.ActionDownloadReference.launch(this, referenceUUID, data.aesKey, data.initVector, mediaType)
         }
 
         chatAdapter.notifyItemChanged(adapterPosition)

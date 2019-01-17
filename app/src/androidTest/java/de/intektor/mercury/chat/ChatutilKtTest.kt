@@ -2,9 +2,7 @@ package de.intektor.mercury.chat
 
 import android.database.sqlite.SQLiteDatabase
 import androidx.test.InstrumentationRegistry
-import de.intektor.mercury.chat.model.ChatInfo
 import de.intektor.mercury_common.chat.ChatMessage
-import de.intektor.mercury_common.chat.ChatType
 import de.intektor.mercury_common.chat.MessageCore
 import de.intektor.mercury_common.chat.data.MessageText
 import org.junit.After
@@ -36,8 +34,8 @@ class ChatutilKtTest {
 
     @Test
     fun createChat() {
-        val chatInfo = ChatInfo(chatUUID, "Sample Chat", ChatType.TWO_PEOPLE, listOf())
-        de.intektor.mercury.chat.createChat(chatInfo, database, clientUUID)
+//        val chatInfo = ChatInfo(chatUUID, "Sample Chat", ChatType.TWO_PEOPLE, listOf())
+//        de.intektor.mercury.chat.createChat(chatInfo, database, clientUUID)
     }
 
     @Test

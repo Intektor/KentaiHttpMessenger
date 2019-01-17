@@ -277,6 +277,7 @@
     <!-- Strings related to Share Receive Activity -->
     <string name="share_receive_label">Mercury</string>
     <string name="share_receive_send">Send</string>
+    <string name="activity_share_receive_sending_info">Sending messages…</string>
 
     <!-- Strings related to the new version of mercury alert dialog -->
     <string name="new_mercury_version_alert_title">A new version of mercury is available</string>

@@ -4,17 +4,9 @@ import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
-import android.database.Cursor
 import android.graphics.drawable.Drawable
-import android.media.ThumbnailUtils
-import android.net.Uri
-import android.provider.MediaStore
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.squareup.picasso.Picasso
-import com.squareup.picasso.Request
-import com.squareup.picasso.RequestCreator
-import com.squareup.picasso.RequestHandler
 import de.intektor.mercury.R
 import de.intektor.mercury.media.MediaType
 import de.intektor.mercury.util.SHARED_PREFERENCES_THEME
@@ -35,28 +27,6 @@ fun checkPermission(activity: Activity, actionKey: Int, permission: String): Boo
         return false
     }
     return true
-}
-
-fun getRealVideoPath(uri: Uri, context: Context): String {
-    val projection = arrayOf(MediaStore.Video.Media.DATA)
-    return context.contentResolver.query(uri, projection, null, null, null).use { cursor: Cursor? ->
-        if (cursor != null) {
-            val columnIndex = cursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA)
-            cursor.moveToNext()
-            cursor.getString(columnIndex)
-        } else ""
-    }
-}
-
-fun getRealImagePath(uri: Uri, context: Context): String {
-    val projection = arrayOf(MediaStore.Images.Media.DATA)
-    return context.contentResolver.query(uri, projection, null, null, null).use { cursor: Cursor? ->
-        if (cursor != null) {
-            val columnIndex = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA)
-            cursor.moveToNext()
-            cursor.getString(columnIndex)
-        } else ""
-    }
 }
 
 fun isUsingLightTheme(context: Context): Boolean {
@@ -86,29 +56,6 @@ fun getAttrDrawable(context: Context, attr: Int): Drawable {
 
 private const val VIDEO_KIND_MINI = "videoThumbnailMini"
 private const val VIDEO_KIND_FULL = "videoThumbnailFull"
-
-fun videoPicasso(context: Context): Picasso =
-        Picasso.Builder(context)
-                .addRequestHandler(object : RequestHandler() {
-                    override fun canHandleRequest(data: Request): Boolean = data.uri.scheme == VIDEO_KIND_MINI
-
-                    override fun load(request: Request, networkPolicy: Int): Result {
-                        val bm = ThumbnailUtils.createVideoThumbnail(request.uri.path, MediaStore.Images.Thumbnails.MINI_KIND)
-                        return Result(bm, Picasso.LoadedFrom.DISK)
-                    }
-                })
-                .addRequestHandler(object : RequestHandler() {
-                    override fun canHandleRequest(data: Request): Boolean = data.uri.scheme == VIDEO_KIND_FULL
-
-                    override fun load(request: Request, networkPolicy: Int): Result {
-                        val bm = ThumbnailUtils.createVideoThumbnail(request.uri.path, MediaStore.Images.Thumbnails.FULL_SCREEN_KIND)
-                        return Result(bm, Picasso.LoadedFrom.DISK)
-                    }
-                }).build()
-
-fun Picasso.loadVideoThumbnailMini(path: String): RequestCreator = load("$VIDEO_KIND_MINI:$path")
-
-fun Picasso.loadVideoThumbnailFull(path: String): RequestCreator = load("$VIDEO_KIND_FULL:$path")
 
 @Deprecated("Should not use mediaType anymore and replace with MediaType")
 fun FileType.mediaType(): Int {

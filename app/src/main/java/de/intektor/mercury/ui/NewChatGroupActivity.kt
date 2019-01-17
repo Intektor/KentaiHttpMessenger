@@ -238,7 +238,7 @@ class NewChatGroupActivity : AppCompatActivity(), androidx.appcompat.widget.Sear
     }
 
     private class SelectedViewHolder(view: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(view) {
-        val image: ImageView = view.findViewById(R.id.item_chat_small_iv_pp)
+        val image: ImageView = view.findViewById(R.id.item_chat_small_cv_pp)
         val label: TextView = view.findViewById(R.id.item_chat_small_tv_label)
     }
 

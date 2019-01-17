@@ -1,19 +1,16 @@
 package de.intektor.mercury.media
 
 import android.content.Context
-import android.provider.MediaStore
+import android.net.Uri
 
-data class ExternalStorageFile(val id: Long, override val mediaType: Int, override val epochSecondAdded: Long) : MediaFile {
+data class ExternalStorageFile(val uriString: String, override val mediaType: Int, override val epochSecondAdded: Long, val storeId: Long? = null) : MediaFile {
 
-    override fun getPath(context: Context): String {
-       return context.contentResolver.query(MediaStore.Files.getContentUri("external"),
-                arrayOf(MediaStore.MediaColumns.DATA),
-                "${MediaStore.Files.FileColumns._ID} = ?",
-                arrayOf("$id"),
-                null).use { cursor ->
-            if (cursor == null || !cursor.moveToNext()) return@use ""
+    val uri: Uri
+        get() = Uri.parse(uriString)
 
-            cursor.getString(0)
-        }
-    }
+    override fun getUri(context: Context): Uri = Uri.parse(uriString)
+
+    constructor(uri: Uri, mediaType: Int, epochSecondAdded: Long, storeId: Long? = null) : this(uri.toString(), mediaType, epochSecondAdded, storeId)
+
+    override fun getPath(context: Context): String = getUri(context).path
 }
