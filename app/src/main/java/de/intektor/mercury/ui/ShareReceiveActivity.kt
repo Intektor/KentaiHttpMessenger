@@ -252,11 +252,13 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
         private fun createImageMessages(): List<ChatMessageInfo> {
             return when (action) {
                 Intent.ACTION_SEND -> {
-                    val uri: Uri = intent.getParcelableExtra(Intent.EXTRA_STREAM)
+                    val uri: Uri? = intent.getParcelableExtra(Intent.EXTRA_STREAM)
                     createImageMessages(uri)
                 }
                 Intent.ACTION_SEND_MULTIPLE -> {
-                    val uris: Array<Uri> = intent.getParcelableArrayExtra(Intent.EXTRA_STREAM) as Array<Uri>
+                    @Suppress("UNCHECKED_CAST")
+                    val uris: Array<Uri> = (intent.getParcelableArrayExtra(Intent.EXTRA_STREAM) as? Array<Uri>)
+                            ?: emptyArray()
 
                     uris.map { createImageMessages(it) }.flatten()
                 }
@@ -264,7 +266,8 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
             }
         }
 
-        private fun createImageMessages(uri: Uri): List<ChatMessageInfo> {
+        private fun createImageMessages(uri: Uri?): List<ChatMessageInfo> {
+            if (uri == null) return emptyList()
             val referenceUUID = UUID.randomUUID()
 
             SaveReferenceTask.saveReference(mercuryClient, mercuryClient.contentResolver.openInputStream(uri), referenceUUID)
@@ -276,11 +279,12 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
         private fun createVideoMessages(): List<ChatMessageInfo> {
             return when (action) {
                 Intent.ACTION_SEND -> {
-                    val uri: Uri = intent.getParcelableExtra(Intent.EXTRA_STREAM)
+                    val uri: Uri? = intent.getParcelableExtra(Intent.EXTRA_STREAM)
                     createVideoMessages(uri)
                 }
                 Intent.ACTION_SEND_MULTIPLE -> {
-                    val uris: Array<Uri> = intent.getParcelableArrayExtra(Intent.EXTRA_STREAM) as Array<Uri>
+                    val uris: Array<Uri> = (intent.getParcelableArrayExtra(Intent.EXTRA_STREAM) as? Array<Uri>)
+                            ?: emptyArray()
 
                     uris.map { createVideoMessages(it) }.flatten()
                 }
@@ -288,7 +292,8 @@ class ShareReceiveActivity : AppCompatActivity(), SearchView.OnQueryTextListener
             }
         }
 
-        private fun createVideoMessages(uri: Uri): List<ChatMessageInfo> {
+        private fun createVideoMessages(uri: Uri?): List<ChatMessageInfo> {
+            if (uri == null) return emptyList()
             val referenceUUID = UUID.randomUUID()
 
             SaveReferenceTask.saveReference(mercuryClient, mercuryClient.contentResolver.openInputStream(uri), referenceUUID)

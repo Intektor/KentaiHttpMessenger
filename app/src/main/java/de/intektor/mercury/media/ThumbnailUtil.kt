@@ -94,7 +94,7 @@ object ThumbnailUtil {
                     }
                 } else throw UnsupportedOperationException("Cant load thumbnail of kind=$kind")
             } else {
-                val thumbnail = loadThumbnailFromCacheOrCreate(context, uri, uri.pathSegments.filter { it.matches("^[A-Za-z0-9]+\$".toRegex()) }.joinToString(separator = "-") { it }, mediaType, kind)
+                val thumbnail = loadThumbnailFromCacheOrCreate(context, uri, uri.pathSegments.joinToString("-") { it }.replace('/', '-'), mediaType, kind)
                 return Result(thumbnail, Picasso.LoadedFrom.DISK)
             }
         }

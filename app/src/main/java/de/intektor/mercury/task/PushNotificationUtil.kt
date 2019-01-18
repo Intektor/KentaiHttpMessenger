@@ -388,7 +388,9 @@ object PushNotificationUtil {
         val profilePictureFile = ProfilePictureUtil.getProfilePicture(userUUID, context, ProfilePictureType.SMALL)
         val icon = if (profilePictureFile.exists()) {
             val bitmap = BitmapFactory.decodeFile(profilePictureFile.path)
-            Icon.createWithBitmap(bitmap)
+            if (bitmap != null) {
+                Icon.createWithBitmap(bitmap)
+            } else Icon.createWithResource(context, R.drawable.baseline_account_circle_24)
         } else Icon.createWithResource(context, R.drawable.baseline_account_circle_24)
 
         return IconCompat.createFromIcon(context, icon)

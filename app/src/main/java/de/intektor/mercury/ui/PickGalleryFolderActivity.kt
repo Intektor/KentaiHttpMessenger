@@ -130,7 +130,7 @@ class PickGalleryFolderActivity : AppCompatActivity(), FragmentListMedia.UserInt
     }
 
     override fun selectSingleItemAndContinue(mediaFile: MediaFile) {
-        val (folderId, chatInfo, _) = getData(intent)
+        val (_, chatInfo, _) = getData(intent)
 
         if (chatInfo != null) {
             startActivityForResult(SendMediaActivity.createIntent(this, chatInfo, listOf(mediaFile)), PickGalleryFolderActivity.ACTION_SEND_MEDIA)
